@@ -13,19 +13,25 @@ import (
 
 func init() {
 	core.Commands = append(core.Commands, cli.Command{
-		Name:    "delete",
-		Aliases: []string{"remove"},
-		Usage:   "Delete a mod from the modpack",
+		Name:    "remove",
+		Aliases: []string{"delete", "uninstall"},
+		Usage:   "Remove a mod from the modpack",
 		Action: func(c *cli.Context) error {
-			cmdDelete(core.FlagsFromContext(c))
+			return cmdDelete(core.FlagsFromContext(c))
+		},
+	}, cli.Command{
+		Name:    "update",
+		Aliases: []string{"upgrade"},
+		Usage:   "Update a mod (or all mods) in the modpack",
+		Action: func(c *cli.Context) error {
+			// TODO: implement
 			return nil
 		},
 	}, cli.Command{
-		Name:    "delet",
-		Aliases: []string{"remov"},
-		Usage:   "Delete a mod from the modpack",
+		Name:  "refresh",
+		Usage: "Refresh the index file",
 		Action: func(c *cli.Context) error {
-			cmdDelete(core.FlagsFromContext(c))
+			// TODO: implement
 			return nil
 		},
 	})
@@ -44,14 +50,14 @@ func main() {
 	}
 }
 
-func cmdDelete(flags core.Flags) {
+func cmdDelete(flags core.Flags) error {
 	mod := "demagnetize"
 	err := os.Remove(core.ResolveMod(mod, flags))
 	if err != nil {
-		fmt.Printf("Error removing mod: %s", err)
-	} else {
-		fmt.Printf("Mod %s removed successfully!", mod)
+		return cli.NewExitError(err, 1)
 	}
+	fmt.Printf("Mod %s removed successfully!", mod)
 	// TODO: update index
+	return nil
 }
 
