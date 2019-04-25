@@ -1,5 +1,4 @@
 package main
-
 import (
 	"fmt"
 	"log"
@@ -63,15 +62,15 @@ func cmdDelete(flags core.Flags) error {
 func cmdRefresh(flags core.Flags) error {
 	index, err := core.LoadIndex(flags)
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	err = index.Refresh()
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	err = index.Write()
 	if err != nil {
-		return err
+		return cli.NewExitError(err, 1)
 	}
 	return nil
 }
