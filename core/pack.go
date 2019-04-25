@@ -1,6 +1,6 @@
 package core
 import (
-	"fmt"
+	"io/ioutil"
 
 	"github.com/BurntSushi/toml"
 )
@@ -20,8 +20,18 @@ type Pack struct {
 
 // LoadPack loads the modpack metadata to a Pack struct
 func LoadPack(flags Flags) (Pack, error) {
-	fmt.Println(flags.PackFile)
-	// TODO implement
-	return Pack{}, nil
+	data, err := ioutil.ReadFile(flags.PackFile)
+	if err != nil {
+		return Pack{}, err
+	}
+	var modpack Pack
+	if _, err := toml.Decode(string(data), &modpack); err != nil {
+		return Pack{}, err
+	}
+
+	if len(modpack.Index.File) == 0 {
+		modpack.Index.File = "index.toml"
+	}
+	return modpack, nil
 }
 

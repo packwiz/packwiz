@@ -31,7 +31,18 @@ func init() {
 		Name:  "refresh",
 		Usage: "Refresh the index file",
 		Action: func(c *cli.Context) error {
-			// TODO: implement
+			index, err := core.LoadIndex(core.FlagsFromContext(c))
+			if err != nil {
+				return err
+			}
+			err = index.Refresh()
+			if err != nil {
+				return err
+			}
+			err = index.Write()
+			if err != nil {
+				return err
+			}
 			return nil
 		},
 	})

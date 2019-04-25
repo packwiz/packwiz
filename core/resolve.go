@@ -22,6 +22,6 @@ func ResolveIndex(flags Flags) (string, error) {
 	if filepath.IsAbs(pack.Index.File) {
 		return pack.Index.File, nil
 	}
-	return filepath.Join(flags.PackFile, pack.Index.File), nil
+	return filepath.Join(filepath.Dir(flags.PackFile), pack.Index.File), nil
 }
 
