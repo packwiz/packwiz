@@ -1,4 +1,5 @@
 package main
+
 import (
 	"fmt"
 	"log"
@@ -31,23 +32,10 @@ func init() {
 		Name:  "refresh",
 		Usage: "Refresh the index file",
 		Action: func(c *cli.Context) error {
-			index, err := core.LoadIndex(core.FlagsFromContext(c))
-			if err != nil {
-				return err
-			}
-			err = index.Refresh()
-			if err != nil {
-				return err
-			}
-			err = index.Write()
-			if err != nil {
-				return err
-			}
-			return nil
+			return cmdRefresh(core.FlagsFromContext(c))
 		},
 	})
 }
-
 func main() {
 	app := cli.NewApp()
 	app.Commands = core.Commands
@@ -69,6 +57,22 @@ func cmdDelete(flags core.Flags) error {
 	}
 	fmt.Printf("Mod %s removed successfully!", mod)
 	// TODO: update index
+	return nil
+}
+
+func cmdRefresh(flags core.Flags) error {
+	index, err := core.LoadIndex(flags)
+	if err != nil {
+		return err
+	}
+	err = index.Refresh()
+	if err != nil {
+		return err
+	}
+	err = index.Write()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
