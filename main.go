@@ -49,6 +49,7 @@ func main() {
 }
 
 func cmdDelete(flags core.Flags) error {
+	// TODO: actual input
 	mod := "demagnetize"
 	err := os.Remove(core.ResolveMod(mod, flags))
 	if err != nil {
@@ -60,7 +61,11 @@ func cmdDelete(flags core.Flags) error {
 }
 
 func cmdRefresh(flags core.Flags) error {
-	index, err := core.LoadIndex(flags)
+	pack, err := core.LoadPack(flags)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	index, err := pack.LoadIndex()
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -69,6 +74,14 @@ func cmdRefresh(flags core.Flags) error {
 		return cli.NewExitError(err, 1)
 	}
 	err = index.Write()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	err = pack.UpdateIndexHash()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	err = pack.Write()
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}

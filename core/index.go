@@ -1,7 +1,11 @@
 package core
 import (
+	"crypto/sha256"
+	"encoding/hex"
+	"io"
 	"io/ioutil"
 	"os"
+	"path/filepath"
 	"sort"
 
 	"github.com/BurntSushi/toml"
@@ -9,24 +13,24 @@ import (
 
 // Index is a representation of the index.toml file for referencing all the files in a pack.
 type Index struct {
-	HashFormat string `toml:"hash-format"`
-	Files      []struct {
-		File       string `toml:"file"`
-		Hash       string `toml:"hash"`
-		HashFormat string `toml:"hash-format,omitempty"`
-		Alias      string `toml:"alias,omitempty"`
-	} `toml:"files"`
-	flags     Flags
-	indexFile string
+	HashFormat string      `toml:"hash-format"`
+	Files      []IndexFile `toml:"files"`
+	flags      Flags
+	indexFile  string
 }
 
-// LoadIndex loads the index file
-func LoadIndex(flags Flags) (Index, error) {
-	indexFile, err := ResolveIndex(flags)
-	if err != nil {
-		return Index{}, err
-	}
+// IndexFile is a file in the index
+type IndexFile struct {
+	File           string `toml:"file"`
+	Hash           string `toml:"hash"`
+	HashFormat     string `toml:"hash-format,omitempty"`
+	Alias          string `toml:"alias,omitempty"`
+	MetaFile       bool   `toml:"metafile,omitempty"` // True when it is a .toml metadata file
+	fileExistsTemp bool
+}
 
+// LoadIndex attempts to load the index file from a path
+func LoadIndex(indexFile string, flags Flags) (Index, error) {
 	data, err := ioutil.ReadFile(indexFile)
 	if err != nil {
 		return Index{}, err
@@ -37,39 +41,140 @@ func LoadIndex(flags Flags) (Index, error) {
 	}
 	index.flags = flags
 	index.indexFile = indexFile
+	if len(index.HashFormat) == 0 {
+		index.HashFormat = "sha256"
+	}
 	return index, nil
 }
 
 // RemoveFile removes a file from the index.
-func (in Index) RemoveFile(path string) {
+func (in *Index) RemoveFile(path string) error {
+	relPath, err := filepath.Rel(filepath.Dir(in.indexFile), path)
+	if err != nil {
+		return err
+	}
 	newFiles := in.Files[:0]
 	for _, v := range in.Files {
-		if v.File != path {
+		if filepath.Clean(v.File) != relPath {
 			newFiles = append(newFiles, v)
 		}
 	}
 	in.Files = newFiles
+	return nil
 }
 
 // resortIndex sorts Files by file name
-func (in Index) resortIndex() {
+func (in *Index) resortIndex() {
 	sort.SliceStable(in.Files, func(i, j int) bool {
-		// Compare by alias if names are equal?
-		// Remove duplicated entries? (compound key on file/alias?)
+		// TODO: Compare by alias if names are equal?
+		// TODO: Remove duplicated entries? (compound key on file/alias?)
 		return in.Files[i].File < in.Files[j].File
 	})
 }
 
+// updateFile calculates the hash for a given path relative to the pack folder,
+// and updates it in the index
+func (in *Index) updateFile(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	// Hash usage strategy (may change):
+	// Just use SHA256, overwrite existing hash regardless of what it is
+	// May update later to continue using the same hash that was already being used
+	h := sha256.New()
+	if _, err := io.Copy(h, f); err != nil {
+		return err
+	}
+	hashString := hex.EncodeToString(h.Sum(nil))
+
+	// Find in index
+	found := false
+	relPath, err := filepath.Rel(filepath.Dir(in.indexFile), path)
+	if err != nil {
+		return err
+	}
+	for k, v := range in.Files {
+		if filepath.Clean(v.File) == relPath {
+			found = true
+			// Update hash
+			in.Files[k].Hash = hashString
+			if in.HashFormat == "sha256" {
+				in.Files[k].HashFormat = ""
+			} else {
+				in.Files[k].HashFormat = "sha256"
+			}
+			// Mark this file as found
+			in.Files[k].fileExistsTemp = true
+			// Clean up path if it's untidy
+			in.Files[k].File = relPath
+			// Don't break out of loop, as there may be aliased versions that
+			// also need to be updated
+		}
+	}
+	if !found {
+		newFile := IndexFile{
+			File:           relPath,
+			Hash:           hashString,
+			fileExistsTemp: true,
+		}
+		// Override hash format for this file, if the whole index isn't sha256
+		if in.HashFormat != "sha256" {
+			newFile.HashFormat = "sha256"
+		}
+		in.Files = append(in.Files, newFile)
+	}
+
+	return nil
+}
+
 // Refresh updates the hashes of all the files in the index, and adds new files to the index
-func (in Index) Refresh() error {
-	// TODO: implement
-	// process:
-	// enumerate files, exclude index and pack.toml
-	// hash them
-	// check if they exist in list
-	// if exists, modify existing entry(ies)
-	// if not exists, add new entry
-	// resort
+func (in *Index) Refresh() error {
+	// TODO: enumerate existing files, check if they exist (remove if they don't)
+
+	// TODO: If needed, multithreaded hashing
+	// for i := 0; i < runtime.NumCPU(); i++ {}
+
+	// Get fileinfos of pack.toml and index to compare them
+	pathPF, _ := filepath.Abs(in.flags.PackFile)
+	pathIndex, _ := filepath.Abs(in.indexFile)
+
+	// TODO: A method of specifying pack root directory?
+	// TODO: A method of excluding files
+	packRoot := filepath.Dir(in.flags.PackFile)
+	err := filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			// TODO: Handle errors on individual files properly
+			return err
+		}
+		// Exit if the files are the same as the pack/index files
+		absPath, _ := filepath.Abs(path)
+		if absPath == pathPF || absPath == pathIndex {
+			return nil
+		}
+		// Exit if this is a directory
+		if info.IsDir() {
+			return nil
+		}
+
+		return in.updateFile(path)
+	})
+	if err != nil {
+		return err
+	}
+
+	// Check all the files exist, remove them if they don't
+	i := 0
+	for _, file := range in.Files {
+		if file.fileExistsTemp {
+			// Keep file if it exists (already checked in updateFile)
+			in.Files[i] = file
+			i++
+		}
+	}
+	in.Files = in.Files[:i]
 	in.resortIndex()
 	return nil
 }
