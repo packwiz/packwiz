@@ -14,6 +14,7 @@ import (
 type Pack struct {
 	Name  string `toml:"name"`
 	Index struct {
+		// Path is stored in forward slash format relative to pack.toml
 		File       string `toml:"file"`
 		HashFormat string `toml:"hash-format"`
 		Hash       string `toml:"hash"`
@@ -47,12 +48,14 @@ func (pack Pack) LoadIndex() (Index, error) {
 	if filepath.IsAbs(pack.Index.File) {
 		return LoadIndex(pack.Index.File, pack.flags)
 	}
-	return LoadIndex(filepath.Join(filepath.Dir(pack.flags.PackFile), pack.Index.File), pack.flags)
+	fileNative := filepath.FromSlash(pack.Index.File)
+	return LoadIndex(filepath.Join(filepath.Dir(pack.flags.PackFile), fileNative), pack.flags)
 }
 
 // UpdateIndexHash recalculates the hash of the index file of this modpack
 func (pack *Pack) UpdateIndexHash() error {
-	indexFile := filepath.Join(filepath.Dir(pack.flags.PackFile), pack.Index.File)
+	fileNative := filepath.FromSlash(pack.Index.File)
+	indexFile := filepath.Join(filepath.Dir(pack.flags.PackFile), fileNative)
 	if filepath.IsAbs(pack.Index.File) {
 		indexFile = pack.Index.File
 	}

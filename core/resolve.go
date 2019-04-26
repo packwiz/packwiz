@@ -13,15 +13,3 @@ func ResolveMod(modName string, flags Flags) string {
 	return filepath.Join(flags.ModsFolder, fileName)
 }
 
-// ResolveIndex returns the path to the index file
-func ResolveIndex(flags Flags) (string, error) {
-	pack, err := LoadPack(flags)
-	if err != nil {
-		return "", err
-	}
-	if filepath.IsAbs(pack.Index.File) {
-		return pack.Index.File, nil
-	}
-	return filepath.Join(filepath.Dir(flags.PackFile), pack.Index.File), nil
-}
-

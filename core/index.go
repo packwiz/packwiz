@@ -22,6 +22,7 @@ type Index struct {
 
 // IndexFile is a file in the index
 type IndexFile struct {
+	// Files are stored in relative forward-slash format to the index file
 	File           string `toml:"file"`
 	Hash           string `toml:"hash"`
 	HashFormat     string `toml:"hash-format,omitempty"`
@@ -57,7 +58,7 @@ func (in *Index) RemoveFile(path string) error {
 
 	i := 0
 	for _, file := range in.Files {
-		if filepath.Clean(file.File) != relPath {
+		if filepath.Clean(filepath.FromSlash(file.File)) != relPath {
 			// Keep file, as it doesn't match
 			in.Files[i] = file
 			i++
@@ -76,8 +77,7 @@ func (in *Index) resortIndex() {
 	})
 }
 
-// updateFile calculates the hash for a given path relative to the pack folder,
-// and updates it in the index
+// updateFile calculates the hash for a given path and updates it in the index
 func (in *Index) updateFile(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
@@ -101,7 +101,7 @@ func (in *Index) updateFile(path string) error {
 		return err
 	}
 	for k, v := range in.Files {
-		if filepath.Clean(v.File) == relPath {
+		if filepath.Clean(filepath.FromSlash(v.File)) == relPath {
 			found = true
 			// Update hash
 			in.Files[k].Hash = hashString
@@ -113,14 +113,14 @@ func (in *Index) updateFile(path string) error {
 			// Mark this file as found
 			in.Files[k].fileExistsTemp = true
 			// Clean up path if it's untidy
-			in.Files[k].File = relPath
+			in.Files[k].File = filepath.ToSlash(relPath)
 			// Don't break out of loop, as there may be aliased versions that
 			// also need to be updated
 		}
 	}
 	if !found {
 		newFile := IndexFile{
-			File:           relPath,
+			File:           filepath.ToSlash(relPath),
 			Hash:           hashString,
 			fileExistsTemp: true,
 		}
@@ -128,6 +128,20 @@ func (in *Index) updateFile(path string) error {
 		if in.HashFormat != "sha256" {
 			newFile.HashFormat = "sha256"
 		}
+		// If the file is in the mods folder, set MetaFile to true (mods are metafiles by default)
+		// This is incredibly powerful: you can put a normal jar in the mods folder just by
+		// setting MetaFile to false. Or you can use the "mod" metadata system for other types
+		// of files, like CraftTweaker resources.
+		absFileDir, err := filepath.Abs(filepath.Dir(path))
+		if err == nil {
+			absModsDir, err := filepath.Abs(in.flags.ModsFolder)
+			if err == nil {
+				if absFileDir == absModsDir {
+					newFile.MetaFile = true
+				}
+			}
+		}
+
 		in.Files = append(in.Files, newFile)
 	}
 
