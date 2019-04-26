@@ -77,8 +77,8 @@ func (in *Index) resortIndex() {
 	})
 }
 
-// UpdateFile calculates the hash for a given path and updates it in the index
-func (in *Index) UpdateFile(path string) error {
+// updateFile calculates the hash for a given path and updates it in the index
+func (in *Index) updateFile(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -176,7 +176,7 @@ func (in *Index) Refresh() error {
 			return nil
 		}
 
-		return in.UpdateFile(path)
+		return in.updateFile(path)
 	})
 	if err != nil {
 		return err
@@ -186,13 +186,23 @@ func (in *Index) Refresh() error {
 	i := 0
 	for _, file := range in.Files {
 		if file.fileExistsTemp {
-			// Keep file if it exists (already checked in UpdateFile)
+			// Keep file if it exists (already checked in updateFile)
 			in.Files[i] = file
 			i++
 		}
 	}
 	in.Files = in.Files[:i]
 
+	in.resortIndex()
+	return nil
+}
+
+// RefreshFile calculates the hash for a given path and updates it in the index (also sorts the index)
+func (in *Index) RefreshFile(path string) error {
+	err := in.updateFile(path)
+	if err != nil {
+		return err
+	}
 	in.resortIndex()
 	return nil
 }
