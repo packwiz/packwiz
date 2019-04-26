@@ -77,8 +77,8 @@ func (in *Index) resortIndex() {
 	})
 }
 
-// updateFile calculates the hash for a given path and updates it in the index
-func (in *Index) updateFile(path string) error {
+// UpdateFile calculates the hash for a given path and updates it in the index
+func (in *Index) UpdateFile(path string) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -154,6 +154,7 @@ func (in *Index) Refresh() error {
 	// for i := 0; i < runtime.NumCPU(); i++ {}
 
 	// Get fileinfos of pack.toml and index to compare them
+	// Case-sensitivity?
 	pathPF, _ := filepath.Abs(in.flags.PackFile)
 	pathIndex, _ := filepath.Abs(in.indexFile)
 
@@ -175,7 +176,7 @@ func (in *Index) Refresh() error {
 			return nil
 		}
 
-		return in.updateFile(path)
+		return in.UpdateFile(path)
 	})
 	if err != nil {
 		return err
@@ -185,7 +186,7 @@ func (in *Index) Refresh() error {
 	i := 0
 	for _, file := range in.Files {
 		if file.fileExistsTemp {
-			// Keep file if it exists (already checked in updateFile)
+			// Keep file if it exists (already checked in UpdateFile)
 			in.Files[i] = file
 			i++
 		}
