@@ -17,7 +17,7 @@ func init() {
 		Aliases: []string{"delete", "uninstall"},
 		Usage:   "Remove a mod from the modpack",
 		Action: func(c *cli.Context) error {
-			return cmdDelete(core.FlagsFromContext(c))
+			return cmdDelete(core.FlagsFromContext(c), c.Args().Get(0))
 		},
 	}, cli.Command{
 		Name:    "update",
@@ -48,19 +48,16 @@ func main() {
 	}
 }
 
-func cmdDelete(flags core.Flags) error {
-	// TODO: actual input
-	mod := "demagnetize"
-	err := os.Remove(core.ResolveMod(mod, flags))
+func cmdDelete(flags core.Flags, mod string) error {
+	if len(mod) == 0 {
+		return cli.NewExitError("You must specify a mod.", 1)
+	}
+	resolvedMod := core.ResolveMod(mod, flags)
+	err := os.Remove(resolvedMod)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	fmt.Printf("Mod %s removed successfully!", mod)
-	// TODO: update index
-	return nil
-}
-
-func cmdRefresh(flags core.Flags) error {
+	fmt.Println("Loading modpack...")
 	pack, err := core.LoadPack(flags)
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -69,6 +66,39 @@ func cmdRefresh(flags core.Flags) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	fmt.Println("Removing mod from index...")
+	err = index.RemoveFile(resolvedMod)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	err = index.Write()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	err = pack.UpdateIndexHash()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	err = pack.Write()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	fmt.Printf("Mod %s removed successfully!", mod)
+	return nil
+}
+
+func cmdRefresh(flags core.Flags) error {
+	fmt.Println("Loading modpack...")
+	pack, err := core.LoadPack(flags)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	index, err := pack.LoadIndex()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	fmt.Println("Refreshing index...")
 	err = index.Refresh()
 	if err != nil {
 		return cli.NewExitError(err, 1)
@@ -85,6 +115,7 @@ func cmdRefresh(flags core.Flags) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	fmt.Println("Index refreshed!")
 	return nil
 }
 

@@ -150,8 +150,6 @@ func (in *Index) updateFile(path string) error {
 
 // Refresh updates the hashes of all the files in the index, and adds new files to the index
 func (in *Index) Refresh() error {
-	// TODO: enumerate existing files, check if they exist (remove if they don't)
-
 	// TODO: If needed, multithreaded hashing
 	// for i := 0; i < runtime.NumCPU(); i++ {}
 
