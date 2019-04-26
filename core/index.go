@@ -1,4 +1,5 @@
 package core
+
 import (
 	"crypto/sha256"
 	"encoding/hex"
@@ -53,13 +54,16 @@ func (in *Index) RemoveFile(path string) error {
 	if err != nil {
 		return err
 	}
-	newFiles := in.Files[:0]
-	for _, v := range in.Files {
-		if filepath.Clean(v.File) != relPath {
-			newFiles = append(newFiles, v)
+
+	i := 0
+	for _, file := range in.Files {
+		if filepath.Clean(file.File) != relPath {
+			// Keep file, as it doesn't match
+			in.Files[i] = file
+			i++
 		}
 	}
-	in.Files = newFiles
+	in.Files = in.Files[:i]
 	return nil
 }
 
@@ -175,6 +179,7 @@ func (in *Index) Refresh() error {
 		}
 	}
 	in.Files = in.Files[:i]
+
 	in.resortIndex()
 	return nil
 }
