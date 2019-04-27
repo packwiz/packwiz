@@ -4,7 +4,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -33,12 +32,8 @@ type IndexFile struct {
 
 // LoadIndex attempts to load the index file from a path
 func LoadIndex(indexFile string, flags Flags) (Index, error) {
-	data, err := ioutil.ReadFile(indexFile)
-	if err != nil {
-		return Index{}, err
-	}
 	var index Index
-	if _, err := toml.Decode(string(data), &index); err != nil {
+	if _, err := toml.DecodeFile(indexFile, &index); err != nil {
 		return Index{}, err
 	}
 	index.flags = flags

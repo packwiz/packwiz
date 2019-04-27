@@ -3,7 +3,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 
@@ -27,12 +26,8 @@ type Pack struct {
 
 // LoadPack loads the modpack metadata to a Pack struct
 func LoadPack(flags Flags) (Pack, error) {
-	data, err := ioutil.ReadFile(flags.PackFile)
-	if err != nil {
-		return Pack{}, err
-	}
 	var modpack Pack
-	if _, err := toml.Decode(string(data), &modpack); err != nil {
+	if _, err := toml.DecodeFile(flags.PackFile, &modpack); err != nil {
 		return Pack{}, err
 	}
 
