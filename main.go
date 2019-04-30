@@ -98,7 +98,6 @@ func cmdRefresh(flags core.Flags) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	fmt.Println("Refreshing index...")
 	err = index.Refresh()
 	if err != nil {
 		return cli.NewExitError(err, 1)

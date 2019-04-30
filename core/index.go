@@ -7,8 +7,11 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/vbauerster/mpb/v4"
+	"github.com/vbauerster/mpb/v4/decor"
 )
 
 // Index is a representation of the index.toml file for referencing all the files in a pack.
@@ -153,6 +156,25 @@ func (in *Index) Refresh() error {
 	pathPF, _ := filepath.Abs(in.flags.PackFile)
 	pathIndex, _ := filepath.Abs(in.indexFile)
 
+	progressLength := len(in.Files)
+	progressCurrent := 0
+	progressContainer := mpb.New()
+	progress := progressContainer.AddBar(int64(progressLength),
+		mpb.PrependDecorators(
+			// simple name decorator
+			decor.Name("Refreshing index..."),
+			// decor.DSyncWidth bit enables column width synchronization
+			decor.Percentage(decor.WCSyncSpace),
+		),
+		mpb.AppendDecorators(
+			// replace ETA decorator with "done" message, OnComplete event
+			decor.OnComplete(
+				// ETA decorator with ewma age of 60
+				decor.EwmaETA(decor.ET_STYLE_GO, 60), "done",
+			),
+		),
+	)
+
 	// TODO: A method of specifying pack root directory?
 	// TODO: A method of excluding files
 	packRoot := filepath.Dir(in.flags.PackFile)
@@ -161,6 +183,16 @@ func (in *Index) Refresh() error {
 			// TODO: Handle errors on individual files properly
 			return err
 		}
+		start := time.Now()
+		defer func() {
+			if progressCurrent >= progressLength {
+				progressLength++
+				progress.SetTotal(int64(progressLength), false)
+			}
+			progressCurrent++
+			progress.Increment(time.Since(start))
+		}()
+
 		// Exit if the files are the same as the pack/index files
 		absPath, _ := filepath.Abs(path)
 		if absPath == pathPF || absPath == pathIndex {
@@ -176,6 +208,8 @@ func (in *Index) Refresh() error {
 	if err != nil {
 		return err
 	}
+
+	progress.SetTotal(int64(progressLength), true)
 
 	// Check all the files exist, remove them if they don't
 	i := 0
