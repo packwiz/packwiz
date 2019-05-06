@@ -6,18 +6,20 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
+	"time"
 )
 
-// AddonSlugRequest is sent to the CurseProxy GraphQL api to get the id from a slug
-type AddonSlugRequest struct {
+// addonSlugRequest is sent to the CurseProxy GraphQL api to get the id from a slug
+type addonSlugRequest struct {
 	Query     string `json:"query"`
 	Variables struct {
 		Slug string `json:"slug"`
 	} `json:"variables"`
 }
 
-// AddonSlugResponse is received from the CurseProxy GraphQL api to get the id from a slug
-type AddonSlugResponse struct {
+// addonSlugResponse is received from the CurseProxy GraphQL api to get the id from a slug
+type addonSlugResponse struct {
 	Data struct {
 		Addons []struct {
 			ID int `json:"id"`
@@ -31,7 +33,7 @@ type AddonSlugResponse struct {
 // Most of this is shamelessly copied from my previous attempt at modpack management:
 // https://github.com/comp500/modpack-editor/blob/master/query.go
 func modIDFromSlug(slug string) (int, error) {
-	request := AddonSlugRequest{
+	request := addonSlugRequest{
 		Query: `
 		query getIDFromSlug($slug: String) {
 			{
@@ -45,7 +47,7 @@ func modIDFromSlug(slug string) (int, error) {
 	request.Variables.Slug = slug
 
 	// Uses the curse.nikky.moe GraphQL api
-	var response AddonSlugResponse
+	var response addonSlugResponse
 	client := &http.Client{}
 
 	requestBytes, err := json.Marshal(request)
@@ -82,5 +84,94 @@ func modIDFromSlug(slug string) (int, error) {
 	}
 
 	return response.Data.Addons[0].ID, nil
+}
+
+// curseMetaError is an error returned by the Staging CurseMeta API
+type curseMetaError struct {
+	Description string `json:"description"`
+	Error       bool   `json:"error"`
+	Status      int    `json:"status"`
+}
+
+const (
+	fileTypeRelease int = iota + 1
+	fileTypeBeta
+	fileTypeAlpha
+)
+
+const (
+	dependencyTypeRequired int = iota + 1
+	dependencyTypeOptional
+)
+
+// modInfo is a subset of the deserialised JSON response from the Staging CurseMeta API for mods (addons)
+type modInfo struct {
+	Name                   string    `json:"name"`
+	Slug                   string    `json:"slug"`
+	ID                     int       `json:"id"`
+	LatestFiles            []modFile `json:"latestFiles"`
+	GameVersionLatestFiles []struct {
+		// TODO: check how twitch launcher chooses which one to use, when you are on beta/alpha channel?!
+		// or does it not have the concept of channels?!
+		GameVersion string `json:"gameVersion"`
+		ID          int    `json:"projectFileId"`
+		Name        string `json:"projectFileName"`
+		FileType    int    `json:"fileType"`
+	} `json:"gameVersionLatestFiles"`
+}
+
+func getModInfo(modid int) (modInfo, error) {
+	// Uses the Staging CurseMeta api
+	var response struct {
+		modInfo
+		curseMetaError
+	}
+	client := &http.Client{}
+
+	idStr := strconv.Itoa(modid)
+
+	req, err := http.NewRequest("GET", "https://staging_cursemeta.dries007.net/api/v3/direct/addon/"+idStr, nil)
+	if err != nil {
+		return modInfo{}, err
+	}
+
+	// TODO: make this configurable application-wide
+	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return modInfo{}, err
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil && err != io.EOF {
+		return modInfo{}, err
+	}
+
+	if response.Error {
+		return modInfo{}, fmt.Errorf("Error requesting mod metadata: %s", response.Description)
+	}
+
+	if response.ID != modid {
+		return modInfo{}, fmt.Errorf("Unexpected addon ID in CurseForge response: %d/%d", modid, response.ID)
+	}
+
+	return response.modInfo, nil
+}
+
+type modFile struct {
+	ID           int       `json:"id"`
+	FileName     string    `json:"fileNameOnDisk"`
+	FriendlyName string    `json:"fileName"`
+	Date         time.Time `json:"fileDate"`
+	Length       int       `json:"fileLength"`
+	FileType     int       `json:"releaseType"`
+	// fileStatus? means latest/preferred?
+	GameVersions []string `json:"gameVersion"`
+	Dependencies []struct {
+		ModID int `json:"addonId"`
+		Type  int `json:"type"`
+	} `json:"dependencies"`
 }
 
