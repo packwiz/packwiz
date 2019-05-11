@@ -5,7 +5,7 @@ var UpdateParsers = make(map[string]UpdateParser)
 // UpdateParser takes an unparsed interface{} (as a map[string]interface{}), and returns an Updater for a mod file.
 // This can be done using the mapstructure library or your own parsing methods.
 type UpdateParser interface {
-	ParseUpdate(interface{}) (Updater, error)
+	ParseUpdate(map[string]interface{}) (Updater, error)
 }
 
 // Updater checks for and does updates on a mod

@@ -1,4 +1,5 @@
 package curseforge
+
 import (
 	"errors"
 	"fmt"
@@ -147,13 +148,16 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 
 	fileInfo, err := getFileInfo(modID, fileID)
 
-	updateMap := make(map[string]interface{})
+	updateMap := make(map[string]map[string]interface{})
 
-	updateMap["curseforge"] = cfUpdater{
+	updateMap["curseforge"], err = cfUpdater{
 		ProjectID: modID,
 		FileID:    fileID,
 		// TODO: determine update channel
 		ReleaseChannel: "release",
+	}.ToMap()
+	if err != nil {
+		return err
 	}
 
 	modMeta := core.Mod{
@@ -176,19 +180,25 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 
 type cfUpdateParser struct{}
 
-func (u cfUpdateParser) ParseUpdate(updateUnparsed interface{}) (core.Updater, error) {
+func (u cfUpdateParser) ParseUpdate(updateUnparsed map[string]interface{}) (core.Updater, error) {
 	var updater cfUpdater
 	err := mapstructure.Decode(updateUnparsed, &updater)
 	return updater, err
 }
 
 type cfUpdater struct {
-	ProjectID      int    `mapstructure:"project-id" toml:"project-id"`
-	FileID         int    `mapstructure:"file-id"  toml:"file-id"`
-	ReleaseChannel string `mapstructure:"release-channel"  toml:"release-channel"`
+	ProjectID      int    `mapstructure:"project-id"`
+	FileID         int    `mapstructure:"file-id"`
+	ReleaseChannel string `mapstructure:"release-channel"`
 }
 
 func (u cfUpdater) DoUpdate(mod core.Mod) (bool, error) {
 	return false, nil
+}
+
+func (u cfUpdater) ToMap() (map[string]interface{}, error) {
+	newMap := make(map[string]interface{})
+	err := mapstructure.Decode(u, &newMap)
+	return newMap, err
 }
 

@@ -8,13 +8,15 @@ import (
 
 // Mod stores metadata about a mod. This is written to a TOML file for each mod.
 type Mod struct {
-	metaFile string                 // The file for the metadata file, used as an ID
-	Name     string                 `toml:"name"`
-	FileName string                 `toml:"filename"`
-	Side     string                 `toml:"side,omitempty"`
-	Optional bool                   `toml:"optional,omitempty"`
-	Download ModDownload            `toml:"download"`
-	Update   map[string]interface{} `toml:"update"`
+	metaFile string      // The file for the metadata file, used as an ID
+	Name     string      `toml:"name"`
+	FileName string      `toml:"filename"`
+	Side     string      `toml:"side,omitempty"`
+	Optional bool        `toml:"optional,omitempty"`
+	Download ModDownload `toml:"download"`
+	// Update is a map of map of stuff, so you can store arbitrary values on string keys to define updating
+	Update   map[string]map[string]interface{} `toml:"update"`
+	updaters map[string]Updater
 }
 
 // ModDownload specifies how to download the mod file
@@ -37,6 +39,7 @@ func LoadMod(modFile string) (Mod, error) {
 	if _, err := toml.DecodeFile(modFile, &mod); err != nil {
 		return Mod{}, err
 	}
+	mod.updaters = make(map[string]Updater)
 	// Horrible reflection library to convert to Updaters
 	for k, v := range mod.Update {
 		updateParser, ok := UpdateParsers[k]
@@ -45,7 +48,7 @@ func LoadMod(modFile string) (Mod, error) {
 			if err != nil {
 				return mod, err
 			}
-			mod.Update[k] = updater
+			mod.updaters[k] = updater
 		} else {
 			return mod, errors.New("Update plugin " + k + " not found!")
 		}
