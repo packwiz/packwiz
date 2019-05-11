@@ -91,24 +91,43 @@ func cmdInstall(flags core.Flags, mod string) error {
 	if len(mod) == 0 {
 		return cli.NewExitError("You must specify a mod.", 1)
 	}
-	//fmt.Println("Not implemented yet!")
+	pack, err := core.LoadPack(flags)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	index, err := pack.LoadIndex()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	mcVersion, err := pack.GetMCVersion()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
 	done, modID, fileID, err := getFileIDsFromString(mod)
 	if err != nil {
-		fmt.Println(err)
+		return cli.NewExitError(err, 1)
 	}
 
 	if !done {
 		done, modID, err = getModIDFromString(mod)
 		if err != nil {
-			fmt.Println(err)
+			return cli.NewExitError(err, 1)
 		}
 	}
 
 	// TODO: fallback to CurseMeta search
 	// TODO: how to do interactive choices? automatically assume version? ask mod from list? choose first?
 
-	fmt.Printf("ids: %d %d %v", modID, fileID, done)
+	fmt.Printf("ids: %d %d %v\n", modID, fileID, done)
+
+	if done {
+		fmt.Println(mcVersion)
+		info, err := getModInfo(modID)
+		fmt.Println(err)
+		fmt.Println(info)
+		_ = index
+	}
 	return nil
 }
 

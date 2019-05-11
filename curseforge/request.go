@@ -1,4 +1,5 @@
 package curseforge
+
 import (
 	"bytes"
 	"encoding/json"
@@ -7,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -106,13 +108,13 @@ const (
 
 // modInfo is a subset of the deserialised JSON response from the Staging CurseMeta API for mods (addons)
 type modInfo struct {
-	Name                   string    `json:"name"`
-	Slug                   string    `json:"slug"`
-	ID                     int       `json:"id"`
-	LatestFiles            []modFile `json:"latestFiles"`
+	Name                   string        `json:"name"`
+	Slug                   string        `json:"slug"`
+	ID                     int           `json:"id"`
+	LatestFiles            []modFileInfo `json:"latestFiles"`
 	GameVersionLatestFiles []struct {
 		// TODO: check how twitch launcher chooses which one to use, when you are on beta/alpha channel?!
-		// or does it not have the concept of channels?!
+		// or does it not have the concept of release channels?!
 		GameVersion string `json:"gameVersion"`
 		ID          int    `json:"projectFileId"`
 		Name        string `json:"projectFileName"`
@@ -120,7 +122,7 @@ type modInfo struct {
 	} `json:"gameVersionLatestFiles"`
 }
 
-func getModInfo(modid int) (modInfo, error) {
+func getModInfo(modID int) (modInfo, error) {
 	// Uses the Staging CurseMeta api
 	var response struct {
 		modInfo
@@ -128,7 +130,7 @@ func getModInfo(modid int) (modInfo, error) {
 	}
 	client := &http.Client{}
 
-	idStr := strconv.Itoa(modid)
+	idStr := strconv.Itoa(modID)
 
 	req, err := http.NewRequest("GET", "https://staging_cursemeta.dries007.net/api/v3/direct/addon/"+idStr, nil)
 	if err != nil {
@@ -153,25 +155,85 @@ func getModInfo(modid int) (modInfo, error) {
 		return modInfo{}, fmt.Errorf("Error requesting mod metadata: %s", response.Description)
 	}
 
-	if response.ID != modid {
-		return modInfo{}, fmt.Errorf("Unexpected addon ID in CurseForge response: %d/%d", modid, response.ID)
+	if response.ID != modID {
+		return modInfo{}, fmt.Errorf("Unexpected addon ID in CurseForge response: %d/%d", modID, response.ID)
 	}
 
 	return response.modInfo, nil
 }
 
-type modFile struct {
-	ID           int       `json:"id"`
-	FileName     string    `json:"fileNameOnDisk"`
-	FriendlyName string    `json:"fileName"`
-	Date         time.Time `json:"fileDate"`
-	Length       int       `json:"fileLength"`
-	FileType     int       `json:"releaseType"`
+const cfDateFormatString = "2006-01-02T15:04:05.999"
+
+type cfDateFormat struct {
+	time.Time
+}
+
+func (f *cfDateFormat) UnmarshalJSON(input []byte) error {
+	trimmed := strings.Trim(string(input), `"`)
+	time, err := time.Parse(cfDateFormatString, trimmed)
+	if err != nil {
+		return err
+	}
+
+	f.Time = time
+	return nil
+}
+
+// modFileInfo is a subset of the deserialised JSON response from the Staging CurseMeta API for mod files
+type modFileInfo struct {
+	ID           int          `json:"id"`
+	FileName     string       `json:"fileNameOnDisk"`
+	FriendlyName string       `json:"fileName"`
+	Date         cfDateFormat `json:"fileDate"`
+	Length       int          `json:"fileLength"`
+	FileType     int          `json:"releaseType"`
 	// fileStatus? means latest/preferred?
 	GameVersions []string `json:"gameVersion"`
+	Fingerprint  int      `json:"packageFingerprint"`
 	Dependencies []struct {
 		ModID int `json:"addonId"`
 		Type  int `json:"type"`
 	} `json:"dependencies"`
+}
+
+func getFileInfo(modID int, fileID int) (modFileInfo, error) {
+	// Uses the Staging CurseMeta api
+	var response struct {
+		modFileInfo
+		curseMetaError
+	}
+	client := &http.Client{}
+
+	modIDStr := strconv.Itoa(modID)
+	fileIDStr := strconv.Itoa(fileID)
+
+	req, err := http.NewRequest("GET", "https://staging_cursemeta.dries007.net/api/v3/direct/addon/"+modIDStr+"/file/"+fileIDStr, nil)
+	if err != nil {
+		return modFileInfo{}, err
+	}
+
+	// TODO: make this configurable application-wide
+	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return modFileInfo{}, err
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&response)
+	if err != nil && err != io.EOF {
+		return modFileInfo{}, err
+	}
+
+	if response.Error {
+		return modFileInfo{}, fmt.Errorf("Error requesting mod file metadata: %s", response.Description)
+	}
+
+	if response.ID != fileID {
+		return modFileInfo{}, fmt.Errorf("Unexpected file ID in CurseForge response: %d/%d", modID, response.ID)
+	}
+
+	return response.modFileInfo, nil
 }
 

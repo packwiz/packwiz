@@ -2,6 +2,7 @@ package core
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -87,5 +88,14 @@ func (pack Pack) Write() error {
 	// Disable indentation
 	enc.Indent = ""
 	return enc.Encode(pack)
+}
+
+// GetMCVersion gets the version of Minecraft this pack uses, if it has been correctly specified
+func (pack Pack) GetMCVersion() (string, error) {
+	mcVersion, ok := pack.Versions["minecraft"]
+	if !ok {
+		return "", errors.New("No Minecraft version specified in modpack!")
+	}
+	return mcVersion, nil
 }
 
