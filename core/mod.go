@@ -1,23 +1,27 @@
 package core
 import (
 	"errors"
+	"os"
 
 	"github.com/BurntSushi/toml"
 )
 
 // Mod stores metadata about a mod. This is written to a TOML file for each mod.
 type Mod struct {
-	metaFilename string // The filename for the metadata file, used as an ID
-	Name         string `toml:"name"`
-	FileName     string `toml:"filename"`
-	Side         string `toml:"side,omitempty"`
-	Optional     bool   `toml:"optional,omitempty"`
-	Download     struct {
-		URL        string `toml:"url"`
-		HashFormat string `toml:"hash-format"`
-		Hash       string `toml:"hash"`
-	} `toml:"download"`
-	Update map[string]interface{} `toml:"update"`
+	metaFile string                 // The file for the metadata file, used as an ID
+	Name     string                 `toml:"name"`
+	FileName string                 `toml:"filename"`
+	Side     string                 `toml:"side,omitempty"`
+	Optional bool                   `toml:"optional,omitempty"`
+	Download ModDownload            `toml:"download"`
+	Update   map[string]interface{} `toml:"update"`
+}
+
+// ModDownload specifies how to download the mod file
+type ModDownload struct {
+	URL        string `toml:"url"`
+	HashFormat string `toml:"hash-format"`
+	Hash       string `toml:"hash"`
 }
 
 // The three possible values of Side (the side that the mod is on) are "server", "client", and "both".
@@ -46,10 +50,26 @@ func LoadMod(modFile string) (Mod, error) {
 			return mod, errors.New("Update plugin " + k + " not found!")
 		}
 	}
+	mod.metaFile = modFile
 	return mod, nil
 }
 
-func (m Mod) Write() {
+// SetMetaName sets the mod metadata file from a given file name (to be put in the mods folder)
+func (m *Mod) SetMetaName(metaName string, flags Flags) {
+	m.metaFile = ResolveMod(metaName, flags)
+}
 
+// Write saves the mod file
+func (m Mod) Write() error {
+	f, err := os.Create(m.metaFile)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	enc := toml.NewEncoder(f)
+	// Disable indentation
+	enc.Indent = ""
+	return enc.Encode(m)
 }
 

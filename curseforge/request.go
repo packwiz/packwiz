@@ -188,6 +188,7 @@ type modFileInfo struct {
 	Length       int          `json:"fileLength"`
 	FileType     int          `json:"releaseType"`
 	// fileStatus? means latest/preferred?
+	DownloadURL  string   `json:"downloadUrl"`
 	GameVersions []string `json:"gameVersion"`
 	Fingerprint  int      `json:"packageFingerprint"`
 	Dependencies []struct {

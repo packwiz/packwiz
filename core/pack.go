@@ -94,7 +94,7 @@ func (pack Pack) Write() error {
 func (pack Pack) GetMCVersion() (string, error) {
 	mcVersion, ok := pack.Versions["minecraft"]
 	if !ok {
-		return "", errors.New("No Minecraft version specified in modpack!")
+		return "", errors.New("no minecraft version specified in modpack")
 	}
 	return mcVersion, nil
 }

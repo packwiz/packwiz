@@ -1,8 +1,10 @@
 package curseforge
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/comp500/packwiz/core"
 	"github.com/mitchellh/mapstructure"
@@ -18,7 +20,7 @@ func init() {
 			Usage:   "Install a mod from a curseforge URL, slug or ID",
 			Aliases: []string{"add", "get"},
 			Action: func(c *cli.Context) error {
-				return cmdInstall(core.FlagsFromContext(c), c.Args().Get(0))
+				return cmdInstall(core.FlagsFromContext(c), c.Args().Get(0), c.Args().Tail())
 			},
 		}, {
 			Name:  "import",
@@ -33,8 +35,8 @@ func init() {
 }
 
 var fileIDRegexes = [...]*regexp.Regexp{
-	regexp.MustCompile("https?:\\/\\/minecraft\\.curseforge\\.com\\/projects\\/(.+)\\/files\\/(\\d+)"),
-	regexp.MustCompile("https?:\\/\\/(?:www\\.)?curseforge\\.com\\/minecraft\\/mc-mods\\/(.+)\\/download\\/(\\d+)"),
+	regexp.MustCompile("^https?:\\/\\/minecraft\\.curseforge\\.com\\/projects\\/(.+)\\/files\\/(\\d+)$"),
+	regexp.MustCompile("^https?:\\/\\/(?:www\\.)?curseforge\\.com\\/minecraft\\/mc-mods\\/(.+)\\/download\\/(\\d+)$"),
 }
 
 func getFileIDsFromString(mod string) (bool, int, int, error) {
@@ -53,10 +55,10 @@ func getFileIDsFromString(mod string) (bool, int, int, error) {
 }
 
 var modSlugRegexes = [...]*regexp.Regexp{
-	regexp.MustCompile("https?:\\/\\/minecraft\\.curseforge\\.com\\/projects\\/([^\\/]+)"),
-	regexp.MustCompile("https?:\\/\\/(?:www\\.)?curseforge\\.com\\/minecraft\\/mc-mods\\/([^\\/]+)"),
+	regexp.MustCompile("^https?:\\/\\/minecraft\\.curseforge\\.com\\/projects\\/([^\\/]+)$"),
+	regexp.MustCompile("^https?:\\/\\/(?:www\\.)?curseforge\\.com\\/minecraft\\/mc-mods\\/([^\\/]+)$"),
 	// Exact slug matcher
-	regexp.MustCompile("[a-z][\\da-z\\-]{0,127}"),
+	regexp.MustCompile("^[a-z][\\da-z\\-]{0,127}$"),
 }
 
 func getModIDFromString(mod string) (bool, int, error) {
@@ -87,7 +89,7 @@ func getModIDFromString(mod string) (bool, int, error) {
 	return false, 0, nil
 }
 
-func cmdInstall(flags core.Flags, mod string) error {
+func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 	if len(mod) == 0 {
 		return cli.NewExitError("You must specify a mod.", 1)
 	}
@@ -111,24 +113,65 @@ func cmdInstall(flags core.Flags, mod string) error {
 
 	if !done {
 		done, modID, err = getModIDFromString(mod)
-		if err != nil {
-			return cli.NewExitError(err, 1)
-		}
+		// Handle error later (e.g. lowercase to search instead of as a slug)
 	}
 
-	// TODO: fallback to CurseMeta search
-	// TODO: how to do interactive choices? automatically assume version? ask mod from list? choose first?
+	if !done {
+		modArgs := append([]string{mod}, modArgsTail...)
+		searchTerm := strings.Join(modArgs, " ")
+		// TODO: CurseMeta search
+		// TODO: how to do interactive choices? automatically assume version? ask mod from list? choose first?
+		fmt.Println(searchTerm)
+	}
+
+	if !done {
+		if err == nil {
+			err = errors.New("Mod not found")
+		}
+		return cli.NewExitError(err, 1)
+	}
 
 	fmt.Printf("ids: %d %d %v\n", modID, fileID, done)
 
-	if done {
-		fmt.Println(mcVersion)
-		info, err := getModInfo(modID)
-		fmt.Println(err)
-		fmt.Println(info)
-		_ = index
+	// TODO: get FileID if it isn't there
+
+	fmt.Println(mcVersion)
+	modInfo, err := getModInfo(modID)
+	fmt.Println(err)
+	fmt.Println(modInfo)
+	_ = index
+
+	if fileID == 0 {
+		return nil
 	}
-	return nil
+
+	fileInfo, err := getFileInfo(modID, fileID)
+
+	updateMap := make(map[string]interface{})
+
+	updateMap["curseforge"] = cfUpdater{
+		ProjectID: modID,
+		FileID:    fileID,
+		// TODO: determine update channel
+		ReleaseChannel: "release",
+	}
+
+	modMeta := core.Mod{
+		Name:     modInfo.Name,
+		FileName: fileInfo.FileName,
+		Side:     core.UniversalSide,
+		Download: core.ModDownload{
+			URL:        fileInfo.DownloadURL,
+			HashFormat: "murmur2",
+			Hash:       strconv.Itoa(fileInfo.Fingerprint),
+		},
+		Update: updateMap,
+	}
+	modMeta.SetMetaName(modInfo.Slug, flags)
+
+	fmt.Printf("%#v\n", modMeta)
+
+	return modMeta.Write()
 }
 
 type cfUpdateParser struct{}
@@ -140,9 +183,9 @@ func (u cfUpdateParser) ParseUpdate(updateUnparsed interface{}) (core.Updater, e
 }
 
 type cfUpdater struct {
-	ProjectID      int    `mapstructure:"project-id"`
-	FileID         int    `mapstructure:"file-id"`
-	ReleaseChannel string `mapstructure:"release-channel"`
+	ProjectID      int    `mapstructure:"project-id" toml:"project-id"`
+	FileID         int    `mapstructure:"file-id"  toml:"file-id"`
+	ReleaseChannel string `mapstructure:"release-channel"  toml:"release-channel"`
 }
 
 func (u cfUpdater) DoUpdate(mod core.Mod) (bool, error) {
