@@ -153,14 +153,18 @@ type cfDateFormat struct {
 	time.Time
 }
 
+// Curse switched to proper RFC3339, but previously downloaded metadata still uses the old format :(
 func (f *cfDateFormat) UnmarshalJSON(input []byte) error {
 	trimmed := strings.Trim(string(input), `"`)
-	time, err := time.Parse(cfDateFormatString, trimmed)
+	timeValue, err := time.Parse(time.RFC3339Nano, trimmed)
 	if err != nil {
-		return err
+		timeValue, err = time.Parse(cfDateFormatString, trimmed)
+		if err != nil {
+			return err
+		}
 	}
 
-	f.Time = time
+	f.Time = timeValue
 	return nil
 }
 

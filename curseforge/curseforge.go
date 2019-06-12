@@ -89,14 +89,13 @@ func getModIDFromString(mod string) (bool, int, error) {
 	return false, 0, nil
 }
 
-func createModFile(flags core.Flags, modID int, fileID int, modInfo modInfo) error {
-	fileInfo, err := getFileInfo(modID, fileID)
-
+func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo) error {
 	updateMap := make(map[string]map[string]interface{})
+	var err error
 
 	updateMap["curseforge"], err = cfUpdater{
-		ProjectID: modID,
-		FileID:    fileID,
+		ProjectID: modInfo.ID,
+		FileID:    fileInfo.ID,
 		// TODO: determine update channel
 		ReleaseChannel: "release",
 	}.ToMap()
@@ -121,6 +120,7 @@ func createModFile(flags core.Flags, modID int, fileID int, modInfo modInfo) err
 	fmt.Printf("%#v\n", modMeta)
 
 	// TODO: what to do if it already exists?
+	// TODO: add to index
 	return modMeta.Write()
 }
 
@@ -172,15 +172,29 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 
 	fmt.Println(mcVersion)
 	modInfo, err := getModInfo(modID)
-	fmt.Println(err)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
 	fmt.Println(modInfo)
 	_ = index
 
 	if fileID == 0 {
+		fmt.Println("WIP: get an actual file ID!!!")
 		return nil
 	}
 
-	return createModFile(flags, modID, fileID, modInfo)
+	fileInfo, err := getFileInfo(modID, fileID)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	err = createModFile(flags, modInfo, fileInfo)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	return nil
 }
 
 type cfUpdateParser struct{}
