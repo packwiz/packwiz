@@ -27,8 +27,7 @@ func init() {
 			Name:  "import",
 			Usage: "Import an installed curseforge modpack",
 			Action: func(c *cli.Context) error {
-				fmt.Println("Not implemented yet!")
-				return nil
+				return cmdImport(core.FlagsFromContext(c), c.Args().Get(0))
 			},
 		}},
 	})
@@ -90,6 +89,41 @@ func getModIDFromString(mod string) (bool, int, error) {
 	return false, 0, nil
 }
 
+func createModFile(flags core.Flags, modID int, fileID int, modInfo modInfo) error {
+	fileInfo, err := getFileInfo(modID, fileID)
+
+	updateMap := make(map[string]map[string]interface{})
+
+	updateMap["curseforge"], err = cfUpdater{
+		ProjectID: modID,
+		FileID:    fileID,
+		// TODO: determine update channel
+		ReleaseChannel: "release",
+	}.ToMap()
+	if err != nil {
+		return err
+	}
+
+	modMeta := core.Mod{
+		Name:     modInfo.Name,
+		FileName: fileInfo.FileName,
+		Side:     core.UniversalSide,
+		Download: core.ModDownload{
+			URL: fileInfo.DownloadURL,
+			// TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
+			HashFormat: "murmur2",
+			Hash:       strconv.Itoa(fileInfo.Fingerprint),
+		},
+		Update: updateMap,
+	}
+	modMeta.SetMetaName(modInfo.Slug, flags)
+
+	fmt.Printf("%#v\n", modMeta)
+
+	// TODO: what to do if it already exists?
+	return modMeta.Write()
+}
+
 func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 	if len(mod) == 0 {
 		return cli.NewExitError("You must specify a mod.", 1)
@@ -146,36 +180,7 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		return nil
 	}
 
-	fileInfo, err := getFileInfo(modID, fileID)
-
-	updateMap := make(map[string]map[string]interface{})
-
-	updateMap["curseforge"], err = cfUpdater{
-		ProjectID: modID,
-		FileID:    fileID,
-		// TODO: determine update channel
-		ReleaseChannel: "release",
-	}.ToMap()
-	if err != nil {
-		return err
-	}
-
-	modMeta := core.Mod{
-		Name:     modInfo.Name,
-		FileName: fileInfo.FileName,
-		Side:     core.UniversalSide,
-		Download: core.ModDownload{
-			URL:        fileInfo.DownloadURL,
-			HashFormat: "murmur2",
-			Hash:       strconv.Itoa(fileInfo.Fingerprint),
-		},
-		Update: updateMap,
-	}
-	modMeta.SetMetaName(modInfo.Slug, flags)
-
-	fmt.Printf("%#v\n", modMeta)
-
-	return modMeta.Write()
+	return createModFile(flags, modID, fileID, modInfo)
 }
 
 type cfUpdateParser struct{}
