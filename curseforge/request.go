@@ -1,4 +1,5 @@
 package curseforge
+
 import (
 	"bytes"
 	"encoding/json"
@@ -7,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -145,14 +147,31 @@ func getModInfo(modID int) (modInfo, error) {
 	return infoRes, nil
 }
 
+const cfDateFormatString = "2006-01-02T15:04:05.999"
+
+type cfDateFormat struct {
+	time.Time
+}
+
+func (f *cfDateFormat) UnmarshalJSON(input []byte) error {
+	trimmed := strings.Trim(string(input), `"`)
+	time, err := time.Parse(cfDateFormatString, trimmed)
+	if err != nil {
+		return err
+	}
+
+	f.Time = time
+	return nil
+}
+
 // modFileInfo is a subset of the deserialised JSON response from the Curse API for mod files
 type modFileInfo struct {
-	ID           int       `json:"id"`
-	FileName     string    `json:"fileNameOnDisk"`
-	FriendlyName string    `json:"fileName"`
-	Date         time.Time `json:"fileDate"`
-	Length       int       `json:"fileLength"`
-	FileType     int       `json:"releaseType"`
+	ID           int          `json:"id"`
+	FileName     string       `json:"fileNameOnDisk"`
+	FriendlyName string       `json:"fileName"`
+	Date         cfDateFormat `json:"fileDate"`
+	Length       int          `json:"fileLength"`
+	FileType     int          `json:"releaseType"`
 	// fileStatus? means latest/preferred?
 	DownloadURL  string   `json:"downloadUrl"`
 	GameVersions []string `json:"gameVersion"`
