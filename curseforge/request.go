@@ -88,13 +88,6 @@ func modIDFromSlug(slug string) (int, error) {
 	return response.Data.Addons[0].ID, nil
 }
 
-// curseMetaError is an error returned by the Staging CurseMeta API
-type curseMetaError struct {
-	Description string `json:"description"`
-	Error       bool   `json:"error"`
-	Status      int    `json:"status"`
-}
-
 const (
 	fileTypeRelease int = iota + 1
 	fileTypeBeta
@@ -106,7 +99,7 @@ const (
 	dependencyTypeOptional
 )
 
-// modInfo is a subset of the deserialised JSON response from the Staging CurseMeta API for mods (addons)
+// modInfo is a subset of the deserialised JSON response from the Curse API for mods (addons)
 type modInfo struct {
 	Name                   string        `json:"name"`
 	Slug                   string        `json:"slug"`
@@ -123,16 +116,12 @@ type modInfo struct {
 }
 
 func getModInfo(modID int) (modInfo, error) {
-	// Uses the Staging CurseMeta api
-	var response struct {
-		modInfo
-		curseMetaError
-	}
+	var infoRes modInfo
 	client := &http.Client{}
 
 	idStr := strconv.Itoa(modID)
 
-	req, err := http.NewRequest("GET", "https://staging_cursemeta.dries007.net/api/v3/direct/addon/"+idStr, nil)
+	req, err := http.NewRequest("GET", "https://addons-ecs.forgesvc.net/api/v2/addon/"+idStr, nil)
 	if err != nil {
 		return modInfo{}, err
 	}
@@ -146,20 +135,16 @@ func getModInfo(modID int) (modInfo, error) {
 		return modInfo{}, err
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
 		return modInfo{}, err
 	}
 
-	if response.Error {
-		return modInfo{}, fmt.Errorf("Error requesting mod metadata: %s", response.Description)
+	if infoRes.ID != modID {
+		return modInfo{}, fmt.Errorf("Unexpected addon ID in CurseForge response: %d/%d", modID, infoRes.ID)
 	}
 
-	if response.ID != modID {
-		return modInfo{}, fmt.Errorf("Unexpected addon ID in CurseForge response: %d/%d", modID, response.ID)
-	}
-
-	return response.modInfo, nil
+	return infoRes, nil
 }
 
 const cfDateFormatString = "2006-01-02T15:04:05.999"
@@ -179,7 +164,7 @@ func (f *cfDateFormat) UnmarshalJSON(input []byte) error {
 	return nil
 }
 
-// modFileInfo is a subset of the deserialised JSON response from the Staging CurseMeta API for mod files
+// modFileInfo is a subset of the deserialised JSON response from the Curse API for mod files
 type modFileInfo struct {
 	ID           int          `json:"id"`
 	FileName     string       `json:"fileNameOnDisk"`
@@ -198,17 +183,13 @@ type modFileInfo struct {
 }
 
 func getFileInfo(modID int, fileID int) (modFileInfo, error) {
-	// Uses the Staging CurseMeta api
-	var response struct {
-		modFileInfo
-		curseMetaError
-	}
+	var infoRes modFileInfo
 	client := &http.Client{}
 
 	modIDStr := strconv.Itoa(modID)
 	fileIDStr := strconv.Itoa(fileID)
 
-	req, err := http.NewRequest("GET", "https://staging_cursemeta.dries007.net/api/v3/direct/addon/"+modIDStr+"/file/"+fileIDStr, nil)
+	req, err := http.NewRequest("GET", "https://addons-ecs.forgesvc.net/api/v2/addon/"+modIDStr+"/file/"+fileIDStr, nil)
 	if err != nil {
 		return modFileInfo{}, err
 	}
@@ -222,19 +203,15 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 		return modFileInfo{}, err
 	}
 
-	err = json.NewDecoder(resp.Body).Decode(&response)
+	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
 		return modFileInfo{}, err
 	}
 
-	if response.Error {
-		return modFileInfo{}, fmt.Errorf("Error requesting mod file metadata: %s", response.Description)
+	if infoRes.ID != fileID {
+		return modFileInfo{}, fmt.Errorf("Unexpected file ID in CurseForge response: %d/%d", modID, infoRes.ID)
 	}
 
-	if response.ID != fileID {
-		return modFileInfo{}, fmt.Errorf("Unexpected file ID in CurseForge response: %d/%d", modID, response.ID)
-	}
-
-	return response.modFileInfo, nil
+	return infoRes, nil
 }
 

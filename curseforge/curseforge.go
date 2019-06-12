@@ -154,7 +154,7 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 	if !done {
 		modArgs := append([]string{mod}, modArgsTail...)
 		searchTerm := strings.Join(modArgs, " ")
-		// TODO: CurseMeta search
+		// TODO: Curse search
 		// TODO: how to do interactive choices? automatically assume version? ask mod from list? choose first?
 		fmt.Println(searchTerm)
 	}
