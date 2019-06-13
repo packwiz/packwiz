@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -178,20 +179,14 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 			done = true
 		} else {
 			// Find the closest value to the search term
-			searchIndex := 0
-			currDistance := levenshtein.ComputeDistance(searchTerm, results[0].Name)
-			for i := 1; i < len(results)-1; i++ {
-				newDist := levenshtein.ComputeDistance(searchTerm, results[i].Name)
-				if newDist < currDistance {
-					searchIndex = i
-					currDistance = newDist
-				}
-			}
+			sort.Slice(results, func(i, j int) bool {
+				return levenshtein.ComputeDistance(searchTerm, results[i].Name) < levenshtein.ComputeDistance(searchTerm, results[j].Name)
+			})
 
 			menu := wmenu.NewMenu("Choose a number:")
 
 			for i, v := range results {
-				menu.Option(v.Name, v, i == searchIndex, nil)
+				menu.Option(v.Name, v, i == 0, nil)
 			}
 			menu.Option("Cancel", nil, false, nil)
 
