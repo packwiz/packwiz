@@ -147,6 +147,38 @@ func getModInfo(modID int) (modInfo, error) {
 	return infoRes, nil
 }
 
+func getModInfoMultiple(modIDs []int) ([]modInfo, error) {
+	var infoRes []modInfo
+	client := &http.Client{}
+
+	modIDsData, err := json.Marshal(modIDs)
+	if err != nil {
+		return []modInfo{}, err
+	}
+
+	req, err := http.NewRequest("POST", "https://addons-ecs.forgesvc.net/api/v2/addon/", bytes.NewBuffer(modIDsData))
+	if err != nil {
+		return []modInfo{}, err
+	}
+
+	// TODO: make this configurable application-wide
+	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return []modInfo{}, err
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&infoRes)
+	if err != nil && err != io.EOF {
+		return []modInfo{}, err
+	}
+
+	return infoRes, nil
+}
+
 const cfDateFormatString = "2006-01-02T15:04:05.999"
 
 type cfDateFormat struct {

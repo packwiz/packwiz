@@ -110,6 +110,7 @@ func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo) erro
 		Download: core.ModDownload{
 			URL: fileInfo.DownloadURL,
 			// TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
+			// TODO: check if the hash is invalid (e.g. 0)
 			HashFormat: "murmur2",
 			Hash:       strconv.Itoa(fileInfo.Fingerprint),
 		},
@@ -117,9 +118,11 @@ func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo) erro
 	}
 	modMeta.SetMetaName(modInfo.Slug, flags)
 
-	fmt.Printf("%#v\n", modMeta)
+	// If the file already exists, this will overwrite it!!!
+	// TODO: Should this be improved?
+	// Current strategy is to go ahead and do stuff without asking, with the assumption that you are using
+	// VCS anyway.
 
-	// TODO: what to do if it already exists?
 	// TODO: add to index
 	return modMeta.Write()
 }
@@ -212,6 +215,7 @@ type cfUpdater struct {
 }
 
 func (u cfUpdater) DoUpdate(mod core.Mod) (bool, error) {
+	// TODO: implement updating
 	return false, nil
 }
 
@@ -220,4 +224,3 @@ func (u cfUpdater) ToMap() (map[string]interface{}, error) {
 	err := mapstructure.Decode(u, &newMap)
 	return newMap, err
 }
-
