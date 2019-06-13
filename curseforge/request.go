@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -251,3 +252,31 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	return infoRes, nil
 }
 
+// TODO: pass gameVersion?
+func getSearch(searchText string) ([]modInfo, error) {
+	var infoRes []modInfo
+	client := &http.Client{}
+
+	textEscaped := url.QueryEscape(searchText)
+
+	req, err := http.NewRequest("GET", "https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=10&categoryId=0&sectionId=6&searchFilter="+textEscaped, nil)
+	if err != nil {
+		return []modInfo{}, err
+	}
+
+	// TODO: make this configurable application-wide
+	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return []modInfo{}, err
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&infoRes)
+	if err != nil && err != io.EOF {
+		return []modInfo{}, err
+	}
+
+	return infoRes, nil
+}

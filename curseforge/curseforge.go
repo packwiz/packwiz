@@ -7,9 +7,11 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/agnivade/levenshtein"
 	"github.com/comp500/packwiz/core"
 	"github.com/mitchellh/mapstructure"
 	"github.com/urfave/cli"
+	"gopkg.in/dixonwille/wmenu.v4"
 )
 
 func init() {
@@ -154,12 +156,68 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		// Handle error later (e.g. lowercase to search instead of as a slug)
 	}
 
+	modInfoObtained := false
+	var modInfoData modInfo
+
 	if !done {
 		modArgs := append([]string{mod}, modArgsTail...)
 		searchTerm := strings.Join(modArgs, " ")
 		// TODO: Curse search
 		// TODO: how to do interactive choices? automatically assume version? ask mod from list? choose first?
-		fmt.Println(searchTerm)
+		results, err := getSearch(searchTerm)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+
+		if len(results) == 0 {
+			return cli.NewExitError(errors.New("no mods found"), 1)
+		} else if len(results) == 1 {
+			modInfoData = results[0]
+			modID = modInfoData.ID
+			modInfoObtained = true
+			done = true
+		} else {
+			// Find the closest value to the search term
+			searchIndex := 0
+			currDistance := levenshtein.ComputeDistance(searchTerm, results[0].Name)
+			for i := 1; i < len(results)-1; i++ {
+				newDist := levenshtein.ComputeDistance(searchTerm, results[i].Name)
+				if newDist < currDistance {
+					searchIndex = i
+					currDistance = newDist
+				}
+			}
+
+			menu := wmenu.NewMenu("Choose a number:")
+
+			for i, v := range results {
+				menu.Option(v.Name, v, i == searchIndex, nil)
+			}
+			menu.Option("Cancel", nil, false, nil)
+
+			menu.Action(func(menuRes []wmenu.Opt) error {
+				if len(menuRes) != 1 || menuRes[0].Value == nil {
+					fmt.Println("Cancelled!")
+					return nil
+				}
+				modInfoData, ok := menuRes[0].Value.(modInfo)
+				if !ok {
+					return errors.New("Error converting interface from wmenu")
+				}
+				modID = modInfoData.ID
+				modInfoObtained = true
+				done = true
+				return nil
+			})
+			err = menu.Run()
+			if err != nil {
+				return cli.NewExitError(err, 1)
+			}
+
+			if !done {
+				return nil
+			}
+		}
 	}
 
 	if !done {
@@ -174,12 +232,14 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 	// TODO: get FileID if it isn't there
 
 	fmt.Println(mcVersion)
-	modInfo, err := getModInfo(modID)
-	if err != nil {
-		return cli.NewExitError(err, 1)
+	if !modInfoObtained {
+		modInfoData, err = getModInfo(modID)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
 
-	fmt.Println(modInfo)
+	fmt.Println(modInfoData)
 	_ = index
 
 	if fileID == 0 {
@@ -192,7 +252,7 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	err = createModFile(flags, modInfo, fileInfo)
+	err = createModFile(flags, modInfoData, fileInfo)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
