@@ -1,6 +1,10 @@
 package core
+
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
+	"io"
 	"os"
 
 	"github.com/BurntSushi/toml"
@@ -58,21 +62,26 @@ func LoadMod(modFile string) (Mod, error) {
 }
 
 // SetMetaName sets the mod metadata file from a given file name (to be put in the mods folder)
-func (m *Mod) SetMetaName(metaName string, flags Flags) {
+func (m *Mod) SetMetaName(metaName string, flags Flags) string {
 	m.metaFile = ResolveMod(metaName, flags)
+	return m.metaFile
 }
 
-// Write saves the mod file
-func (m Mod) Write() error {
+// Write saves the mod file, returning a hash format and the value of the hash of the saved file
+func (m Mod) Write() (string, string, error) {
 	f, err := os.Create(m.metaFile)
 	if err != nil {
-		return err
+		return "sha256", "", err
 	}
 	defer f.Close()
 
-	enc := toml.NewEncoder(f)
+	h := sha256.New()
+	w := io.MultiWriter(h, f)
+
+	enc := toml.NewEncoder(w)
 	// Disable indentation
 	enc.Indent = ""
-	return enc.Encode(m)
+	err = enc.Encode(m)
+	hashString := hex.EncodeToString(h.Sum(nil))
+	return "sha256", hashString, err
 }
-

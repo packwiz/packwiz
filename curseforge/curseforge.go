@@ -92,7 +92,7 @@ func getModIDFromString(mod string) (bool, int, error) {
 	return false, 0, nil
 }
 
-func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo) error {
+func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo, index *core.Index) error {
 	updateMap := make(map[string]map[string]interface{})
 	var err error
 
@@ -100,7 +100,7 @@ func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo) erro
 		ProjectID: modInfo.ID,
 		FileID:    fileInfo.ID,
 		// TODO: determine update channel
-		ReleaseChannel: "release",
+		ReleaseChannel: "beta",
 	}.ToMap()
 	if err != nil {
 		return err
@@ -119,15 +119,20 @@ func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo) erro
 		},
 		Update: updateMap,
 	}
-	modMeta.SetMetaName(modInfo.Slug, flags)
+	path := modMeta.SetMetaName(modInfo.Slug, flags)
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?
 	// Current strategy is to go ahead and do stuff without asking, with the assumption that you are using
 	// VCS anyway.
 
-	// TODO: add to index
-	return modMeta.Write()
+	format, hash, err := modMeta.Write()
+	if err != nil {
+		return err
+	}
+
+	// TODO: send written data directly to index, instead of write+read?
+	return index.RefreshFileWithHash(path, format, hash, true)
 }
 
 func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
@@ -234,9 +239,6 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		}
 	}
 
-	fmt.Println(modInfoData)
-	_ = index
-
 	if fileID == 0 {
 		fmt.Println("WIP: get an actual file ID!!!")
 		return nil
@@ -247,10 +249,17 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	err = createModFile(flags, modInfoData, fileInfo)
+	err = createModFile(flags, modInfoData, fileInfo, &index)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+
+	err = index.Write()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
+	fmt.Printf("Mod \"%s\" successfully installed!\n", modInfoData.Name)
 
 	return nil
 }

@@ -75,6 +75,48 @@ func (in *Index) resortIndex() {
 	})
 }
 
+func (in *Index) updateFileHashGiven(path, format, hash string, mod bool) error {
+	// Find in index
+	found := false
+	relPath, err := filepath.Rel(filepath.Dir(in.indexFile), path)
+	if err != nil {
+		return err
+	}
+	for k, v := range in.Files {
+		if filepath.Clean(filepath.FromSlash(v.File)) == relPath {
+			found = true
+			// Update hash
+			in.Files[k].Hash = hash
+			if in.HashFormat == format {
+				in.Files[k].HashFormat = ""
+			} else {
+				in.Files[k].HashFormat = format
+			}
+			// Mark this file as found
+			in.Files[k].fileExistsTemp = true
+			// Clean up path if it's untidy
+			in.Files[k].File = filepath.ToSlash(relPath)
+			// Don't break out of loop, as there may be aliased versions that
+			// also need to be updated
+		}
+	}
+	if !found {
+		newFile := IndexFile{
+			File:           filepath.ToSlash(relPath),
+			Hash:           hash,
+			fileExistsTemp: true,
+		}
+		// Override hash format for this file, if the whole index isn't sha256
+		if in.HashFormat != format {
+			newFile.HashFormat = format
+		}
+		newFile.MetaFile = mod
+
+		in.Files = append(in.Files, newFile)
+	}
+	return nil
+}
+
 // updateFile calculates the hash for a given path and updates it in the index
 func (in *Index) updateFile(path string) error {
 	f, err := os.Open(path)
@@ -92,58 +134,22 @@ func (in *Index) updateFile(path string) error {
 	}
 	hashString := hex.EncodeToString(h.Sum(nil))
 
-	// Find in index
-	found := false
-	relPath, err := filepath.Rel(filepath.Dir(in.indexFile), path)
-	if err != nil {
-		return err
-	}
-	for k, v := range in.Files {
-		if filepath.Clean(filepath.FromSlash(v.File)) == relPath {
-			found = true
-			// Update hash
-			in.Files[k].Hash = hashString
-			if in.HashFormat == "sha256" {
-				in.Files[k].HashFormat = ""
-			} else {
-				in.Files[k].HashFormat = "sha256"
-			}
-			// Mark this file as found
-			in.Files[k].fileExistsTemp = true
-			// Clean up path if it's untidy
-			in.Files[k].File = filepath.ToSlash(relPath)
-			// Don't break out of loop, as there may be aliased versions that
-			// also need to be updated
-		}
-	}
-	if !found {
-		newFile := IndexFile{
-			File:           filepath.ToSlash(relPath),
-			Hash:           hashString,
-			fileExistsTemp: true,
-		}
-		// Override hash format for this file, if the whole index isn't sha256
-		if in.HashFormat != "sha256" {
-			newFile.HashFormat = "sha256"
-		}
-		// If the file is in the mods folder, set MetaFile to true (mods are metafiles by default)
-		// This is incredibly powerful: you can put a normal jar in the mods folder just by
-		// setting MetaFile to false. Or you can use the "mod" metadata system for other types
-		// of files, like CraftTweaker resources.
-		absFileDir, err := filepath.Abs(filepath.Dir(path))
+	mod := false
+	// If the file is in the mods folder, set MetaFile to true (mods are metafiles by default)
+	// This is incredibly powerful: you can put a normal jar in the mods folder just by
+	// setting MetaFile to false. Or you can use the "mod" metadata system for other types
+	// of files, like CraftTweaker resources.
+	absFileDir, err := filepath.Abs(filepath.Dir(path))
+	if err == nil {
+		absModsDir, err := filepath.Abs(in.flags.ModsFolder)
 		if err == nil {
-			absModsDir, err := filepath.Abs(in.flags.ModsFolder)
-			if err == nil {
-				if absFileDir == absModsDir {
-					newFile.MetaFile = true
-				}
+			if absFileDir == absModsDir {
+				mod = true
 			}
 		}
-
-		in.Files = append(in.Files, newFile)
 	}
 
-	return nil
+	return in.updateFileHashGiven(path, "sha256", hashString, mod)
 }
 
 // Refresh updates the hashes of all the files in the index, and adds new files to the index
@@ -250,3 +256,12 @@ func (in Index) Write() error {
 	return enc.Encode(in)
 }
 
+// RefreshFileWithHash updates a file in the index, given a file hash and whether it is a mod or not
+func (in *Index) RefreshFileWithHash(path, format, hash string, mod bool) error {
+	err := in.updateFileHashGiven(path, format, hash, mod)
+	if err != nil {
+		return err
+	}
+	in.resortIndex()
+	return nil
+}

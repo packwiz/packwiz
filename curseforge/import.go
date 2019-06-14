@@ -43,6 +43,15 @@ type twitchPackMeta struct {
 }
 
 func cmdImport(flags core.Flags, file string) error {
+	pack, err := core.LoadPack(flags)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	index, err := pack.LoadIndex()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+
 	var packMeta twitchPackMeta
 	// TODO: is this relative to something?
 	f, err := os.Open(file)
@@ -83,12 +92,17 @@ func cmdImport(flags core.Flags, file string) error {
 			continue
 		}
 
-		fmt.Printf("Imported \"%s\" successfully!\n", modInfoValue.Name)
+		fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
 
-		err = createModFile(flags, modInfoValue, modFileInfo(v.File))
+		err = createModFile(flags, modInfoValue, modFileInfo(v.File), &index)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
+	}
+
+	err = index.Write()
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
 	// TODO: import existing files (config etc.)
