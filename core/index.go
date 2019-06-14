@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sort"
 	"time"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 	"github.com/vbauerster/mpb/v4"
@@ -265,4 +266,18 @@ func (in *Index) RefreshFileWithHash(path, format, hash string, mod bool) error 
 	}
 	in.resortIndex()
 	return nil
+}
+
+// FindMod finds a mod in the index and returns it's path and whether it has been found
+func (in Index) FindMod(modName string) (string, bool) {
+	for _, v := range in.Files {
+		if v.MetaFile {
+			_, file := filepath.Split(v.File);
+			fileTrimmed := strings.TrimSuffix(file, ModExtension)
+			if fileTrimmed == modName {
+				return v.File, true
+			}
+		}
+	}
+	return "", false
 }

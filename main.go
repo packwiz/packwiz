@@ -1,4 +1,5 @@
 package main
+
 import (
 	"fmt"
 	"log"
@@ -52,17 +53,20 @@ func cmdDelete(flags core.Flags, mod string) error {
 	if len(mod) == 0 {
 		return cli.NewExitError("You must specify a mod.", 1)
 	}
-	resolvedMod := core.ResolveMod(mod, flags)
-	err := os.Remove(resolvedMod)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
 	fmt.Println("Loading modpack...")
 	pack, err := core.LoadPack(flags)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
 	index, err := pack.LoadIndex()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	resolvedMod, ok := index.FindMod(mod)
+	if !ok {
+		return cli.NewExitError("You don't have this mod installed.", 1)
+	}
+	err = os.Remove(resolvedMod)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -117,4 +121,3 @@ func cmdRefresh(flags core.Flags) error {
 	fmt.Println("Index refreshed!")
 	return nil
 }
-

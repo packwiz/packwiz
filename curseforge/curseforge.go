@@ -29,7 +29,8 @@ func init() {
 				return cmdImport(core.FlagsFromContext(c), c.Args().Get(0))
 			},
 		}, {
-			Name:    "open",
+			Name: "open",
+			// TODO: change semantics to "project" rather than "mod", as this supports texture packs and misc content as well
 			Usage:   "Open the project page for a curseforge mod in your browser",
 			Aliases: []string{"doc"},
 			Action: func(c *cli.Context) error {
@@ -143,7 +144,21 @@ func cmdDoc(flags core.Flags, mod string) error {
 		return cli.NewExitError("You must specify a mod.", 1)
 	}
 
-	modData, err := core.LoadMod(core.ResolveMod(mod, flags))
+	fmt.Println("Loading modpack...")
+	pack, err := core.LoadPack(flags)
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	index, err := pack.LoadIndex()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	resolvedMod, ok := index.FindMod(mod)
+	if !ok {
+		// TODO: should this auto-refresh???????
+		return cli.NewExitError("You don't have this mod installed.", 1)
+	}
+	modData, err := core.LoadMod(resolvedMod)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -152,6 +167,7 @@ func cmdDoc(flags core.Flags, mod string) error {
 		return cli.NewExitError("This mod doesn't seem to be a curseforge mod!", 1)
 	}
 	cfUpdateData := updateData.(cfUpdater)
+	fmt.Println("Opening browser...")
 	url := "https://minecraft.curseforge.com/projects/" + strconv.Itoa(cfUpdateData.ProjectID)
 	err = open.Start(url)
 	if err != nil {
@@ -178,6 +194,11 @@ type cfUpdater struct {
 
 func (u cfUpdater) DoUpdate(mod core.Mod) (bool, error) {
 	// TODO: implement updating
+	// modInfoData, err := getModInfo(u.ProjectID)
+	// if err != nil {
+	// 	return false, err
+	// }
+
 	return false, nil
 }
 
