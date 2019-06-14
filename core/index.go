@@ -244,6 +244,7 @@ func (in *Index) RefreshFile(path string) error {
 
 // Write saves the index file
 func (in Index) Write() error {
+	// TODO: calculate and provide hash while writing?
 	f, err := os.Create(in.indexFile)
 	if err != nil {
 		return err

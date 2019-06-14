@@ -100,12 +100,20 @@ func cmdImport(flags core.Flags, file string) error {
 		}
 	}
 
+	// TODO: import existing files (config etc.)
+
 	err = index.Write()
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-
-	// TODO: import existing files (config etc.)
+	err = pack.UpdateIndexHash()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	err = pack.Write()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
 	return nil
 }

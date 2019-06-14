@@ -258,6 +258,14 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
+	err = pack.UpdateIndexHash()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
+	err = pack.Write()
+	if err != nil {
+		return cli.NewExitError(err, 1)
+	}
 
 	fmt.Printf("Mod \"%s\" successfully installed!\n", modInfoData.Name)
 
