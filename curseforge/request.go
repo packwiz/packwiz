@@ -204,8 +204,8 @@ func (f *cfDateFormat) UnmarshalJSON(input []byte) error {
 // modFileInfo is a subset of the deserialised JSON response from the Curse API for mod files
 type modFileInfo struct {
 	ID           int          `json:"id"`
-	FileName     string       `json:"fileNameOnDisk"`
-	FriendlyName string       `json:"fileName"`
+	FileName     string       `json:"fileName"`
+	FriendlyName string       `json:"displayName"`
 	Date         cfDateFormat `json:"fileDate"`
 	Length       int          `json:"fileLength"`
 	FileType     int          `json:"releaseType"`
@@ -253,13 +253,19 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 }
 
 // TODO: pass gameVersion?
-func getSearch(searchText string) ([]modInfo, error) {
+func getSearch(searchText string, gameVersion string) ([]modInfo, error) {
 	var infoRes []modInfo
 	client := &http.Client{}
 
 	textEscaped := url.QueryEscape(searchText)
+	var reqURL string
+	if len(gameVersion) > 0 {
+		reqURL = "https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=10&categoryId=0&sectionId=6&searchFilter=" + textEscaped + "&gameVersion=" + gameVersion
+	} else {
+		reqURL = "https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=10&categoryId=0&sectionId=6&searchFilter=" + textEscaped
+	}
 
-	req, err := http.NewRequest("GET", "https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=10&categoryId=0&sectionId=6&searchFilter="+textEscaped, nil)
+	req, err := http.NewRequest("GET", reqURL, nil)
 	if err != nil {
 		return []modInfo{}, err
 	}

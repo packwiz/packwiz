@@ -152,25 +152,34 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	done, modID, fileID, err := getFileIDsFromString(mod)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
+	var done bool
+	var modID, fileID int
+	// If modArgsTail has anything, go straight to searching - URLs/Slugs should not have spaces!
+	if len(modArgsTail) == 0 {
+		done, modID, fileID, err = getFileIDsFromString(mod)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 
-	if !done {
-		done, modID, err = getModIDFromString(mod)
-		// Handle error later (e.g. lowercase to search instead of as a slug)
+		if !done {
+			done, modID, err = getModIDFromString(mod)
+			// Ignore error, go to search instead (e.g. lowercase to search instead of as a slug)
+			if err != nil {
+				done = false
+			}
+		}
 	}
 
 	modInfoObtained := false
 	var modInfoData modInfo
 
 	if !done {
+		fmt.Println("Searching CurseForge...")
 		modArgs := append([]string{mod}, modArgsTail...)
 		searchTerm := strings.Join(modArgs, " ")
 		// TODO: Curse search
 		// TODO: how to do interactive choices? automatically assume version? ask mod from list? choose first?
-		results, err := getSearch(searchTerm)
+		results, err := getSearch(searchTerm, mcVersion)
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
@@ -200,7 +209,10 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 					fmt.Println("Cancelled!")
 					return nil
 				}
-				modInfoData, ok := menuRes[0].Value.(modInfo)
+
+				// Why is variable shadowing a thing!!!!
+				var ok bool
+				modInfoData, ok = menuRes[0].Value.(modInfo)
 				if !ok {
 					return errors.New("Error converting interface from wmenu")
 				}
@@ -227,11 +239,6 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Printf("ids: %d %d %v\n", modID, fileID, done)
-
-	// TODO: get FileID if it isn't there
-
-	fmt.Println(mcVersion)
 	if !modInfoObtained {
 		modInfoData, err = getModInfo(modID)
 		if err != nil {
@@ -239,17 +246,38 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		}
 	}
 
+	fileInfoObtained := false
+	var fileInfoData modFileInfo
 	if fileID == 0 {
-		fmt.Println("WIP: get an actual file ID!!!")
-		return nil
+		// TODO: how do we decide which version to use?
+		for _, v := range modInfoData.GameVersionLatestFiles {
+			// Choose "newest" version by largest ID
+			if v.GameVersion == mcVersion && v.ID > fileID {
+				fileID = v.ID
+			}
+		}
+
+		if fileID == 0 {
+			return cli.NewExitError(errors.New("no files available for current Minecraft version"), 1)
+		}
+
+		// The API also provides some files inline, because that's efficient!
+		for _, v := range modInfoData.LatestFiles {
+			if v.ID == fileID {
+				fileInfoObtained = true
+				fileInfoData = v
+			}
+		}
 	}
 
-	fileInfo, err := getFileInfo(modID, fileID)
-	if err != nil {
-		return cli.NewExitError(err, 1)
+	if !fileInfoObtained {
+		fileInfoData, err = getFileInfo(modID, fileID)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
 	}
 
-	err = createModFile(flags, modInfoData, fileInfo, &index)
+	err = createModFile(flags, modInfoData, fileInfoData, &index)
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
@@ -267,7 +295,7 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		return cli.NewExitError(err, 1)
 	}
 
-	fmt.Printf("Mod \"%s\" successfully installed!\n", modInfoData.Name)
+	fmt.Printf("Mod \"%s\" successfully installed! (%s)\n", modInfoData.Name, fileInfoData.FileName)
 
 	return nil
 }
