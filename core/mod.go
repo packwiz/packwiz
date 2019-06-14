@@ -85,3 +85,9 @@ func (m Mod) Write() (string, string, error) {
 	hashString := hex.EncodeToString(h.Sum(nil))
 	return "sha256", hashString, err
 }
+
+// GetParsedUpdater can be used to retrieve updater-specific information after parsing a mod file
+func (m Mod) GetParsedUpdater(updaterName string) (Updater, bool) {
+	upd, ok := m.updaters[updaterName]
+	return upd, ok
+}

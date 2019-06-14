@@ -11,6 +11,7 @@ require (
 	github.com/mattn/go-isatty v0.0.4 // indirect
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/skratchdot/open-golang v0.0.0-20190402232053-79abb63cd66e
 	github.com/stretchr/testify v1.2.2 // indirect
 	github.com/urfave/cli v1.20.0
 	github.com/vbauerster/mpb/v4 v4.7.0

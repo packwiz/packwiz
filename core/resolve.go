@@ -1,4 +1,5 @@
 package core
+
 import (
 	"path/filepath"
 	"strings"
@@ -9,7 +10,7 @@ const ModExtension = ".toml"
 
 // ResolveMod returns the path to a mod file from it's name
 func ResolveMod(modName string, flags Flags) string {
+	// TODO: should this work for any metadata file?
 	fileName := strings.ToLower(strings.TrimSuffix(modName, ModExtension)) + ModExtension
 	return filepath.Join(flags.ModsFolder, fileName)
 }
-
