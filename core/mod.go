@@ -91,3 +91,8 @@ func (m Mod) GetParsedUpdateData(updaterName string) (interface{}, bool) {
 	upd, ok := m.updateData[updaterName]
 	return upd, ok
 }
+
+// GetFilePath is a clumsy hack that I made because Mod already stores it's path anyway
+func (m Mod) GetFilePath() string {
+	return m.metaFile
+}

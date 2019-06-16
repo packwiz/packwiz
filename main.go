@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
 	"github.com/comp500/packwiz/core"
 	"github.com/urfave/cli"
@@ -122,6 +123,9 @@ func cmdRefresh(flags core.Flags) error {
 }
 
 func cmdUpdate(flags core.Flags, mod string) error {
+	// TODO: --check flag?
+	// TODO: specify multiple mods to update at once?
+
 	fmt.Println("Loading modpack...")
 	pack, err := core.LoadPack(flags)
 	if err != nil {
@@ -140,8 +144,105 @@ func cmdUpdate(flags core.Flags, mod string) error {
 	var singleUpdatedName string
 	if len(mod) == 0 || mod == "*" {
 		multiple = true
-		// TODO: implement
-		return cli.NewExitError("Not implemented yet!", 1)
+		
+		updaterMap := make(map[string][]core.Mod)
+		fmt.Println("Reading mod files...")
+		for _, v := range index.Files {
+			if v.MetaFile {
+				// TODO: check fromslash stuff aaa
+				modData, err := core.LoadMod(v.File)
+				if err != nil {
+					fmt.Printf("Error reading mod file: %s", err.Error())
+					continue
+				}
+
+				updaterFound := false
+				for k := range modData.Update {
+					slice, ok := updaterMap[k]
+					if !ok {
+						_, ok = core.Updaters[k]
+						if !ok {
+							continue
+						}
+						slice = []core.Mod{}
+					}
+					updaterFound = true
+					updaterMap[k] = append(slice, modData)
+				}
+				if !updaterFound {
+					fmt.Printf("A supported update system for \"%s\" cannot be found.", modData.Name)
+				}
+			}
+		}
+
+		fmt.Println("Checking for updates...")
+		updatesFound := false
+		updaterPointerMap := make(map[string][]*core.Mod)
+		updaterCachedStateMap := make(map[string][]interface{})
+		for k, v := range updaterMap {
+			checks, err := core.Updaters[k].CheckUpdate(v, mcVersion)
+			if err != nil {
+				// TODO: do we return err code 1?
+				fmt.Println(err.Error())
+				continue
+			}
+			for i, check := range checks {
+				if check.Error != nil {
+					// TODO: do we return err code 1?
+					// TODO: better error message?
+					fmt.Println(check.Error.Error())
+					continue
+				}
+				if check.UpdateAvailable {
+					if !updatesFound {
+						fmt.Println("Updates found:")
+						updatesFound = true
+					}
+					fmt.Printf("%s: %s\n", v[i].Name, check.UpdateString)
+					updaterPointerMap[k] = append(updaterPointerMap[k], &v[i])
+					updaterCachedStateMap[k] = append(updaterCachedStateMap[k], check.CachedState)
+				}
+			}
+		}
+
+		if !updatesFound {
+			fmt.Println("All mods are up to date!")
+			return nil
+		}
+
+		fmt.Println("Do you want to update? [Y/n]: ")
+		var answer string
+		_, err := fmt.Scanln(&answer)
+		if err != nil {
+			return cli.NewExitError(err, 1)
+		}
+
+		ansNormal := strings.ToLower(strings.TrimSpace(answer))
+		if len(ansNormal) > 0 && ansNormal[0] == 'n' {
+			fmt.Println("Cancelled!")
+			return nil
+		}
+
+		for k, v := range updaterPointerMap {
+			err := core.Updaters[k].DoUpdate(v, updaterCachedStateMap[k])
+			if err != nil {
+				// TODO: do we return err code 1?
+				fmt.Println(err.Error())
+				continue
+			}
+			for _, modData := range v {
+				format, hash, err := modData.Write()
+				if err != nil {
+					fmt.Println(err.Error())
+					continue
+				}
+				err = index.RefreshFileWithHash(modData.GetFilePath(), format, hash, true)
+				if err != nil {
+					fmt.Println(err.Error())
+					continue
+				}
+			}
+		}
 	} else {
 		modPath, ok := index.FindMod(mod)
 		if !ok {
@@ -192,7 +293,8 @@ func cmdUpdate(flags core.Flags, mod string) error {
 			break
 		}
 		if !updaterFound {
-			return cli.NewExitError("A supported update system for this mod cannot be found.", 1)
+			// TODO: use file name instead of Name when len(Name) == 0 in all places?
+			return cli.NewExitError("A supported update system for \""+ modData.Name +"\" cannot be found.", 1)
 		}
 	}
 
