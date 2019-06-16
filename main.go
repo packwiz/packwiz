@@ -144,34 +144,31 @@ func cmdUpdate(flags core.Flags, mod string) error {
 	var singleUpdatedName string
 	if len(mod) == 0 || mod == "*" {
 		multiple = true
-		
+
 		updaterMap := make(map[string][]core.Mod)
 		fmt.Println("Reading mod files...")
-		for _, v := range index.Files {
-			if v.MetaFile {
-				// TODO: check fromslash stuff aaa
-				modData, err := core.LoadMod(v.File)
-				if err != nil {
-					fmt.Printf("Error reading mod file: %s", err.Error())
-					continue
-				}
+		for _, v := range index.GetAllMods() {
+			modData, err := core.LoadMod(v)
+			if err != nil {
+				fmt.Printf("Error reading mod file: %s", err.Error())
+				continue
+			}
 
-				updaterFound := false
-				for k := range modData.Update {
-					slice, ok := updaterMap[k]
+			updaterFound := false
+			for k := range modData.Update {
+				slice, ok := updaterMap[k]
+				if !ok {
+					_, ok = core.Updaters[k]
 					if !ok {
-						_, ok = core.Updaters[k]
-						if !ok {
-							continue
-						}
-						slice = []core.Mod{}
+						continue
 					}
-					updaterFound = true
-					updaterMap[k] = append(slice, modData)
+					slice = []core.Mod{}
 				}
-				if !updaterFound {
-					fmt.Printf("A supported update system for \"%s\" cannot be found.", modData.Name)
-				}
+				updaterFound = true
+				updaterMap[k] = append(slice, modData)
+			}
+			if !updaterFound {
+				fmt.Printf("A supported update system for \"%s\" cannot be found.", modData.Name)
 			}
 		}
 
@@ -294,7 +291,7 @@ func cmdUpdate(flags core.Flags, mod string) error {
 		}
 		if !updaterFound {
 			// TODO: use file name instead of Name when len(Name) == 0 in all places?
-			return cli.NewExitError("A supported update system for \""+ modData.Name +"\" cannot be found.", 1)
+			return cli.NewExitError("A supported update system for \""+modData.Name+"\" cannot be found.", 1)
 		}
 	}
 

@@ -276,9 +276,21 @@ func (in Index) FindMod(modName string) (string, bool) {
 			_, file := filepath.Split(v.File)
 			fileTrimmed := strings.TrimSuffix(file, ModExtension)
 			if fileTrimmed == modName {
-				return v.File, true
+				return filepath.Join(filepath.Dir(in.indexFile), filepath.FromSlash(v.File)), true
 			}
 		}
 	}
 	return "", false
+}
+
+// GetAllMods finds paths to every metadata file (Mod) in the index
+func (in Index) GetAllMods() []string {
+	var list []string
+	baseDir := filepath.Dir(in.indexFile)
+	for _, v := range in.Files {
+		if v.MetaFile {
+			list = append(list, filepath.Join(baseDir, filepath.FromSlash(v.File)))
+		}
+	}
+	return list
 }
