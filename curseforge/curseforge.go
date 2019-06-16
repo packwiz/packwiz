@@ -38,7 +38,7 @@ func init() {
 			},
 		}},
 	})
-	core.UpdateParsers["curseforge"] = cfUpdateParser{}
+	core.Updaters["curseforge"] = cfUpdater{}
 }
 
 var fileIDRegexes = [...]*regexp.Regexp{
@@ -100,7 +100,7 @@ func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo, inde
 	updateMap := make(map[string]map[string]interface{})
 	var err error
 
-	updateMap["curseforge"], err = cfUpdater{
+	updateMap["curseforge"], err = cfUpdateData{
 		ProjectID: modInfo.ID,
 		FileID:    fileInfo.ID,
 		// TODO: determine update channel
@@ -162,11 +162,11 @@ func cmdDoc(flags core.Flags, mod string) error {
 	if err != nil {
 		return cli.NewExitError(err, 1)
 	}
-	updateData, ok := modData.GetParsedUpdater("curseforge")
+	updateData, ok := modData.GetParsedUpdateData("curseforge")
 	if !ok {
 		return cli.NewExitError("This mod doesn't seem to be a curseforge mod!", 1)
 	}
-	cfUpdateData := updateData.(cfUpdater)
+	cfUpdateData := updateData.(cfUpdateData)
 	fmt.Println("Opening browser...")
 	url := "https://minecraft.curseforge.com/projects/" + strconv.Itoa(cfUpdateData.ProjectID)
 	err = open.Start(url)
@@ -178,32 +178,36 @@ func cmdDoc(flags core.Flags, mod string) error {
 	return nil
 }
 
-type cfUpdateParser struct{}
-
-func (u cfUpdateParser) ParseUpdate(updateUnparsed map[string]interface{}) (core.Updater, error) {
-	var updater cfUpdater
-	err := mapstructure.Decode(updateUnparsed, &updater)
-	return updater, err
-}
-
-type cfUpdater struct {
+type cfUpdateData struct {
 	ProjectID      int    `mapstructure:"project-id"`
 	FileID         int    `mapstructure:"file-id"`
 	ReleaseChannel string `mapstructure:"release-channel"`
 }
 
-func (u cfUpdater) DoUpdate(mod core.Mod) (bool, error) {
+func (u cfUpdateData) ToMap() (map[string]interface{}, error) {
+	newMap := make(map[string]interface{})
+	err := mapstructure.Decode(u, &newMap)
+	return newMap, err
+}
+
+type cfUpdater struct{}
+
+func (u cfUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface{}, error) {
+	var updateData cfUpdateData
+	err := mapstructure.Decode(updateUnparsed, &updateData)
+	return updateData, err
+}
+
+func (u cfUpdater) CheckUpdate(mod []core.Mod) ([]core.UpdateCheck, error) {
+	return nil, nil
+}
+
+func (u cfUpdater) DoUpdate(mod []*core.Mod, cachedState []interface{}) error {
 	// TODO: implement updating
 	// modInfoData, err := getModInfo(u.ProjectID)
 	// if err != nil {
 	// 	return false, err
 	// }
 
-	return false, nil
-}
-
-func (u cfUpdater) ToMap() (map[string]interface{}, error) {
-	newMap := make(map[string]interface{})
-	err := mapstructure.Decode(u, &newMap)
-	return newMap, err
+	return nil
 }

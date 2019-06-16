@@ -7,8 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
-	"time"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 	"github.com/vbauerster/mpb/v4"
@@ -192,6 +192,7 @@ func (in *Index) Refresh() error {
 		}
 		start := time.Now()
 		defer func() {
+			// TODO: this is stupid, traverse the file tree first *then* read all the files
 			if progressCurrent >= progressLength {
 				progressLength++
 				progress.SetTotal(int64(progressLength), false)
@@ -272,7 +273,7 @@ func (in *Index) RefreshFileWithHash(path, format, hash string, mod bool) error 
 func (in Index) FindMod(modName string) (string, bool) {
 	for _, v := range in.Files {
 		if v.MetaFile {
-			_, file := filepath.Split(v.File);
+			_, file := filepath.Split(v.File)
 			fileTrimmed := strings.TrimSuffix(file, ModExtension)
 			if fileTrimmed == modName {
 				return v.File, true

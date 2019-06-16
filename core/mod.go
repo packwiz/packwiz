@@ -19,8 +19,8 @@ type Mod struct {
 	Optional bool        `toml:"optional,omitempty"`
 	Download ModDownload `toml:"download"`
 	// Update is a map of map of stuff, so you can store arbitrary values on string keys to define updating
-	Update   map[string]map[string]interface{} `toml:"update"`
-	updaters map[string]Updater
+	Update     map[string]map[string]interface{} `toml:"update"`
+	updateData map[string]interface{}
 }
 
 // ModDownload specifies how to download the mod file
@@ -43,16 +43,16 @@ func LoadMod(modFile string) (Mod, error) {
 	if _, err := toml.DecodeFile(modFile, &mod); err != nil {
 		return Mod{}, err
 	}
-	mod.updaters = make(map[string]Updater)
-	// Horrible reflection library to convert to Updaters
+	mod.updateData = make(map[string]interface{})
+	// Horrible reflection library to convert map[string]interface to proper struct
 	for k, v := range mod.Update {
-		updateParser, ok := UpdateParsers[k]
+		updater, ok := Updaters[k]
 		if ok {
-			updater, err := updateParser.ParseUpdate(v)
+			updateData, err := updater.ParseUpdate(v)
 			if err != nil {
 				return mod, err
 			}
-			mod.updaters[k] = updater
+			mod.updateData[k] = updateData
 		} else {
 			return mod, errors.New("Update plugin " + k + " not found!")
 		}
@@ -86,8 +86,8 @@ func (m Mod) Write() (string, string, error) {
 	return "sha256", hashString, err
 }
 
-// GetParsedUpdater can be used to retrieve updater-specific information after parsing a mod file
-func (m Mod) GetParsedUpdater(updaterName string) (Updater, bool) {
-	upd, ok := m.updaters[updaterName]
+// GetParsedUpdateData can be used to retrieve updater-specific information after parsing a mod file
+func (m Mod) GetParsedUpdateData(updaterName string) (interface{}, bool) {
+	upd, ok := m.updateData[updaterName]
 	return upd, ok
 }
