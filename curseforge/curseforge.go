@@ -206,8 +206,9 @@ type cachedStateStore struct {
 
 func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.UpdateCheck, error) {
 	results := make([]core.UpdateCheck, len(mods))
+	modIDs := make([]int, len(mods))
+	modInfos := make([]modInfo, len(mods))
 
-	// TODO: make this batched
 	for i, v := range mods {
 		projectRaw, ok := v.GetParsedUpdateData("curseforge")
 		if !ok {
@@ -215,18 +216,36 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 			continue
 		}
 		project := projectRaw.(cfUpdateData)
-		modInfoData, err := getModInfo(project.ProjectID)
-		if err != nil {
-			results[i] = core.UpdateCheck{Error: err}
+		modIDs[i] = project.ProjectID
+	}
+
+	modInfosUnsorted, err := getModInfoMultiple(modIDs)
+	if err != nil {
+		return nil, err
+	}
+	for _, v := range modInfosUnsorted {
+		for i, id := range modIDs {
+			if id == v.ID {
+				modInfos[i] = v
+				break
+			}
+		}
+	}
+
+	for i, v := range mods {
+		projectRaw, ok := v.GetParsedUpdateData("curseforge")
+		if !ok {
+			results[i] = core.UpdateCheck{Error: errors.New("couldn't parse mod data")}
 			continue
 		}
+		project := projectRaw.(cfUpdateData)
 
 		updateAvailable := false
 		fileID := project.FileID
 		fileInfoObtained := false
 		var fileInfoData modFileInfo
 
-		for _, file := range modInfoData.GameVersionLatestFiles {
+		for _, file := range modInfos[i].GameVersionLatestFiles {
 			// TODO: change to timestamp-based comparison??
 			// TODO: manage alpha/beta/release correctly, check update channel?
 			// Choose "newest" version by largest ID
@@ -242,7 +261,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 		}
 
 		// The API also provides some files inline, because that's efficient!
-		for _, file := range modInfoData.LatestFiles {
+		for _, file := range modInfos[i].LatestFiles {
 			if file.ID == fileID {
 				fileInfoObtained = true
 				fileInfoData = file
@@ -260,7 +279,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,
 			UpdateString:    v.FileName + " -> " + fileInfoData.FileName,
-			CachedState:     cachedStateStore{modInfoData, fileInfoData},
+			CachedState:     cachedStateStore{modInfos[i], fileInfoData},
 		}
 	}
 	return results, nil

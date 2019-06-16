@@ -30,13 +30,3 @@ type UpdateCheck struct {
 	// If an error is returned for a mod, or from CheckUpdate, DoUpdate is not called on that mod / at all
 	Error error
 }
-
-// to carry out updating:
-
-// go through all metafiles in index
-// make a []Mod for each updater, so map[string][]Mod
-// for each Mod, check the "first" updater, then give the Mod to the map
-
-// go through the map, call CheckUpdate with the []Mod
-// print to user, if interactive mode
-// call doupdate with the mods and interfaces!!
