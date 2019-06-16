@@ -281,8 +281,8 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 			Hash:       strconv.Itoa(modState.fileInfo.Fingerprint),
 		}
 
-		v.Update["curseforge"]["ProjectID"] = modState.ID
-		v.Update["curseforge"]["FileID"] = modState.fileInfo.ID
+		v.Update["curseforge"]["project-id"] = modState.ID
+		v.Update["curseforge"]["file-id"] = modState.fileInfo.ID
 	}
 
 	return nil
