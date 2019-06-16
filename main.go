@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"bufio"
 
 	"github.com/comp500/packwiz/core"
 	"github.com/urfave/cli"
@@ -208,8 +209,7 @@ func cmdUpdate(flags core.Flags, mod string) error {
 		}
 
 		fmt.Print("Do you want to update? [Y/n]: ")
-		var answer string
-		_, err := fmt.Scanln(&answer)
+		answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
 		if err != nil {
 			return cli.NewExitError(err, 1)
 		}
