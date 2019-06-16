@@ -8,9 +8,9 @@ type Updater interface {
 	// ParseUpdate takes an unparsed interface{} (as a map[string]interface{}), and returns an Updater for a mod file.
 	// This can be done using the mapstructure library or your own parsing methods.
 	ParseUpdate(map[string]interface{}) (interface{}, error)
-	// CheckUpdate checks whether there is an update for each of the mods in the given slice,
+	// CheckUpdate checks whether there is an update for each of the mods in the given slice, for the given MC version,
 	// called for all of the mods that this updater handles
-	CheckUpdate([]Mod) ([]UpdateCheck, error)
+	CheckUpdate([]Mod, string) ([]UpdateCheck, error)
 	// DoUpdate carries out the update previously queried in CheckUpdate, on each Mod's metadata,
 	// given pointers to Mods and the value of CachedState for each mod
 	DoUpdate([]*Mod, []interface{}) error
@@ -31,7 +31,6 @@ type UpdateCheck struct {
 	Error error
 }
 
-// TODO: new docs
 // to carry out updating:
 
 // go through all metafiles in index

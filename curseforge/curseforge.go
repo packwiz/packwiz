@@ -1,6 +1,7 @@
 package curseforge
 
 import (
+	"errors"
 	"fmt"
 	"regexp"
 	"strconv"
@@ -198,16 +199,91 @@ func (u cfUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 	return updateData, err
 }
 
-func (u cfUpdater) CheckUpdate(mod []core.Mod) ([]core.UpdateCheck, error) {
-	return nil, nil
+type cachedStateStore struct {
+	modInfo
+	fileInfo modFileInfo
 }
 
-func (u cfUpdater) DoUpdate(mod []*core.Mod, cachedState []interface{}) error {
-	// TODO: implement updating
-	// modInfoData, err := getModInfo(u.ProjectID)
-	// if err != nil {
-	// 	return false, err
-	// }
+func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.UpdateCheck, error) {
+	results := make([]core.UpdateCheck, len(mods))
+
+	// TODO: make this batched
+	for i, v := range mods {
+		projectRaw, ok := v.GetParsedUpdateData("curseforge")
+		if !ok {
+			results[i] = core.UpdateCheck{Error: errors.New("couldn't parse mod data")}
+			continue
+		}
+		project := projectRaw.(cfUpdateData)
+		modInfoData, err := getModInfo(project.ProjectID)
+		if err != nil {
+			results[i] = core.UpdateCheck{Error: err}
+			continue
+		}
+
+		updateAvailable := false
+		fileID := project.FileID
+		fileInfoObtained := false
+		var fileInfoData modFileInfo
+
+		for _, file := range modInfoData.GameVersionLatestFiles {
+			// TODO: change to timestamp-based comparison??
+			// TODO: manage alpha/beta/release correctly, check update channel?
+			// Choose "newest" version by largest ID
+			if file.GameVersion == mcVersion && file.ID > fileID {
+				updateAvailable = true
+				fileID = file.ID
+			}
+		}
+
+		if !updateAvailable {
+			results[i] = core.UpdateCheck{UpdateAvailable: false}
+			continue
+		}
+
+		// The API also provides some files inline, because that's efficient!
+		for _, file := range modInfoData.LatestFiles {
+			if file.ID == fileID {
+				fileInfoObtained = true
+				fileInfoData = file
+			}
+		}
+
+		if !fileInfoObtained {
+			fileInfoData, err = getFileInfo(project.ProjectID, fileID)
+			if err != nil {
+				results[i] = core.UpdateCheck{Error: err}
+				continue
+			}
+		}
+
+		results[i] = core.UpdateCheck{
+			UpdateAvailable: true,
+			UpdateString:    v.FileName + " -> " + fileInfoData.FileName,
+			CachedState:     cachedStateStore{modInfoData, fileInfoData},
+		}
+	}
+	return results, nil
+}
+
+func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
+	// "Do" isn't really that accurate, more like "Apply", because all the work is done in CheckUpdate!
+	for i, v := range mods {
+		modState := cachedState[i].(cachedStateStore)
+
+		v.FileName = modState.fileInfo.FileName
+		v.Name = modState.Name
+		v.Download = core.ModDownload{
+			URL: modState.fileInfo.DownloadURL,
+			// TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
+			// TODO: check if the hash is invalid (e.g. 0)
+			HashFormat: "murmur2",
+			Hash:       strconv.Itoa(modState.fileInfo.Fingerprint),
+		}
+
+		v.Update["curseforge"]["ProjectID"] = modState.ID
+		v.Update["curseforge"]["FileID"] = modState.fileInfo.ID
+	}
 
 	return nil
 }

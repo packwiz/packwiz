@@ -125,7 +125,7 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 	fileInfoObtained := false
 	var fileInfoData modFileInfo
 	if fileID == 0 {
-		// TODO: how do we decide which version to use?
+		// TODO: change to timestamp-based comparison??
 		for _, v := range modInfoData.GameVersionLatestFiles {
 			// Choose "newest" version by largest ID
 			if v.GameVersion == mcVersion && v.ID > fileID {
