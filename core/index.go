@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
+	"github.com/denormal/go-gitignore"
 	"github.com/vbauerster/mpb/v4"
 	"github.com/vbauerster/mpb/v4/decor"
 )
@@ -162,14 +163,17 @@ func (in *Index) Refresh() error {
 	pathPF, _ := filepath.Abs(in.flags.PackFile)
 	pathIndex, _ := filepath.Abs(in.indexFile)
 
-	progressContainer := mpb.New()
-
 	// TODO: A method of specifying pack root directory?
-	// TODO: A method of excluding files
 	packRoot := filepath.Dir(in.flags.PackFile)
-	var fileList []string
+	ignoreExists := true
+	pathIgnore, _ := filepath.Abs(filepath.Join(packRoot, ".packwizignore"))
+	ignore, err := gitignore.NewFromFile(filepath.Join(packRoot, ".packwizignore"))
+	if err != nil {
+		ignoreExists = false
+	}
 
-	err := filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
+	var fileList []string
+	err = filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			// TODO: Handle errors on individual files properly
 			return err
@@ -184,6 +188,18 @@ func (in *Index) Refresh() error {
 		if info.IsDir() {
 			return nil
 		}
+		if ignoreExists {
+			if absPath == pathIgnore {
+				return nil
+			}
+
+			rel, err := filepath.Rel(packRoot, path)
+			if err == nil {
+				if ignore.Ignore(filepath.ToSlash(rel)) {
+					return nil
+				}
+			}
+		}
 
 		fileList = append(fileList, path)
 		return nil
@@ -192,6 +208,7 @@ func (in *Index) Refresh() error {
 		return err
 	}
 
+	progressContainer := mpb.New()
 	progress := progressContainer.AddBar(int64(len(fileList)),
 		mpb.PrependDecorators(
 			// simple name decorator
