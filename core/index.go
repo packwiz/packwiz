@@ -158,15 +158,41 @@ func (in *Index) Refresh() error {
 	// TODO: If needed, multithreaded hashing
 	// for i := 0; i < runtime.NumCPU(); i++ {}
 
-	// Get fileinfos of pack.toml and index to compare them
-	// Case-sensitivity?
+	// Is case-sensitivity a problem?
 	pathPF, _ := filepath.Abs(in.flags.PackFile)
 	pathIndex, _ := filepath.Abs(in.indexFile)
 
-	progressLength := len(in.Files)
-	progressCurrent := 0
 	progressContainer := mpb.New()
-	progress := progressContainer.AddBar(int64(progressLength),
+
+	// TODO: A method of specifying pack root directory?
+	// TODO: A method of excluding files
+	packRoot := filepath.Dir(in.flags.PackFile)
+	var fileList []string
+
+	err := filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			// TODO: Handle errors on individual files properly
+			return err
+		}
+
+		// Exit if the files are the same as the pack/index files
+		absPath, _ := filepath.Abs(path)
+		if absPath == pathPF || absPath == pathIndex {
+			return nil
+		}
+		// Exit if this is a directory
+		if info.IsDir() {
+			return nil
+		}
+
+		fileList = append(fileList, path)
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+
+	progress := progressContainer.AddBar(int64(len(fileList)),
 		mpb.PrependDecorators(
 			// simple name decorator
 			decor.Name("Refreshing index..."),
@@ -182,42 +208,16 @@ func (in *Index) Refresh() error {
 		),
 	)
 
-	// TODO: A method of specifying pack root directory?
-	// TODO: A method of excluding files
-	packRoot := filepath.Dir(in.flags.PackFile)
-	err := filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
+	for _, v := range fileList {
+		start := time.Now()
+
+		err := in.updateFile(v)
 		if err != nil {
-			// TODO: Handle errors on individual files properly
 			return err
 		}
-		start := time.Now()
-		defer func() {
-			// TODO: this is stupid, traverse the file tree first *then* read all the files
-			if progressCurrent >= progressLength {
-				progressLength++
-				progress.SetTotal(int64(progressLength), false)
-			}
-			progressCurrent++
-			progress.Increment(time.Since(start))
-		}()
 
-		// Exit if the files are the same as the pack/index files
-		absPath, _ := filepath.Abs(path)
-		if absPath == pathPF || absPath == pathIndex {
-			return nil
-		}
-		// Exit if this is a directory
-		if info.IsDir() {
-			return nil
-		}
-
-		return in.updateFile(path)
-	})
-	if err != nil {
-		return err
+		progress.Increment(time.Since(start))
 	}
-
-	progress.SetTotal(int64(progressLength), true)
 
 	// Check all the files exist, remove them if they don't
 	i := 0

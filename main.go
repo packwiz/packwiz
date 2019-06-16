@@ -207,7 +207,7 @@ func cmdUpdate(flags core.Flags, mod string) error {
 			return nil
 		}
 
-		fmt.Println("Do you want to update? [Y/n]: ")
+		fmt.Print("Do you want to update? [Y/n]: ")
 		var answer string
 		_, err := fmt.Scanln(&answer)
 		if err != nil {
