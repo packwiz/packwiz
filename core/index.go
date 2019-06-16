@@ -26,12 +26,13 @@ type Index struct {
 
 // IndexFile is a file in the index
 type IndexFile struct {
-	// Files are stored in relative forward-slash format to the index file
+	// Files are stored in forward-slash format relative to the index file
 	File           string `toml:"file"`
 	Hash           string `toml:"hash"`
 	HashFormat     string `toml:"hash-format,omitempty"`
 	Alias          string `toml:"alias,omitempty"`
 	MetaFile       bool   `toml:"metafile,omitempty"` // True when it is a .toml metadata file
+	Preserve       bool   `toml:"preserve,omitempty"` // Don't overwrite the file when updating
 	fileExistsTemp bool
 }
 
