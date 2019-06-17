@@ -31,7 +31,7 @@ func init() {
 			},
 		}, {
 			Name: "open",
-			// TODO: change semantics to "project" rather than "mod", as this supports texture packs and misc content as well
+			// TODO: change semantics to "project" rather than "mod", as this supports texture packs and misc content as well?
 			Usage:   "Open the project page for a curseforge mod in your browser",
 			Aliases: []string{"doc"},
 			Action: func(c *cli.Context) error {
@@ -136,7 +136,6 @@ func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo, inde
 		return err
 	}
 
-	// TODO: send written data directly to index, instead of write+read?
 	return index.RefreshFileWithHash(path, format, hash, true)
 }
 
@@ -201,7 +200,9 @@ func (u cfUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 
 type cachedStateStore struct {
 	modInfo
-	fileInfo modFileInfo
+	hasFileInfo bool
+	fileID      int
+	fileInfo    modFileInfo
 }
 
 func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.UpdateCheck, error) {
@@ -244,6 +245,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 		fileID := project.FileID
 		fileInfoObtained := false
 		var fileInfoData modFileInfo
+		var fileName string
 
 		for _, file := range modInfos[i].GameVersionLatestFiles {
 			// TODO: change to timestamp-based comparison??
@@ -252,6 +254,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 			if file.GameVersion == mcVersion && file.ID > fileID {
 				updateAvailable = true
 				fileID = file.ID
+				fileName = file.Name
 			}
 		}
 
@@ -268,18 +271,10 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 			}
 		}
 
-		if !fileInfoObtained {
-			fileInfoData, err = getFileInfo(project.ProjectID, fileID)
-			if err != nil {
-				results[i] = core.UpdateCheck{Error: err}
-				continue
-			}
-		}
-
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,
-			UpdateString:    v.FileName + " -> " + fileInfoData.FileName,
-			CachedState:     cachedStateStore{modInfos[i], fileInfoData},
+			UpdateString:    v.FileName + " -> " + fileName,
+			CachedState:     cachedStateStore{modInfos[i], fileInfoObtained, fileID, fileInfoData},
 		}
 	}
 	return results, nil
@@ -290,18 +285,27 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 	for i, v := range mods {
 		modState := cachedState[i].(cachedStateStore)
 
-		v.FileName = modState.fileInfo.FileName
+		fileInfoData := modState.fileInfo
+		if !modState.hasFileInfo {
+			var err error
+			fileInfoData, err = getFileInfo(modState.ID, modState.fileID)
+			if err != nil {
+				return err
+			}
+		}
+
+		v.FileName = fileInfoData.FileName
 		v.Name = modState.Name
 		v.Download = core.ModDownload{
-			URL: modState.fileInfo.DownloadURL,
+			URL: fileInfoData.DownloadURL,
 			// TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
 			// TODO: check if the hash is invalid (e.g. 0)
 			HashFormat: "murmur2",
-			Hash:       strconv.Itoa(modState.fileInfo.Fingerprint),
+			Hash:       strconv.Itoa(fileInfoData.Fingerprint),
 		}
 
 		v.Update["curseforge"]["project-id"] = modState.ID
-		v.Update["curseforge"]["file-id"] = modState.fileInfo.ID
+		v.Update["curseforge"]["file-id"] = fileInfoData.ID
 	}
 
 	return nil
