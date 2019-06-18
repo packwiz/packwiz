@@ -1,7 +1,10 @@
 package curseforge
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 
@@ -10,6 +13,13 @@ import (
 	"github.com/urfave/cli"
 	"gopkg.in/dixonwille/wmenu.v4"
 )
+
+const maxCycles = 20
+
+type installableDep struct {
+	modInfo
+	fileInfo modFileInfo
+}
 
 func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 	if len(mod) == 0 {
@@ -53,8 +63,6 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		fmt.Println("Searching CurseForge...")
 		modArgs := append([]string{mod}, modArgsTail...)
 		searchTerm := strings.Join(modArgs, " ")
-		// TODO: Curse search
-		// TODO: how to do interactive choices? automatically assume version? ask mod from list? choose first?
 		results, err := getSearch(searchTerm, mcVersion)
 		if err != nil {
 			return cli.NewExitError(err, 1)
@@ -122,34 +130,122 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 		}
 	}
 
-	fileInfoObtained := false
 	var fileInfoData modFileInfo
-	if fileID == 0 {
-		// TODO: change to timestamp-based comparison??
-		for _, v := range modInfoData.GameVersionLatestFiles {
-			// Choose "newest" version by largest ID
-			if v.GameVersion == mcVersion && v.ID > fileID {
-				fileID = v.ID
-			}
-		}
-
-		if fileID == 0 {
-			return cli.NewExitError("No files available for current Minecraft version!", 1)
-		}
-
-		// The API also provides some files inline, because that's efficient!
-		for _, v := range modInfoData.LatestFiles {
-			if v.ID == fileID {
-				fileInfoObtained = true
-				fileInfoData = v
-			}
-		}
+	fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID)
+	if err != nil {
+		return cli.NewExitError(err, 1)
 	}
 
-	if !fileInfoObtained {
-		fileInfoData, err = getFileInfo(modID, fileID)
-		if err != nil {
-			return cli.NewExitError(err, 1)
+	if len(fileInfoData.Dependencies) > 0 {
+		var depsInstallable []installableDep
+		var depIDPendingQueue []int
+		for _, dep := range fileInfoData.Dependencies {
+			if dep.Type == dependencyTypeRequired {
+				depIDPendingQueue = append(depIDPendingQueue, dep.ModID)
+			}
+		}
+
+		if len(depIDPendingQueue) > 0 {
+			fmt.Println("Finding dependencies...")
+
+			cycles := 0
+			var installedIDList []int
+			for len(depIDPendingQueue) > 0 && cycles < maxCycles {
+				if installedIDList == nil {
+					// Get modids of all mods
+					for _, modPath := range index.GetAllMods() {
+						mod, err := core.LoadMod(modPath)
+						if err == nil {
+							data, ok := mod.GetParsedUpdateData("curseforge")
+							if ok {
+								updateData, ok := data.(cfUpdateData)
+								if ok {
+									if updateData.ProjectID > 0 {
+										installedIDList = append(installedIDList, updateData.ProjectID)
+									}
+								}
+							}
+						}
+					}
+				}
+
+				// Remove installed IDs from dep queue
+				i := 0
+				for _, id := range depIDPendingQueue {
+					contains := false
+					for _, id2 := range installedIDList {
+						if id == id2 {
+							contains = true
+							break
+						}
+					}
+					for _, data := range depsInstallable {
+						if id == data.ID {
+							contains = true
+							break
+						}
+					}
+					if !contains {
+						depIDPendingQueue[i] = id
+						i++
+					}
+				}
+				depIDPendingQueue = depIDPendingQueue[:i]
+
+				depInfoData, err := getModInfoMultiple(depIDPendingQueue)
+				if err != nil {
+					fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
+				}
+				depIDPendingQueue = depIDPendingQueue[:0]
+
+				for _, currData := range depInfoData {
+					depFileInfo, err := getLatestFile(currData, mcVersion, 0)
+					if err != nil {
+						fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
+					}
+
+					for _, dep := range depFileInfo.Dependencies {
+						if dep.Type == dependencyTypeRequired {
+							depIDPendingQueue = append(depIDPendingQueue, dep.ModID)
+						}
+					}
+
+					depsInstallable = append(depsInstallable, installableDep{
+						currData, depFileInfo,
+					})
+				}
+
+				cycles++
+			}
+			if cycles >= maxCycles {
+				return cli.NewExitError("Dependencies recurse too deeply! Try increasing maxCycles.", 1)
+			}
+
+			if len(depsInstallable) > 0 {
+				fmt.Println("Dependencies found:")
+				for _, v := range depsInstallable {
+					fmt.Println(v.Name)
+				}
+
+				fmt.Print("Would you like to install them? [Y/n]: ")
+				answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
+				if err != nil {
+					return cli.NewExitError(err, 1)
+				}
+
+				ansNormal := strings.ToLower(strings.TrimSpace(answer))
+				if !(len(ansNormal) > 0 && ansNormal[0] == 'n') {
+					for _, v := range depsInstallable {
+						err = createModFile(flags, v.modInfo, v.fileInfo, &index)
+						if err != nil {
+							return cli.NewExitError(err, 1)
+						}
+						fmt.Printf("Dependency \"%s\" successfully installed! (%s)\n", v.modInfo.Name, v.fileInfo.FileName)
+					}
+				}
+			} else {
+				fmt.Println("All dependencies are already installed!")
+			}
 		}
 	}
 
@@ -174,4 +270,33 @@ func cmdInstall(flags core.Flags, mod string, modArgsTail []string) error {
 	fmt.Printf("Mod \"%s\" successfully installed! (%s)\n", modInfoData.Name, fileInfoData.FileName)
 
 	return nil
+}
+
+func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileInfo, error) {
+	if fileID == 0 {
+		// TODO: change to timestamp-based comparison??
+		for _, v := range modInfoData.GameVersionLatestFiles {
+			// Choose "newest" version by largest ID
+			if v.GameVersion == mcVersion && v.ID > fileID {
+				fileID = v.ID
+			}
+		}
+	}
+
+	if fileID == 0 {
+		return modFileInfo{}, errors.New("mod not available for this minecraft version")
+	}
+
+	// The API also provides some files inline, because that's efficient!
+	for _, v := range modInfoData.LatestFiles {
+		if v.ID == fileID {
+			return v, nil
+		}
+	}
+
+	fileInfoData, err := getFileInfo(modInfoData.ID, fileID)
+	if err != nil {
+		return modFileInfo{}, err
+	}
+	return fileInfoData, nil
 }

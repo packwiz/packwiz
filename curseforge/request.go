@@ -96,8 +96,12 @@ const (
 )
 
 const (
-	dependencyTypeRequired int = iota + 1
+	dependencyTypeEmbedded int = iota + 1
 	dependencyTypeOptional
+	dependencyTypeRequired
+	dependencyTypeTool
+	dependencyTypeIncompatible
+	dependencyTypeInclude
 )
 
 // modInfo is a subset of the deserialised JSON response from the Curse API for mods (addons)
