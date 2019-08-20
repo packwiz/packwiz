@@ -67,7 +67,7 @@ var modSlugRegexes = [...]*regexp.Regexp{
 	regexp.MustCompile("^https?:\\/\\/minecraft\\.curseforge\\.com\\/projects\\/([^\\/]+)"),
 	regexp.MustCompile("^https?:\\/\\/(?:www\\.)?curseforge\\.com\\/minecraft\\/mc-mods\\/([^\\/]+)"),
 	// Exact slug matcher
-	regexp.MustCompile("^[a-z][\\da-z\\-]{0,127}$"),
+	regexp.MustCompile("^[a-z][\\da-z\\-_]{0,127}$"),
 }
 
 func getModIDFromString(mod string) (bool, int, error) {
