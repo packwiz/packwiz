@@ -1,4 +1,5 @@
 package core
+
 import (
 	"crypto/sha256"
 	"encoding/hex"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 
 	"github.com/BurntSushi/toml"
+	"github.com/spf13/viper"
 )
 
 // Pack stores the modpack metadata, usually in pack.toml
@@ -22,36 +24,34 @@ type Pack struct {
 	Versions map[string]string         `toml:"versions"`
 	Client   map[string]toml.Primitive `toml:"client"`
 	Server   map[string]toml.Primitive `toml:"server"`
-	flags    Flags
 }
 
 // LoadPack loads the modpack metadata to a Pack struct
-func LoadPack(flags Flags) (Pack, error) {
+func LoadPack() (Pack, error) {
 	var modpack Pack
-	if _, err := toml.DecodeFile(flags.PackFile, &modpack); err != nil {
+	if _, err := toml.DecodeFile(viper.GetString("pack-file"), &modpack); err != nil {
 		return Pack{}, err
 	}
 
 	if len(modpack.Index.File) == 0 {
 		modpack.Index.File = "index.toml"
 	}
-	modpack.flags = flags
 	return modpack, nil
 }
 
 // LoadIndex attempts to load the index file of this modpack
 func (pack Pack) LoadIndex() (Index, error) {
 	if filepath.IsAbs(pack.Index.File) {
-		return LoadIndex(pack.Index.File, pack.flags)
+		return LoadIndex(pack.Index.File)
 	}
 	fileNative := filepath.FromSlash(pack.Index.File)
-	return LoadIndex(filepath.Join(filepath.Dir(pack.flags.PackFile), fileNative), pack.flags)
+	return LoadIndex(filepath.Join(filepath.Dir(viper.GetString("pack-file")), fileNative))
 }
 
 // UpdateIndexHash recalculates the hash of the index file of this modpack
 func (pack *Pack) UpdateIndexHash() error {
 	fileNative := filepath.FromSlash(pack.Index.File)
-	indexFile := filepath.Join(filepath.Dir(pack.flags.PackFile), fileNative)
+	indexFile := filepath.Join(filepath.Dir(viper.GetString("pack-file")), fileNative)
 	if filepath.IsAbs(pack.Index.File) {
 		indexFile = pack.Index.File
 	}
@@ -78,7 +78,7 @@ func (pack *Pack) UpdateIndexHash() error {
 
 // Write saves the pack file
 func (pack Pack) Write() error {
-	f, err := os.Create(pack.flags.PackFile)
+	f, err := os.Create(viper.GetString("pack-file"))
 	if err != nil {
 		return err
 	}
@@ -98,4 +98,3 @@ func (pack Pack) GetMCVersion() (string, error) {
 	}
 	return mcVersion, nil
 }
-

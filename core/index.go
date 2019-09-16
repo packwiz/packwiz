@@ -12,6 +12,7 @@ import (
 
 	"github.com/BurntSushi/toml"
 	"github.com/denormal/go-gitignore"
+	"github.com/spf13/viper"
 	"github.com/vbauerster/mpb/v4"
 	"github.com/vbauerster/mpb/v4/decor"
 )
@@ -20,7 +21,6 @@ import (
 type Index struct {
 	HashFormat string      `toml:"hash-format"`
 	Files      []IndexFile `toml:"files"`
-	flags      Flags
 	indexFile  string
 }
 
@@ -37,12 +37,11 @@ type IndexFile struct {
 }
 
 // LoadIndex attempts to load the index file from a path
-func LoadIndex(indexFile string, flags Flags) (Index, error) {
+func LoadIndex(indexFile string) (Index, error) {
 	var index Index
 	if _, err := toml.DecodeFile(indexFile, &index); err != nil {
 		return Index{}, err
 	}
-	index.flags = flags
 	index.indexFile = indexFile
 	if len(index.HashFormat) == 0 {
 		index.HashFormat = "sha256"
@@ -144,7 +143,7 @@ func (in *Index) updateFile(path string) error {
 	// of files, like CraftTweaker resources.
 	absFileDir, err := filepath.Abs(filepath.Dir(path))
 	if err == nil {
-		absModsDir, err := filepath.Abs(in.flags.ModsFolder)
+		absModsDir, err := filepath.Abs(viper.GetString("mods-folder"))
 		if err == nil {
 			if absFileDir == absModsDir {
 				mod = true
@@ -161,11 +160,11 @@ func (in *Index) Refresh() error {
 	// for i := 0; i < runtime.NumCPU(); i++ {}
 
 	// Is case-sensitivity a problem?
-	pathPF, _ := filepath.Abs(in.flags.PackFile)
+	pathPF, _ := filepath.Abs(viper.GetString("pack-file"))
 	pathIndex, _ := filepath.Abs(in.indexFile)
 
 	// TODO: A method of specifying pack root directory?
-	packRoot := filepath.Dir(in.flags.PackFile)
+	packRoot := filepath.Dir(viper.GetString("pack-file"))
 	ignoreExists := true
 	pathIgnore, _ := filepath.Abs(filepath.Join(packRoot, ".packwizignore"))
 	ignore, err := gitignore.NewFromFile(filepath.Join(packRoot, ".packwizignore"))

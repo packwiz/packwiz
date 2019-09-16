@@ -2,44 +2,23 @@ package curseforge
 
 import (
 	"errors"
-	"fmt"
 	"regexp"
 	"strconv"
 
+	"github.com/comp500/packwiz/cmd"
 	"github.com/comp500/packwiz/core"
 	"github.com/mitchellh/mapstructure"
-	"github.com/skratchdot/open-golang/open"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
+var curseforgeCmd = &cobra.Command{
+	Use:     "curseforge",
+	Aliases: []string{"cf", "curse"},
+	Short:   "Manage curseforge-based mods",
+}
+
 func init() {
-	core.Commands = append(core.Commands, cli.Command{
-		Name:    "curseforge",
-		Aliases: []string{"cf", "curse"},
-		Usage:   "Manage curseforge-based mods",
-		Subcommands: []cli.Command{{
-			Name:    "install",
-			Usage:   "Install a mod from a curseforge URL, slug or ID",
-			Aliases: []string{"add", "get"},
-			Action: func(c *cli.Context) error {
-				return cmdInstall(core.FlagsFromContext(c), c.Args().Get(0), c.Args().Tail())
-			},
-		}, {
-			Name:  "import",
-			Usage: "Import an installed curseforge modpack",
-			Action: func(c *cli.Context) error {
-				return cmdImport(core.FlagsFromContext(c), c.Args().Get(0))
-			},
-		}, {
-			Name: "open",
-			// TODO: change semantics to "project" rather than "mod", as this supports texture packs and misc content as well?
-			Usage:   "Open the project page for a curseforge mod in your browser",
-			Aliases: []string{"doc"},
-			Action: func(c *cli.Context) error {
-				return cmdDoc(core.FlagsFromContext(c), c.Args().Get(0))
-			},
-		}},
-	})
+	cmd.Add(curseforgeCmd)
 	core.Updaters["curseforge"] = cfUpdater{}
 }
 
@@ -99,7 +78,7 @@ func getModIDFromString(mod string) (bool, int, error) {
 	return false, 0, nil
 }
 
-func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo, index *core.Index) error {
+func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) error {
 	updateMap := make(map[string]map[string]interface{})
 	var err error
 
@@ -126,7 +105,7 @@ func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo, inde
 		},
 		Update: updateMap,
 	}
-	path := modMeta.SetMetaName(modInfo.Slug, flags)
+	path := modMeta.SetMetaName(modInfo.Slug)
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?
@@ -139,45 +118,6 @@ func createModFile(flags core.Flags, modInfo modInfo, fileInfo modFileInfo, inde
 	}
 
 	return index.RefreshFileWithHash(path, format, hash, true)
-}
-
-func cmdDoc(flags core.Flags, mod string) error {
-	if len(mod) == 0 {
-		return cli.NewExitError("You must specify a mod.", 1)
-	}
-
-	fmt.Println("Loading modpack...")
-	pack, err := core.LoadPack(flags)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	index, err := pack.LoadIndex()
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	resolvedMod, ok := index.FindMod(mod)
-	if !ok {
-		// TODO: should this auto-refresh???????
-		return cli.NewExitError("You don't have this mod installed.", 1)
-	}
-	modData, err := core.LoadMod(resolvedMod)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	updateData, ok := modData.GetParsedUpdateData("curseforge")
-	if !ok {
-		return cli.NewExitError("This mod doesn't seem to be a curseforge mod!", 1)
-	}
-	cfUpdateData := updateData.(cfUpdateData)
-	fmt.Println("Opening browser...")
-	url := "https://minecraft.curseforge.com/projects/" + strconv.Itoa(cfUpdateData.ProjectID)
-	err = open.Start(url)
-	if err != nil {
-		fmt.Println("Opening page failed, direct link:")
-		fmt.Println(url)
-	}
-
-	return nil
 }
 
 type cfUpdateData struct {

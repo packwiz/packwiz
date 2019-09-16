@@ -67,8 +67,8 @@ func LoadMod(modFile string) (Mod, error) {
 }
 
 // SetMetaName sets the mod metadata file from a given file name (to be put in the mods folder)
-func (m *Mod) SetMetaName(metaName string, flags Flags) string {
-	m.metaFile = ResolveMod(metaName, flags)
+func (m *Mod) SetMetaName(metaName string) string {
+	m.metaFile = ResolveMod(metaName)
 	return m.metaFile
 }
 

@@ -6,7 +6,7 @@ import (
 	"os"
 
 	"github.com/comp500/packwiz/core"
-	"github.com/urfave/cli"
+	"github.com/spf13/cobra"
 )
 
 type twitchPackMeta struct {
@@ -42,78 +42,95 @@ type twitchPackMeta struct {
 	} `json:"installedAddons"`
 }
 
-func cmdImport(flags core.Flags, file string) error {
-	pack, err := core.LoadPack(flags)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	index, err := pack.LoadIndex()
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	var packMeta twitchPackMeta
-	// TODO: is this relative to something?
-	f, err := os.Open(file)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	err = json.NewDecoder(f).Decode(&packMeta)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	modIDs := make([]int, len(packMeta.Mods))
-	for i, v := range packMeta.Mods {
-		modIDs[i] = v.ID
-	}
-
-	fmt.Println("Querying Curse API...")
-
-	modInfos, err := getModInfoMultiple(modIDs)
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-
-	modInfosMap := make(map[int]modInfo)
-	for _, v := range modInfos {
-		modInfosMap[v.ID] = v
-	}
-
-	// TODO: multithreading????
-	for _, v := range packMeta.Mods {
-		modInfoValue, ok := modInfosMap[v.ID]
-		if !ok {
-			if len(v.File.FriendlyName) > 0 {
-				fmt.Printf("Failed to obtain mod information for \"%s\"\n", v.File.FriendlyName)
-			} else {
-				fmt.Printf("Failed to obtain mod information for \"%s\"\n", v.File.FileName)
-			}
-			continue
-		}
-
-		fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
-
-		err = createModFile(flags, modInfoValue, modFileInfo(v.File), &index)
+// importCmd represents the import command
+var importCmd = &cobra.Command{
+	Use:   "import",
+	Short: "Import an installed curseforge modpack",
+	Args:  cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		pack, err := core.LoadPack()
 		if err != nil {
-			return cli.NewExitError(err, 1)
+			fmt.Println(err)
+			os.Exit(1)
 		}
-	}
+		index, err := pack.LoadIndex()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
-	// TODO: import existing files (config etc.)
+		var packMeta twitchPackMeta
+		// TODO: is this relative to something?
+		f, err := os.Open(args[0])
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = json.NewDecoder(f).Decode(&packMeta)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
-	err = index.Write()
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	err = pack.UpdateIndexHash()
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
-	err = pack.Write()
-	if err != nil {
-		return cli.NewExitError(err, 1)
-	}
+		modIDs := make([]int, len(packMeta.Mods))
+		for i, v := range packMeta.Mods {
+			modIDs[i] = v.ID
+		}
 
-	return nil
+		fmt.Println("Querying Curse API...")
+
+		modInfos, err := getModInfoMultiple(modIDs)
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		modInfosMap := make(map[int]modInfo)
+		for _, v := range modInfos {
+			modInfosMap[v.ID] = v
+		}
+
+		// TODO: multithreading????
+		for _, v := range packMeta.Mods {
+			modInfoValue, ok := modInfosMap[v.ID]
+			if !ok {
+				if len(v.File.FriendlyName) > 0 {
+					fmt.Printf("Failed to obtain mod information for \"%s\"\n", v.File.FriendlyName)
+				} else {
+					fmt.Printf("Failed to obtain mod information for \"%s\"\n", v.File.FileName)
+				}
+				continue
+			}
+
+			fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
+
+			err = createModFile(modInfoValue, modFileInfo(v.File), &index)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		}
+
+		// TODO: import existing files (config etc.)
+
+		err = index.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.UpdateIndexHash()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+	},
+}
+
+func init() {
+	curseforgeCmd.AddCommand(importCmd)
 }
