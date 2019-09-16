@@ -14,8 +14,9 @@ import (
 
 func init() {
 	core.Commands = append(core.Commands, cli.Command{
-		Name:  "curseforge",
-		Usage: "Manage curseforge-based mods",
+		Name:    "curseforge",
+		Aliases: []string{"cf", "curse"},
+		Usage:   "Manage curseforge-based mods",
 		Subcommands: []cli.Command{{
 			Name:    "install",
 			Usage:   "Install a mod from a curseforge URL, slug or ID",
