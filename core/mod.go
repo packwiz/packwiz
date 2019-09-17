@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/BurntSushi/toml"
 )
@@ -76,7 +77,14 @@ func (m *Mod) SetMetaName(metaName string) string {
 func (m Mod) Write() (string, string, error) {
 	f, err := os.Create(m.metaFile)
 	if err != nil {
-		return "sha256", "", err
+		// Attempt to create the containing directory
+		err2 := os.MkdirAll(filepath.Dir(m.metaFile), os.ModePerm)
+		if err2 == nil {
+			f, err = os.Create(m.metaFile)
+		}
+		if err == nil {
+			return "sha256", "", err
+		}
 	}
 	defer f.Close()
 
