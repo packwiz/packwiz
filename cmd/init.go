@@ -343,4 +343,29 @@ var modLoaders = map[string]func(mcVersion string) ([]string, string, error){
 		}
 		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
 	},
+	"liteloader": func(mcVersion string) ([]string, string, error) {
+		res, err := http.Get("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml")
+		if err != nil {
+			return []string{}, "", err
+		}
+		dec := xml.NewDecoder(res.Body)
+		out := mavenMetadata{}
+		err = dec.Decode(&out)
+		if err != nil {
+			return []string{}, "", err
+		}
+		allowedVersions := make([]string, 0, len(out.Versioning.Versions.Version))
+		for _, v := range out.Versioning.Versions.Version {
+			if strings.HasPrefix(v, mcVersion) {
+				allowedVersions = append(allowedVersions, v)
+			}
+		}
+		if len(allowedVersions) == 0 {
+			return []string{}, "", errors.New("no LiteLoader versions available for this Minecraft version")
+		}
+		if strings.HasPrefix(out.Versioning.Release, mcVersion) {
+			return allowedVersions, out.Versioning.Release, nil
+		}
+		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
+	},
 }
