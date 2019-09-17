@@ -82,7 +82,7 @@ func (m Mod) Write() (string, string, error) {
 		if err2 == nil {
 			f, err = os.Create(m.metaFile)
 		}
-		if err == nil {
+		if err != nil {
 			return "sha256", "", err
 		}
 	}
