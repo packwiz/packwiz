@@ -17,7 +17,7 @@ import (
 
 var refreshMutex sync.RWMutex
 
-// serveCmd represents the server command
+// serveCmd represents the serve command
 var serveCmd = &cobra.Command{
 	Use:     "serve",
 	Short:   "Run a local development server",
