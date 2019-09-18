@@ -18,6 +18,7 @@ import (
 	"github.com/fatih/camelcase"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/igorsobreira/titlecase"
 )
 
 // initCmd represents the init command
@@ -45,7 +46,7 @@ var initCmd = &cobra.Command{
 			}
 			if directoryName != "." && len(directoryName) > 0 {
 				// Turn directory name into a space-seperated proper name
-				name = strings.ReplaceAll(strings.ReplaceAll(strings.Join(camelcase.Split(directoryName), " "), " - ", " "), " _ ", " ")
+				name = titlecase.Title(strings.ReplaceAll(strings.ReplaceAll(strings.Join(camelcase.Split(directoryName), " "), " - ", " "), " _ ", " "))
 				fmt.Print("Modpack name [" + name + "]: ")
 			} else {
 				fmt.Print("Modpack name: ")
