@@ -39,7 +39,7 @@ var serveCmd = &cobra.Command{
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), pack.Index.File)
+			indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
 
 			http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 				path := strings.TrimPrefix(req.URL.Path, "/")
@@ -50,7 +50,7 @@ var serveCmd = &cobra.Command{
 					path = indexPath
 					// Must be done here, to ensure all paths gain the lock at some point
 					refreshMutex.RLock()
-				} else if path == viper.GetString("pack-file") {
+				} else if path == filepath.ToSlash(viper.GetString("pack-file")) {
 					found = true
 					if viper.GetBool("serve.refresh") {
 						// Get write lock, to do a refresh
@@ -102,7 +102,7 @@ var serveCmd = &cobra.Command{
 						}
 					}
 					if found {
-						path = filepath.Join(filepath.Dir(indexPath), path)
+						path = filepath.Join(filepath.Dir(indexPath), filepath.FromSlash(path))
 					}
 				}
 				defer refreshMutex.RUnlock()
