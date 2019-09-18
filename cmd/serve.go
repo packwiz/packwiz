@@ -1,0 +1,153 @@
+package cmd
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"sync"
+
+	"github.com/comp500/packwiz/core"
+	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+)
+
+var refreshMutex sync.RWMutex
+
+// serveCmd represents the server command
+var serveCmd = &cobra.Command{
+	Use:     "serve",
+	Short:   "Run a local development server",
+	Long:    `Run a local HTTP server for development, automatically refreshing the index when it is queried`,
+	Aliases: []string{"server"},
+	Args:    cobra.NoArgs,
+	Run: func(cmd *cobra.Command, args []string) {
+		if viper.GetBool("serve.basic") {
+			http.Handle("/", http.FileServer(http.Dir(".")))
+		} else {
+			fmt.Println("Loading modpack...")
+			pack, err := core.LoadPack()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			index, err := pack.LoadIndex()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+			indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), pack.Index.File)
+
+			http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+				path := strings.TrimPrefix(req.URL.Path, "/")
+
+				found := false
+				if path == pack.Index.File {
+					found = true
+					path = indexPath
+					// Must be done here, to ensure all paths gain the lock at some point
+					refreshMutex.RLock()
+				} else if path == viper.GetString("pack-file") {
+					found = true
+					if viper.GetBool("serve.refresh") {
+						// Get write lock, to do a refresh
+						refreshMutex.Lock()
+						// Reload pack and index (might have changed on disk)
+						pack, err = core.LoadPack()
+						if err != nil {
+							fmt.Println(err)
+							return
+						}
+						index, err = pack.LoadIndex()
+						if err != nil {
+							fmt.Println(err)
+							return
+						}
+						err = index.Refresh()
+						if err != nil {
+							fmt.Println(err)
+							return
+						}
+						err = index.Write()
+						if err != nil {
+							fmt.Println(err)
+							return
+						}
+						err = pack.UpdateIndexHash()
+						if err != nil {
+							fmt.Println(err)
+							return
+						}
+						err = pack.Write()
+						if err != nil {
+							fmt.Println(err)
+							return
+						}
+						fmt.Println("Index refreshed!")
+
+						// Downgrade to a read lock
+						refreshMutex.Unlock()
+					}
+					refreshMutex.RLock()
+				} else {
+					refreshMutex.RLock()
+					// Only allow indexed files
+					for _, v := range index.Files {
+						if path == v.File {
+							found = true
+							break
+						}
+					}
+					if found {
+						path = filepath.Join(filepath.Dir(indexPath), path)
+					}
+				}
+				defer refreshMutex.RUnlock()
+				if found {
+					f, err := os.Open(path)
+					if err != nil {
+						fmt.Printf("Error reading file \"%s\": %s\n", path, err)
+						w.WriteHeader(404)
+						w.Write([]byte("File not found"))
+						return
+					}
+					defer f.Close()
+					_, err = io.Copy(w, f)
+					if err != nil {
+						fmt.Printf("Error reading file \"%s\": %s\n", path, err)
+						w.WriteHeader(500)
+						w.Write([]byte("Failed to read file"))
+						return
+					}
+				} else {
+					fmt.Printf("File not found: %s\n", path)
+					w.WriteHeader(404)
+					w.Write([]byte("File not found"))
+					return
+				}
+			})
+		}
+
+		port := strconv.Itoa(viper.GetInt("serve.port"))
+		fmt.Println("Running on port " + port)
+		err := http.ListenAndServe(":"+port, nil)
+		if err != nil {
+			fmt.Printf("Error running server: %s\n", err)
+			os.Exit(1)
+		}
+	},
+}
+
+func init() {
+	rootCmd.AddCommand(serveCmd)
+
+	serveCmd.Flags().IntP("port", "p", 8080, "The port to run the server on")
+	viper.BindPFlag("serve.port", serveCmd.Flags().Lookup("port"))
+	serveCmd.Flags().BoolP("refresh", "r", true, "Automatically refresh the index file")
+	viper.BindPFlag("serve.refresh", serveCmd.Flags().Lookup("refresh"))
+	serveCmd.Flags().Bool("basic", false, "Disable refreshing and allow all files in the directory, rather than just files listed in the index")
+	viper.BindPFlag("serve.basic", serveCmd.Flags().Lookup("basic"))
+}

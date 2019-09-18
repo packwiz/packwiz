@@ -235,6 +235,8 @@ func (in *Index) Refresh() error {
 
 		progress.Increment(time.Since(start))
 	}
+	// Close bar
+	progressContainer.Wait()
 
 	// Check all the files exist, remove them if they don't
 	i := 0
