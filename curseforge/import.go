@@ -93,6 +93,7 @@ var importCmd = &cobra.Command{
 						fmt.Printf("Error parsing JSON: %s\n", err)
 						os.Exit(1)
 					}
+					packMeta.srcFile = args[0]
 					packImport = packMeta
 				}
 			}
@@ -146,7 +147,7 @@ var importCmd = &cobra.Command{
 
 		modInfos, err := getModInfoMultiple(modIDs)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("Failed to obtain mod information: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -156,6 +157,8 @@ var importCmd = &cobra.Command{
 		}
 
 		// TODO: multithreading????
+
+		referencedModPaths := make([]string, 0, len(modsList))
 		successes := 0
 		for _, v := range modsList {
 			modInfoValue, ok := modInfosMap[v.ModID]
@@ -174,7 +177,7 @@ var importCmd = &cobra.Command{
 			}
 			if !found {
 				fileInfo, err = getFileInfo(v.ModID, v.FileID)
-				if !ok {
+				if err != nil {
 					fmt.Printf("Failed to obtain file information for Mod / File %d / %d: %s\n", v.ModID, v.FileID, err)
 					continue
 				}
@@ -182,8 +185,17 @@ var importCmd = &cobra.Command{
 
 			err = createModFile(modInfoValue, fileInfo, &index)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("Failed to save mod \"%s\": %s\n", modInfoValue.Name, err)
 				os.Exit(1)
+			}
+
+			ref, err := filepath.Abs(filepath.Join(filepath.Dir(core.ResolveMod(modInfoValue.Slug)), fileInfo.FileName))
+			if err == nil {
+				referencedModPaths = append(referencedModPaths, ref)
+				if len(ref) == 0 {
+					fmt.Println(core.ResolveMod(modInfoValue.Slug))
+					fmt.Println(filepath.Dir(core.ResolveMod(modInfoValue.Slug)))
+				}
 			}
 
 			fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
@@ -192,7 +204,90 @@ var importCmd = &cobra.Command{
 
 		fmt.Printf("Successfully imported %d/%d mods!\n", successes, len(modsList))
 
-		// TODO: import existing files (config etc.)
+		fmt.Println("Reading override files...")
+		filesList, err := packImport.GetFiles()
+		if err != nil {
+			fmt.Printf("Failed to read override files: %s\n", err)
+			os.Exit(1)
+		}
+
+		successes = 0
+		indexFolder := filepath.Dir(filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File)))
+		for _, v := range filesList {
+			filePath := v.Name()
+			if !filepath.IsAbs(filePath) {
+				filePath = filepath.Join(indexFolder, v.Name())
+			}
+			filePathAbs, err := filepath.Abs(filePath)
+			if err == nil {
+				found := false
+				for _, v := range referencedModPaths {
+					if v == filePathAbs {
+						found = true
+						break
+					}
+				}
+				if found {
+					fmt.Printf("Ignored file \"%s\" (referenced by metadata)\n", filePath)
+					successes++
+					continue
+				}
+				if filepath.Base(filePathAbs) == "minecraftinstance.json" {
+					fmt.Println("Ignored file \"minecraftinstance.json\"")
+					successes++
+					continue
+				}
+				if filepath.Base(filePathAbs) == "manifest.json" {
+					fmt.Println("Ignored file \"manifest.json\"")
+					successes++
+					continue
+				}
+			}
+
+			f, err := os.Create(filePath)
+			if err != nil {
+				// Attempt to create the containing directory
+				err2 := os.MkdirAll(filepath.Dir(filePath), os.ModePerm)
+				if err2 == nil {
+					f, err = os.Create(filePath)
+				}
+				if err != nil {
+					fmt.Printf("Failed to write file \"%s\": %s\n", filePath, err)
+					if err2 != nil {
+						fmt.Printf("Failed to create directories: %s\n", err)
+					}
+					continue
+				}
+			}
+			src, err := v.Open()
+			if err != nil {
+				fmt.Printf("Failed to read file \"%s\": %s\n", filePath, err)
+				f.Close()
+				continue
+			}
+			_, err = io.Copy(f, src)
+			if err != nil {
+				fmt.Printf("Failed to copy file \"%s\": %s\n", filePath, err)
+				f.Close()
+				src.Close()
+				continue
+			}
+
+			fmt.Printf("Copied file \"%s\" successfully!\n", filePath)
+			f.Close()
+			src.Close()
+			successes++
+		}
+		if len(filesList) > 0 {
+			fmt.Printf("Successfully copied %d/%d files!\n", successes, len(filesList))
+			err = index.Refresh()
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+		} else {
+			fmt.Println("No files copied!")
+		}
 
 		err = index.Write()
 		if err != nil {
@@ -218,7 +313,7 @@ func init() {
 
 type diskFile struct {
 	NameInternal string
-	Base         string
+	Path         string
 }
 
 func (f diskFile) Name() string {
@@ -226,7 +321,7 @@ func (f diskFile) Name() string {
 }
 
 func (f diskFile) Open() (io.ReadCloser, error) {
-	return os.Open(filepath.Join(f.Base, f.NameInternal))
+	return os.Open(f.Path)
 }
 
 func diskFilesFromPath(base string) ([]importPackFile, error) {
@@ -235,7 +330,14 @@ func diskFilesFromPath(base string) ([]importPackFile, error) {
 		if err != nil {
 			return err
 		}
-		list = append(list, diskFile{base, path})
+		if info.IsDir() {
+			return nil
+		}
+		name, err := filepath.Rel(base, path)
+		if err != nil {
+			return err
+		}
+		list = append(list, diskFile{name, path})
 		return nil
 	})
 	if err != nil {
@@ -264,6 +366,7 @@ type twitchInstalledPackMeta struct {
 	} `json:"installedAddons"`
 	// Used to determine if modpackOverrides should be used or not
 	IsUnlocked bool `json:"isUnlocked"`
+	srcFile    string
 }
 
 func (m twitchInstalledPackMeta) Name() string {
@@ -304,13 +407,17 @@ func (m twitchInstalledPackMeta) Mods() []struct {
 }
 
 func (m twitchInstalledPackMeta) GetFiles() ([]importPackFile, error) {
+	dir := filepath.Dir(m.srcFile)
+	if _, err := os.Stat(m.Path); err == nil {
+		dir = m.Path
+	}
 	if m.IsUnlocked {
-		return diskFilesFromPath(m.Path)
+		return diskFilesFromPath(dir)
 	}
 	list := make([]importPackFile, len(m.ModpackOverrides))
 	for i, v := range m.ModpackOverrides {
 		list[i] = diskFile{
-			Base:         m.Path,
+			Path:         filepath.Join(dir, v),
 			NameInternal: v,
 		}
 	}
