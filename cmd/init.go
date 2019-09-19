@@ -16,9 +16,9 @@ import (
 
 	"github.com/comp500/packwiz/core"
 	"github.com/fatih/camelcase"
+	"github.com/igorsobreira/titlecase"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"github.com/igorsobreira/titlecase"
 )
 
 // initCmd represents the init command
@@ -130,37 +130,46 @@ var initCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		var modLoaderVersion string
+		modLoaderVersions := make(map[string]string)
 		if modLoaderName != "none" {
-			versions, latestVersion, err := modLoaders[modLoaderName](mcVersion)
-			modLoaderVersion = viper.GetString("init.modloader-version")
-			if len(modLoaderVersion) == 0 {
-				if viper.GetBool("init.modloader-latest") {
-					modLoaderVersion = latestVersion
-				} else {
-					fmt.Print("Mod loader version [" + latestVersion + "]: ")
-					modLoaderVersion, err = bufio.NewReader(os.Stdin).ReadString('\n')
-					if err != nil {
-						fmt.Printf("Error reading input: %s\n", err)
-						os.Exit(1)
-					}
-					// Trims both CR and LF
-					modLoaderVersion = strings.ToLower(strings.TrimSpace(strings.TrimRight(modLoaderVersion, "\r\n")))
-					if len(modLoaderVersion) == 0 {
-						modLoaderVersion = latestVersion
+			components := modLoaders[modLoaderName]
+
+			for _, component := range components {
+				versions, latestVersion, err := component.VersionListGetter(mcVersion)
+				if err != nil {
+					fmt.Printf("Error loading versions: %s\n", err)
+					os.Exit(1)
+				}
+				componentVersion := viper.GetString("init." + component.Name + "-version")
+				if len(componentVersion) == 0 {
+					if viper.GetBool("init." + component.Name + "-latest") {
+						componentVersion = latestVersion
+					} else {
+						fmt.Print(component.FriendlyName + " version [" + latestVersion + "]: ")
+						componentVersion, err = bufio.NewReader(os.Stdin).ReadString('\n')
+						if err != nil {
+							fmt.Printf("Error reading input: %s\n", err)
+							os.Exit(1)
+						}
+						// Trims both CR and LF
+						componentVersion = strings.ToLower(strings.TrimSpace(strings.TrimRight(componentVersion, "\r\n")))
+						if len(componentVersion) == 0 {
+							componentVersion = latestVersion
+						}
 					}
 				}
-			}
-			found := false
-			for _, v := range versions {
-				if modLoaderVersion == v {
-					found = true
-					break
+				found := false
+				for _, v := range versions {
+					if componentVersion == v {
+						found = true
+						break
+					}
 				}
-			}
-			if !found {
-				fmt.Println("Given mod loader version cannot be found!")
-				os.Exit(1)
+				if !found {
+					fmt.Println("Given " + component.FriendlyName + " version cannot be found!")
+					os.Exit(1)
+				}
+				modLoaderVersions[component.Name] = componentVersion
 			}
 		}
 
@@ -194,7 +203,9 @@ var initCmd = &cobra.Command{
 			},
 		}
 		if modLoaderName != "none" {
-			pack.Versions[modLoaderName] = modLoaderVersion
+			for k, v := range modLoaderVersions {
+				pack.Versions[k] = v
+			}
 		}
 
 		// Refresh the index and pack
@@ -233,7 +244,7 @@ func init() {
 	initCmd.Flags().String("name", "", "The name of the modpack (omit to define interactively)")
 	initCmd.Flags().String("index-file", "index.toml", "The index file to use")
 	viper.BindPFlag("init.index-file", initCmd.Flags().Lookup("index-file"))
-	initCmd.Flags().String("mc-version", "", "The version of Minecraft to use (omit to define interactively)")
+	initCmd.Flags().String("mc-version", "", "The Minecraft version to use (omit to define interactively)")
 	viper.BindPFlag("init.mc-version", initCmd.Flags().Lookup("mc-version"))
 	initCmd.Flags().BoolP("latest", "l", false, "Automatically select the latest version of Minecraft")
 	viper.BindPFlag("init.latest", initCmd.Flags().Lookup("latest"))
@@ -243,10 +254,16 @@ func init() {
 	viper.BindPFlag("init.reinit", initCmd.Flags().Lookup("reinit"))
 	initCmd.Flags().String("modloader", "", "The mod loader to use (omit to define interactively)")
 	viper.BindPFlag("init.modloader", initCmd.Flags().Lookup("modloader"))
-	initCmd.Flags().String("modloader-version", "", "The mod loader version to use (omit to define interactively)")
-	viper.BindPFlag("init.modloader-version", initCmd.Flags().Lookup("modloader-version"))
-	initCmd.Flags().BoolP("modloader-latest", "L", false, "Automatically select the latest version of the mod loader")
-	viper.BindPFlag("init.modloader-latest", initCmd.Flags().Lookup("modloader-latest"))
+
+	// ok this is epic
+	for _, loader := range modLoaders {
+		for _, component := range loader {
+			initCmd.Flags().String(component.Name+"-version", "", "The "+component.FriendlyName+" version to use (omit to define interactively)")
+			viper.BindPFlag("init."+component.Name+"-version", initCmd.Flags().Lookup(component.Name+"-version"))
+			initCmd.Flags().Bool(component.Name+"-latest", false, "Automatically select the latest version of "+component.FriendlyName)
+			viper.BindPFlag("init."+component.Name+"-latest", initCmd.Flags().Lookup(component.Name+"-latest"))
+		}
+	}
 }
 
 type mcVersionManifest struct {
@@ -304,10 +321,44 @@ type mavenMetadata struct {
 	} `xml:"versioning"`
 }
 
-// Gets a list of modloader versions and latest version for a given Minecraft version
-var modLoaders = map[string]func(mcVersion string) ([]string, string, error){
-	"fabric": func(mcVersion string) ([]string, string, error) {
-		res, err := http.Get("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml")
+type modLoaderComponent struct {
+	Name              string
+	FriendlyName      string
+	VersionListGetter func(mcVersion string) ([]string, string, error)
+}
+
+var modLoaders = map[string][]modLoaderComponent{
+	"fabric": []modLoaderComponent{
+		modLoaderComponent{
+			Name:              "fabric",
+			FriendlyName:      "Fabric loader",
+			VersionListGetter: fetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml"),
+		},
+		modLoaderComponent{
+			Name:              "yarn",
+			FriendlyName:      "Yarn (mappings)",
+			VersionListGetter: fetchMavenVersionPrefixedList("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml", "Yarn"),
+		},
+	},
+	"forge": []modLoaderComponent{
+		modLoaderComponent{
+			Name:              "forge",
+			FriendlyName:      "Forge",
+			VersionListGetter: fetchMavenVersionPrefixedList("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
+		},
+	},
+	"liteloader": []modLoaderComponent{
+		modLoaderComponent{
+			Name:              "liteloader",
+			FriendlyName:      "LiteLoader",
+			VersionListGetter: fetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
+		},
+	},
+}
+
+func fetchMavenVersionList(url string) func(mcVersion string) ([]string, string, error) {
+	return func(mcVersion string) ([]string, string, error) {
+		res, err := http.Get(url)
 		if err != nil {
 			return []string{}, "", err
 		}
@@ -318,9 +369,12 @@ var modLoaders = map[string]func(mcVersion string) ([]string, string, error){
 			return []string{}, "", err
 		}
 		return out.Versioning.Versions.Version, out.Versioning.Release, nil
-	},
-	"forge": func(mcVersion string) ([]string, string, error) {
-		res, err := http.Get("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml")
+	}
+}
+
+func fetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
+	return func(mcVersion string) ([]string, string, error) {
+		res, err := http.Get(url)
 		if err != nil {
 			return []string{}, "", err
 		}
@@ -337,36 +391,11 @@ var modLoaders = map[string]func(mcVersion string) ([]string, string, error){
 			}
 		}
 		if len(allowedVersions) == 0 {
-			return []string{}, "", errors.New("no Forge versions available for this Minecraft version")
+			return []string{}, "", errors.New("no " + friendlyName + " versions available for this Minecraft version")
 		}
 		if strings.HasPrefix(out.Versioning.Release, mcVersion) {
 			return allowedVersions, out.Versioning.Release, nil
 		}
 		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
-	},
-	"liteloader": func(mcVersion string) ([]string, string, error) {
-		res, err := http.Get("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml")
-		if err != nil {
-			return []string{}, "", err
-		}
-		dec := xml.NewDecoder(res.Body)
-		out := mavenMetadata{}
-		err = dec.Decode(&out)
-		if err != nil {
-			return []string{}, "", err
-		}
-		allowedVersions := make([]string, 0, len(out.Versioning.Versions.Version))
-		for _, v := range out.Versioning.Versions.Version {
-			if strings.HasPrefix(v, mcVersion) {
-				allowedVersions = append(allowedVersions, v)
-			}
-		}
-		if len(allowedVersions) == 0 {
-			return []string{}, "", errors.New("no LiteLoader versions available for this Minecraft version")
-		}
-		if strings.HasPrefix(out.Versioning.Release, mcVersion) {
-			return allowedVersions, out.Versioning.Release, nil
-		}
-		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
-	},
+	}
 }
