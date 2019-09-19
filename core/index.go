@@ -137,15 +137,12 @@ func (in *Index) updateFile(path string) error {
 	hashString := hex.EncodeToString(h.Sum(nil))
 
 	mod := false
-	// If the file is in the mods folder, set MetaFile to true (mods are metafiles by default)
-	// This is incredibly powerful: you can put a normal jar in the mods folder just by
-	// setting MetaFile to false. Or you can use the "mod" metadata system for other types
-	// of files, like CraftTweaker resources.
+	// If the file has an extension of toml and is in the mods folder, set mod to true
 	absFileDir, err := filepath.Abs(filepath.Dir(path))
 	if err == nil {
 		absModsDir, err := filepath.Abs(viper.GetString("mods-folder"))
 		if err == nil {
-			if absFileDir == absModsDir {
+			if absFileDir == absModsDir && strings.HasSuffix(filepath.Base(path), ".toml") {
 				mod = true
 			}
 		}
