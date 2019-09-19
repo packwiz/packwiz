@@ -24,8 +24,8 @@ type importPackMetadata interface {
 	Name() string
 	Versions() map[string]string
 	Mods() []struct {
-		ID   int
-		File modFileInfo
+		ModID  int
+		FileID int
 	}
 	GetFiles() ([]importPackFile, error)
 }
@@ -111,7 +111,7 @@ var importCmd = &cobra.Command{
 		modsList := packImport.Mods()
 		modIDs := make([]int, len(modsList))
 		for i, v := range modsList {
-			modIDs[i] = v.ID
+			modIDs[i] = v.ModID
 		}
 
 		fmt.Println("Querying Curse API for mod info...")
@@ -128,25 +128,41 @@ var importCmd = &cobra.Command{
 		}
 
 		// TODO: multithreading????
+		successes := 0
 		for _, v := range modsList {
-			modInfoValue, ok := modInfosMap[v.ID]
+			modInfoValue, ok := modInfosMap[v.ModID]
 			if !ok {
-				if len(v.File.FriendlyName) > 0 {
-					fmt.Printf("Failed to obtain mod information for \"%s\"\n", v.File.FriendlyName)
-				} else {
-					fmt.Printf("Failed to obtain mod information for \"%s\"\n", v.File.FileName)
-				}
+				fmt.Printf("Failed to obtain mod information for ID %d\n", v.ModID)
 				continue
 			}
 
-			fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
+			found := false
+			var fileInfo modFileInfo
+			for _, fileInfo = range modInfoValue.LatestFiles {
+				if fileInfo.ID == v.FileID {
+					found = true
+					break
+				}
+			}
+			if !found {
+				fileInfo, err = getFileInfo(v.ModID, v.FileID)
+				if !ok {
+					fmt.Printf("Failed to obtain file information for Mod / File %d / %d: %s\n", v.ModID, v.FileID, err)
+					continue
+				}
+			}
 
-			err = createModFile(modInfoValue, v.File, &index)
+			err = createModFile(modInfoValue, fileInfo, &index)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
 			}
+
+			fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
+			successes++
 		}
+
+		fmt.Printf("Successfully imported %d/%d mods!\n", successes, len(modsList))
 
 		// TODO: import existing files (config etc.)
 
@@ -212,8 +228,11 @@ type twitchInstalledPackMeta struct {
 	} `json:"baseModLoader"`
 	ModpackOverrides []string `json:"modpackOverrides"`
 	ModsInternal     []struct {
-		ID   int         `json:"addonID"`
-		File modFileInfo `json:"installedFile"`
+		ID   int `json:"addonID"`
+		File struct {
+			// I've given up on using this cached data, just going to re-request it
+			ID int `json:"id"`
+		} `json:"installedFile"`
 	} `json:"installedAddons"`
 	// Used to determine if modpackOverrides should be used or not
 	IsUnlocked bool `json:"isUnlocked"`
@@ -237,13 +256,23 @@ func (m twitchInstalledPackMeta) Versions() map[string]string {
 }
 
 func (m twitchInstalledPackMeta) Mods() []struct {
-	ID   int
-	File modFileInfo
+	ModID  int
+	FileID int
 } {
-	return []struct {
-		ID   int
-		File modFileInfo
-	}(m.ModsInternal)
+	list := make([]struct {
+		ModID  int
+		FileID int
+	}, len(m.ModsInternal))
+	for i, v := range m.ModsInternal {
+		list[i] = struct {
+			ModID  int
+			FileID int
+		}{
+			ModID:  v.ID,
+			FileID: v.File.ID,
+		}
+	}
+	return list
 }
 
 func (m twitchInstalledPackMeta) GetFiles() ([]importPackFile, error) {
