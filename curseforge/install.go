@@ -23,8 +23,8 @@ type installableDep struct {
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
-	Use:     "install",
-	Short:   "Install a mod from a curseforge URL, slug or ID",
+	Use:     "install [mod]",
+	Short:   "Install a mod from a curseforge URL, slug, ID or search",
 	Aliases: []string{"add", "get"},
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
