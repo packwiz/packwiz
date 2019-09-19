@@ -3,10 +3,9 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/spf13/cobra"
-
-	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/viper"
 )
 
@@ -42,7 +41,13 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&modsFolder, "mods-folder", "mods", "The default folder to store mod metadata files in")
 	viper.BindPFlag("mods-folder", rootCmd.PersistentFlags().Lookup("mods-folder"))
 
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.packwiz.toml)")
+	file, err := os.UserConfigDir()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	file = filepath.Join(file, "packwiz", ".packwiz.toml")
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "The config file to use (default \""+file+"\")")
 }
 
 // initConfig reads in config file and ENV variables if set.
@@ -51,15 +56,13 @@ func initConfig() {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		// Find home directory.
-		home, err := homedir.Dir()
+		dir, err := os.UserConfigDir()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 
-		// Search config in home directory with name ".packwiz" (without extension).
-		viper.AddConfigPath(home)
+		viper.AddConfigPath(filepath.Join(dir, "packwiz"))
 		viper.SetConfigName(".packwiz")
 	}
 
