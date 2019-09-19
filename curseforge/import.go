@@ -13,6 +13,7 @@ import (
 
 	"github.com/comp500/packwiz/core"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 type importPackFile interface {
@@ -36,17 +37,6 @@ var importCmd = &cobra.Command{
 	Short: "Import an installed curseforge modpack, from a download URL or a downloaded pack zip, or an installed metadata json file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		pack, err := core.LoadPack()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-		index, err := pack.LoadIndex()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
-
 		var packImport importPackMetadata
 		if strings.HasPrefix(args[0], "http") {
 			fmt.Println("it do be a http doe")
@@ -106,6 +96,44 @@ var importCmd = &cobra.Command{
 					packImport = packMeta
 				}
 			}
+		}
+
+		pack, err := core.LoadPack()
+		if err != nil {
+			fmt.Println("Failed to load existing pack, creating a new one...")
+
+			// Create a new modpack
+			indexFilePath := viper.GetString("init.index-file")
+			_, err = os.Stat(indexFilePath)
+			if os.IsNotExist(err) {
+				// Create file
+				err = ioutil.WriteFile(indexFilePath, []byte{}, 0644)
+				if err != nil {
+					fmt.Printf("Error creating index file: %s\n", err)
+					os.Exit(1)
+				}
+				fmt.Println(indexFilePath + " created!")
+			} else if err != nil {
+				fmt.Printf("Error checking index file: %s\n", err)
+				os.Exit(1)
+			}
+
+			pack = core.Pack{
+				Name: packImport.Name(),
+				Index: struct {
+					File       string `toml:"file"`
+					HashFormat string `toml:"hash-format"`
+					Hash       string `toml:"hash"`
+				}{
+					File: indexFilePath,
+				},
+				Versions: packImport.Versions(),
+			}
+		}
+		index, err := pack.LoadIndex()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
 		}
 
 		modsList := packImport.Mods()
@@ -223,8 +251,8 @@ type twitchInstalledPackMeta struct {
 	// TODO: allocatedMemory?
 	MCVersion string `json:"gameVersion"`
 	Modloader struct {
-		name               string
-		mavenVersionString string
+		Name               string `json:"name"`
+		MavenVersionString string `json:"mavenVersionString"`
 	} `json:"baseModLoader"`
 	ModpackOverrides []string `json:"modpackOverrides"`
 	ModsInternal     []struct {
@@ -245,11 +273,11 @@ func (m twitchInstalledPackMeta) Name() string {
 func (m twitchInstalledPackMeta) Versions() map[string]string {
 	vers := make(map[string]string)
 	vers["minecraft"] = m.MCVersion
-	if strings.HasPrefix(m.Modloader.name, "forge") {
-		if len(m.Modloader.mavenVersionString) > 0 {
-			vers["forge"] = strings.TrimPrefix(m.Modloader.mavenVersionString, "net.minecraftforge:forge:")
+	if strings.HasPrefix(m.Modloader.Name, "forge") {
+		if len(m.Modloader.MavenVersionString) > 0 {
+			vers["forge"] = strings.TrimPrefix(m.Modloader.MavenVersionString, "net.minecraftforge:forge:")
 		} else {
-			vers["forge"] = m.MCVersion + "-" + strings.TrimPrefix(m.Modloader.name, "forge-")
+			vers["forge"] = m.MCVersion + "-" + strings.TrimPrefix(m.Modloader.Name, "forge-")
 		}
 	}
 	return vers
