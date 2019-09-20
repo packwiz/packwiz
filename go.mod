@@ -17,6 +17,7 @@ require (
 	github.com/spf13/cobra v0.0.5
 	github.com/spf13/viper v1.4.0
 	github.com/vbauerster/mpb/v4 v4.7.0
+	golang.org/x/sys v0.0.0-20190919044723-0c1ff786ef13
 	gopkg.in/dixonwille/wlog.v2 v2.0.0 // indirect
 	gopkg.in/dixonwille/wmenu.v4 v4.0.2
 )

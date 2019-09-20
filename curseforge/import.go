@@ -4,11 +4,13 @@ import (
 	"bufio"
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/comp500/packwiz/core"
@@ -37,16 +39,63 @@ var importCmd = &cobra.Command{
 	Short: "Import an installed curseforge modpack, from a download URL or a downloaded pack zip, or an installed metadata json file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
+		inputFile := args[0]
 		var packImport importPackMetadata
-		if strings.HasPrefix(args[0], "http") {
+
+		if strings.HasPrefix(inputFile, "http") {
 			fmt.Println("it do be a http doe")
 			os.Exit(0)
 		} else {
 			// Attempt to read from file
-			f, err := os.Open(args[0])
+			var f *os.File
+			inputFileStat, err := os.Stat(inputFile)
+			if err == nil && inputFileStat.IsDir() {
+				// Apparently os.Open doesn't fail when file given is a directory, only when it gets read
+				err = errors.New("cannot open directory")
+			}
+			if err == nil {
+				f, err = os.Open(inputFile)
+			}
 			if err != nil {
-				fmt.Printf("Error opening file: %s\n", err)
-				os.Exit(1)
+				found := false
+				var errInstance error
+				var errManifest error
+				var errCurse error
+
+				// Look for other files/folders
+				if _, errInstance = os.Stat(filepath.Join(inputFile, "minecraftinstance.json")); errInstance == nil {
+					inputFile = filepath.Join(inputFile, "minecraftinstance.json")
+					found = true
+				} else if _, errManifest = os.Stat(filepath.Join(inputFile, "manifest.json")); errManifest == nil {
+					inputFile = filepath.Join(inputFile, "manifest.json")
+					found = true
+				} else if runtime.GOOS == "windows" {
+					var dir string
+					dir, errCurse = getCurseDir()
+					if errCurse == nil {
+						curseInstanceFile := filepath.Join(dir, "Minecraft", "Instances", inputFile, "minecraftinstance.json")
+						if _, errCurse = os.Stat(curseInstanceFile); errCurse == nil {
+							inputFile = curseInstanceFile
+							found = true
+						}
+					}
+				}
+
+				if found {
+					f, err = os.Open(inputFile)
+					if err != nil {
+						fmt.Printf("Error opening file: %s\n", err)
+						os.Exit(1)
+					}
+				} else {
+					fmt.Printf("Error opening file: %s\n", err)
+					fmt.Printf("Also attempted minecraftinstance.json: %s\n", errInstance)
+					fmt.Printf("Also attempted manifest.json: %s\n", errManifest)
+					if errCurse != nil {
+						fmt.Printf("Also attempted to load a Curse/Twitch modpack named \"%s\": %s\n", inputFile, errCurse)
+					}
+					os.Exit(1)
+				}
 			}
 			defer f.Close()
 
@@ -93,7 +142,7 @@ var importCmd = &cobra.Command{
 						fmt.Printf("Error parsing JSON: %s\n", err)
 						os.Exit(1)
 					}
-					packMeta.srcFile = args[0]
+					packMeta.srcFile = inputFile
 					packImport = packMeta
 				}
 			}
