@@ -20,6 +20,7 @@ import (
 )
 
 // TODO: this file is a mess, I need to refactor it
+// TODO: test modpack importing before proceeding with further implementation
 
 type importPackFile interface {
 	Name() string
