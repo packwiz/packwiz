@@ -1,6 +1,7 @@
 package curseforge
 
 import (
+	"archive/zip"
 	"bufio"
 	"bytes"
 	"encoding/json"
@@ -18,6 +19,8 @@ import (
 	"github.com/spf13/viper"
 )
 
+// TODO: this file is a mess, I need to refactor it
+
 type importPackFile interface {
 	Name() string
 	Open() (io.ReadCloser, error)
@@ -31,6 +34,13 @@ type importPackMetadata interface {
 		FileID int
 	}
 	GetFiles() ([]importPackFile, error)
+}
+
+type importPackSource interface {
+	GetFile(path string) (importPackFile, error)
+	//TODO: was GetFileList(base string), is it needed?
+	GetFileList() ([]importPackFile, error)
+	GetPackFile() importPackFile
 }
 
 // importCmd represents the import command
@@ -108,43 +118,49 @@ var importCmd = &cobra.Command{
 
 			// Check if file is a zip
 			if string(header) == "PK" {
-				fmt.Println("it do be a zip doe")
-				os.Exit(0)
-			} else {
-				// Read the whole file (as we are going to parse it multiple times)
-				fileData, err := ioutil.ReadAll(buf)
+				// Read the whole file (as bufio doesn't work for zips)
+				zipData, err := ioutil.ReadAll(buf)
 				if err != nil {
 					fmt.Printf("Error reading file: %s\n", err)
 					os.Exit(1)
 				}
-
-				// Determine what format the file is
-				var jsonFile map[string]interface{}
-				err = json.Unmarshal(fileData, &jsonFile)
+				// Get zip size
+				stat, err := f.Stat()
 				if err != nil {
-					fmt.Printf("Error parsing JSON: %s\n", err)
+					fmt.Printf("Error reading file: %s\n", err)
+					os.Exit(1)
+				}
+				zr, err := zip.NewReader(bytes.NewReader(zipData), stat.Size())
+				if err != nil {
+					fmt.Printf("Error parsing zip: %s\n", err)
 					os.Exit(1)
 				}
 
-				isManifest := false
-				if v, ok := jsonFile["manifestType"]; ok {
-					isManifest = v.(string) == "minecraftModpack"
-				}
-				if isManifest {
-					fmt.Println("it do be a manifest doe")
-					os.Exit(0)
-				} else {
-					// Replace FileNameOnDisk with fileNameOnDisk
-					fileData = bytes.ReplaceAll(fileData, []byte("FileNameOnDisk"), []byte("fileNameOnDisk"))
-					packMeta := twitchInstalledPackMeta{}
-					err = json.Unmarshal(fileData, &packMeta)
-					if err != nil {
-						fmt.Printf("Error parsing JSON: %s\n", err)
-						os.Exit(1)
+				// Search the zip for minecraftinstance.json or manifest.json
+				var metaFile *zip.File
+				for _, v := range zr.File {
+					fileName := filepath.Base(v.Name)
+					if fileName == "minecraftinstance.json" || fileName == "manifest.json" {
+						metaFile = v
 					}
-					packMeta.srcFile = inputFile
-					packImport = packMeta
 				}
+
+				if metaFile == nil {
+					fmt.Println("Can't find manifest.json or minecraftinstance.json, is this a valid pack?")
+					os.Exit(1)
+				}
+
+				packImport = readMetadata(zipPackSource{
+					MetaFile: metaFile,
+					Reader:   zr,
+				})
+
+			} else {
+				packImport = readMetadata(diskPackSource{
+					MetaSource: buf,
+					MetaName:   inputFile, // TODO: is this always the correct file?
+					BasePath:   filepath.Dir(inputFile),
+				})
 			}
 		}
 
@@ -373,6 +389,28 @@ func (f diskFile) Open() (io.ReadCloser, error) {
 	return os.Open(f.Path)
 }
 
+type zipReaderFile struct {
+	NameInternal string
+	*zip.File
+}
+
+func (f zipReaderFile) Name() string {
+	return f.NameInternal
+}
+
+type readerFile struct {
+	NameInternal string
+	Reader       *io.ReadCloser
+}
+
+func (f readerFile) Name() string {
+	return f.NameInternal
+}
+
+func (f readerFile) Open() (io.ReadCloser, error) {
+	return *f.Reader, nil
+}
+
 func diskFilesFromPath(base string) ([]importPackFile, error) {
 	list := make([]importPackFile, 0)
 	err := filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
@@ -393,6 +431,60 @@ func diskFilesFromPath(base string) ([]importPackFile, error) {
 		return nil, err
 	}
 	return list, nil
+}
+
+type diskPackSource struct {
+	MetaSource *bufio.Reader
+	MetaName   string
+	BasePath   string
+}
+
+func (s diskPackSource) GetFile(path string) (importPackFile, error) {
+	return diskFile{s.BasePath, path}, nil
+}
+
+func (s diskPackSource) GetFileList() ([]importPackFile, error) {
+	return diskFilesFromPath(s.BasePath)
+}
+
+func (s diskPackSource) GetPackFile() importPackFile {
+	rc := ioutil.NopCloser(s.MetaSource)
+	return readerFile{s.MetaName, &rc}
+}
+
+type zipPackSource struct {
+	MetaFile       *zip.File
+	Reader         *zip.Reader
+	cachedFileList []importPackFile
+}
+
+func (s zipPackSource) GetFile(path string) (importPackFile, error) {
+	if s.cachedFileList == nil {
+		s.cachedFileList = make([]importPackFile, len(s.Reader.File))
+		for i, v := range s.Reader.File {
+			s.cachedFileList[i] = zipReaderFile{v.Name, v}
+		}
+	}
+	for _, v := range s.cachedFileList {
+		if v.Name() == path {
+			return v, nil
+		}
+	}
+	return zipReaderFile{}, errors.New("file not found in zip")
+}
+
+func (s zipPackSource) GetFileList() ([]importPackFile, error) {
+	if s.cachedFileList == nil {
+		s.cachedFileList = make([]importPackFile, len(s.Reader.File))
+		for i, v := range s.Reader.File {
+			s.cachedFileList[i] = zipReaderFile{v.Name, v}
+		}
+	}
+	return s.cachedFileList, nil
+}
+
+func (s zipPackSource) GetPackFile() importPackFile {
+	return zipReaderFile{s.MetaFile.Name, s.MetaFile}
 }
 
 type twitchInstalledPackMeta struct {
@@ -471,4 +563,52 @@ func (m twitchInstalledPackMeta) GetFiles() ([]importPackFile, error) {
 		}
 	}
 	return list, nil
+}
+
+func readMetadata(s importPackSource) importPackMetadata {
+	var packImport importPackMetadata
+	metaFile := s.GetPackFile()
+	rdr, err := metaFile.Open()
+	if err != nil {
+		fmt.Printf("Error reading file: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Read the whole file (as we are going to parse it multiple times)
+	fileData, err := ioutil.ReadAll(rdr)
+	if err != nil {
+		fmt.Printf("Error reading file: %s\n", err)
+		os.Exit(1)
+	}
+
+	// Determine what format the file is
+	var jsonFile map[string]interface{}
+	err = json.Unmarshal(fileData, &jsonFile)
+	if err != nil {
+		fmt.Printf("Error parsing JSON: %s\n", err)
+		os.Exit(1)
+	}
+
+	isManifest := false
+	if v, ok := jsonFile["manifestType"]; ok {
+		isManifest = v.(string) == "minecraftModpack"
+	}
+	if isManifest {
+		fmt.Println("it do be a manifest doe")
+		os.Exit(0)
+		// TODO: implement manifest parsing
+	} else {
+		// Replace FileNameOnDisk with fileNameOnDisk
+		fileData = bytes.ReplaceAll(fileData, []byte("FileNameOnDisk"), []byte("fileNameOnDisk"))
+		packMeta := twitchInstalledPackMeta{}
+		err = json.Unmarshal(fileData, &packMeta)
+		if err != nil {
+			fmt.Printf("Error parsing JSON: %s\n", err)
+			os.Exit(1)
+		}
+		packMeta.srcFile = metaFile.Name()
+		packImport = packMeta
+	}
+
+	return packImport
 }
