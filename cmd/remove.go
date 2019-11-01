@@ -62,7 +62,7 @@ var removeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Printf("Mod %s removed successfully!", args[0])
+		fmt.Printf("Mod %s removed successfully!\n", args[0])
 	},
 }
 

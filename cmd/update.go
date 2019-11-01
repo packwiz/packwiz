@@ -47,7 +47,7 @@ var updateCmd = &cobra.Command{
 			for _, v := range index.GetAllMods() {
 				modData, err := core.LoadMod(v)
 				if err != nil {
-					fmt.Printf("Error reading mod file: %s", err.Error())
+					fmt.Printf("Error reading mod file: %s\n", err.Error())
 					continue
 				}
 
@@ -65,7 +65,7 @@ var updateCmd = &cobra.Command{
 					updaterMap[k] = append(slice, modData)
 				}
 				if !updaterFound {
-					fmt.Printf("A supported update system for \"%s\" cannot be found.", modData.Name)
+					fmt.Printf("A supported update system for \"%s\" cannot be found.\n", modData.Name)
 				}
 			}
 

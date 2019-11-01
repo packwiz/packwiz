@@ -256,7 +256,6 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	return infoRes, nil
 }
 
-// TODO: pass gameVersion?
 func getSearch(searchText string, gameVersion string) ([]modInfo, error) {
 	var infoRes []modInfo
 	client := &http.Client{}

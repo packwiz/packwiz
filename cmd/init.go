@@ -65,7 +65,7 @@ var initCmd = &cobra.Command{
 
 		mcVersions, err := getValidMCVersions()
 		if err != nil {
-			fmt.Printf("Failed to get latest minecraft versions: %s", err)
+			fmt.Printf("Failed to get latest minecraft versions: %s\n", err)
 			os.Exit(1)
 		}
 

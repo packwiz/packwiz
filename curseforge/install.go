@@ -4,11 +4,10 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
+	"github.com/sahilm/fuzzy"
 	"os"
-	"sort"
 	"strings"
 
-	"github.com/agnivade/levenshtein"
 	"github.com/comp500/packwiz/core"
 	"github.com/spf13/cobra"
 	"gopkg.in/dixonwille/wmenu.v4"
@@ -71,63 +70,14 @@ var installCmd = &cobra.Command{
 		var modInfoData modInfo
 
 		if !done {
-			fmt.Println("Searching CurseForge...")
-			searchTerm := strings.Join(args, " ")
-			results, err := getSearch(searchTerm, mcVersion)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
+			var cancelled bool
+			cancelled, modInfoData = searchCurseforgeInternal(args, mcVersion)
+			if cancelled {
+				return
 			}
-
-			if len(results) == 0 {
-				fmt.Println("No mods found!")
-				os.Exit(1)
-			} else if len(results) == 1 {
-				modInfoData = results[0]
-				modID = modInfoData.ID
-				modInfoObtained = true
-				done = true
-			} else {
-				// Find the closest value to the search term
-				sort.Slice(results, func(i, j int) bool {
-					return levenshtein.ComputeDistance(searchTerm, results[i].Name) < levenshtein.ComputeDistance(searchTerm, results[j].Name)
-				})
-
-				menu := wmenu.NewMenu("Choose a number:")
-
-				for i, v := range results {
-					menu.Option(v.Name, v, i == 0, nil)
-				}
-				menu.Option("Cancel", nil, false, nil)
-
-				menu.Action(func(menuRes []wmenu.Opt) error {
-					if len(menuRes) != 1 || menuRes[0].Value == nil {
-						fmt.Println("Cancelled!")
-						return nil
-					}
-
-					// Why is variable shadowing a thing!!!!
-					var ok bool
-					modInfoData, ok = menuRes[0].Value.(modInfo)
-					if !ok {
-						fmt.Println("Error converting interface from wmenu")
-						os.Exit(1)
-					}
-					modID = modInfoData.ID
-					modInfoObtained = true
-					done = true
-					return nil
-				})
-				err = menu.Run()
-				if err != nil {
-					fmt.Println(err)
-					os.Exit(1)
-				}
-
-				if !done {
-					return
-				}
-			}
+			done = true
+			modID = modInfoData.ID
+			modInfoObtained = true
 		}
 
 		if !done {
@@ -220,6 +170,7 @@ var installCmd = &cobra.Command{
 						depFileInfo, err := getLatestFile(currData, mcVersion, 0)
 						if err != nil {
 							fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
+							continue
 						}
 
 						for _, dep := range depFileInfo.Dependencies {
@@ -294,6 +245,79 @@ var installCmd = &cobra.Command{
 
 		fmt.Printf("Mod \"%s\" successfully installed! (%s)\n", modInfoData.Name, fileInfoData.FileName)
 	},
+}
+
+// Used to implement interface for fuzzy matching
+type modResultsList []modInfo
+
+func (r modResultsList) String(i int) string {
+	return r[i].Name
+}
+
+func (r modResultsList) Len() int {
+	return len(r)
+}
+
+func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
+	fmt.Println("Searching CurseForge...")
+	searchTerm := strings.Join(args, " ")
+	results, err := getSearch(searchTerm, mcVersion)
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
+	if len(results) == 0 {
+		fmt.Println("No mods found!")
+		os.Exit(1)
+	} else if len(results) == 1 {
+		return false, results[0]
+	} else {
+		// Fuzzy search on results list
+		fuzzySearchResults := fuzzy.FindFrom(searchTerm, modResultsList(results))
+
+		menu := wmenu.NewMenu("Choose a number:")
+
+		if len(fuzzySearchResults) == 0 {
+			for i, v := range results {
+				menu.Option(v.Name, v, i == 0, nil)
+			}
+		} else {
+			for i, v := range fuzzySearchResults {
+				menu.Option(results[v.Index].Name, results[v.Index], i == 0, nil)
+			}
+		}
+		menu.Option("Cancel", nil, false, nil)
+
+		var modInfoData modInfo
+		var cancelled bool
+		menu.Action(func(menuRes []wmenu.Opt) error {
+			if len(menuRes) != 1 || menuRes[0].Value == nil {
+				fmt.Println("Cancelled!")
+				cancelled = true
+				return nil
+			}
+
+			// Why is variable shadowing a thing!!!!
+			var ok bool
+			modInfoData, ok = menuRes[0].Value.(modInfo)
+			if !ok {
+				return errors.New("error converting interface from wmenu")
+			}
+			return nil
+		})
+		err = menu.Run()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		if cancelled {
+			return true, modInfo{}
+		}
+		return false, modInfoData
+	}
+	// This should never be executed, but Go requires it!
+	return false, modInfo{}
 }
 
 func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileInfo, error) {
