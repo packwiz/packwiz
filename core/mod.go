@@ -1,12 +1,13 @@
 package core
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"io"
+	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/BurntSushi/toml"
 )
@@ -37,6 +38,7 @@ type ModDownload struct {
 }
 
 // The three possible values of Side (the side that the mod is on) are "server", "client", and "both".
+//noinspection GoUnusedConst
 const (
 	ServerSide    = "server"
 	ClientSide    = "client"
@@ -88,7 +90,10 @@ func (m Mod) Write() (string, string, error) {
 	}
 	defer f.Close()
 
-	h := sha256.New()
+	h, err := GetHashImpl("sha256")
+	if err != nil {
+		return "", "", err
+	}
 	w := io.MultiWriter(h, f)
 
 	enc := toml.NewEncoder(w)
@@ -108,4 +113,37 @@ func (m Mod) GetParsedUpdateData(updaterName string) (interface{}, bool) {
 // GetFilePath is a clumsy hack that I made because Mod already stores it's path anyway
 func (m Mod) GetFilePath() string {
 	return m.metaFile
+}
+
+// GetDestFilePath returns the path of the destination file of the mod
+func (m Mod) GetDestFilePath() string {
+	return filepath.Join(filepath.Dir(m.metaFile), filepath.FromSlash(m.FileName))
+}
+
+// DownloadFile attempts to resolve and download the file
+func (m Mod) DownloadFile(dest io.Writer) error {
+	resp, err := http.Get(m.Download.URL)
+	if err != nil {
+		return err
+	}
+	if resp.StatusCode != 200 {
+		_ = resp.Body.Close()
+		return errors.New("invalid status code " + strconv.Itoa(resp.StatusCode))
+	}
+	h, err := GetHashImpl(m.Download.HashFormat)
+	if err != nil {
+		return err
+	}
+
+	w := io.MultiWriter(h, dest)
+	_, err = io.Copy(w, resp.Body)
+	if err != nil {
+		return err
+	}
+
+	calculatedHash := hex.EncodeToString(h.Sum(nil))
+	if calculatedHash != m.Download.Hash {
+		return errors.New("hash of saved file is invalid")
+	}
+	return nil
 }

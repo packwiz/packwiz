@@ -1,8 +1,8 @@
 package core
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -130,7 +130,10 @@ func (in *Index) updateFile(path string) error {
 	// Hash usage strategy (may change):
 	// Just use SHA256, overwrite existing hash regardless of what it is
 	// May update later to continue using the same hash that was already being used
-	h := sha256.New()
+	h, err := GetHashImpl("sha256")
+	if err != nil {
+		return err
+	}
 	if _, err := io.Copy(h, f); err != nil {
 		return err
 	}
@@ -309,4 +312,38 @@ func (in Index) GetAllMods() []string {
 		}
 	}
 	return list
+}
+
+// GetFilePath attempts to get the path of the destination index file as it is stored on disk
+func (in Index) GetFilePath(f IndexFile) string {
+	return filepath.Join(filepath.Dir(in.indexFile), filepath.FromSlash(f.File))
+}
+
+// SaveFile attempts to read the file from disk
+func (in Index) SaveFile(f IndexFile, dest io.Writer) error {
+	hashFormat := f.HashFormat
+	if hashFormat == "" {
+		hashFormat = in.HashFormat
+	}
+	src, err := os.Open(in.GetFilePath(f))
+	if err != nil {
+		return err
+	}
+	h, err := GetHashImpl(hashFormat)
+	if err != nil {
+		return err
+	}
+
+	w := io.MultiWriter(h, dest)
+	_, err = io.Copy(w, src)
+	if err != nil {
+		return err
+	}
+
+	calculatedHash := hex.EncodeToString(h.Sum(nil))
+	if calculatedHash != f.Hash {
+		return errors.New("hash of saved file is invalid")
+	}
+
+	return nil
 }

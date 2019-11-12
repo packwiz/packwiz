@@ -4,9 +4,9 @@ import (
 	"archive/zip"
 	"bufio"
 	"bytes"
-	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/comp500/packwiz/curseforge/packinterop"
 	"io"
 	"io/ioutil"
 	"os"
@@ -19,43 +19,20 @@ import (
 	"github.com/spf13/viper"
 )
 
-// TODO: this file is a mess, I need to refactor it
-// TODO: test modpack importing before proceeding with further implementation
-
-type importPackFile interface {
-	Name() string
-	Open() (io.ReadCloser, error)
-}
-
-type importPackMetadata interface {
-	Name() string
-	Versions() map[string]string
-	Mods() []struct {
-		ModID  int
-		FileID int
-	}
-	GetFiles() ([]importPackFile, error)
-}
-
-type importPackSource interface {
-	GetFile(path string) (importPackFile, error)
-	//TODO: was GetFileList(base string), is it needed?
-	GetFileList() ([]importPackFile, error)
-	GetPackFile() importPackFile
-}
-
 // importCmd represents the import command
 var importCmd = &cobra.Command{
 	Use:   "import [modpack]",
-	Short: "Import an installed curseforge modpack, from a download URL or a downloaded pack zip, or an installed metadata json file",
+	Short: "Import a curseforge modpack, from a download URL or a downloaded pack zip, or an installed metadata json file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		inputFile := args[0]
-		var packImport importPackMetadata
+		var packImport packinterop.ImportPackMetadata
 
+		// TODO: refactor/extract file checking?
 		if strings.HasPrefix(inputFile, "http") {
-			fmt.Println("it do be a http doe")
-			os.Exit(0)
+			// TODO: implement
+			fmt.Println("HTTP not supported (yet)")
+			os.Exit(1)
 		} else {
 			// Attempt to read from file
 			var f *os.File
@@ -140,8 +117,7 @@ var importCmd = &cobra.Command{
 				// Search the zip for minecraftinstance.json or manifest.json
 				var metaFile *zip.File
 				for _, v := range zr.File {
-					fileName := filepath.Base(v.Name)
-					if fileName == "minecraftinstance.json" || fileName == "manifest.json" {
+					if v.Name == "minecraftinstance.json" || v.Name == "manifest.json" {
 						metaFile = v
 					}
 				}
@@ -151,17 +127,9 @@ var importCmd = &cobra.Command{
 					os.Exit(1)
 				}
 
-				packImport = readMetadata(zipPackSource{
-					MetaFile: metaFile,
-					Reader:   zr,
-				})
-
+				packImport = packinterop.ReadMetadata(packinterop.GetZipPackSource(metaFile, zr))
 			} else {
-				packImport = readMetadata(diskPackSource{
-					MetaSource: buf,
-					MetaName:   inputFile, // TODO: is this always the correct file?
-					BasePath:   filepath.Dir(inputFile),
-				})
+				packImport = packinterop.ReadMetadata(packinterop.GetDiskPackSource(buf, filepath.ToSlash(filepath.Base(inputFile)), filepath.Dir(inputFile)))
 			}
 		}
 
@@ -255,13 +223,10 @@ var importCmd = &cobra.Command{
 				os.Exit(1)
 			}
 
+			// TODO: just use mods-folder directly? does texture pack importing affect this?
 			ref, err := filepath.Abs(filepath.Join(filepath.Dir(core.ResolveMod(modInfoValue.Slug)), fileInfo.FileName))
 			if err == nil {
 				referencedModPaths = append(referencedModPaths, ref)
-				if len(ref) == 0 {
-					fmt.Println(core.ResolveMod(modInfoValue.Slug))
-					fmt.Println(filepath.Dir(core.ResolveMod(modInfoValue.Slug)))
-				}
 			}
 
 			fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
@@ -280,10 +245,7 @@ var importCmd = &cobra.Command{
 		successes = 0
 		indexFolder := filepath.Dir(filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File)))
 		for _, v := range filesList {
-			filePath := v.Name()
-			if !filepath.IsAbs(filePath) {
-				filePath = filepath.Join(indexFolder, v.Name())
-			}
+			filePath := filepath.Join(indexFolder, filepath.FromSlash(v.Name()))
 			filePathAbs, err := filepath.Abs(filePath)
 			if err == nil {
 				found := false
@@ -298,12 +260,12 @@ var importCmd = &cobra.Command{
 					successes++
 					continue
 				}
-				if filepath.Base(filePathAbs) == "minecraftinstance.json" {
+				if v.Name() == "minecraftinstance.json" {
 					fmt.Println("Ignored file \"minecraftinstance.json\"")
 					successes++
 					continue
 				}
-				if filepath.Base(filePathAbs) == "manifest.json" {
+				if v.Name() == "manifest.json" {
 					fmt.Println("Ignored file \"manifest.json\"")
 					successes++
 					continue
@@ -375,241 +337,4 @@ var importCmd = &cobra.Command{
 
 func init() {
 	curseforgeCmd.AddCommand(importCmd)
-}
-
-type diskFile struct {
-	NameInternal string
-	Path         string
-}
-
-func (f diskFile) Name() string {
-	return f.NameInternal
-}
-
-func (f diskFile) Open() (io.ReadCloser, error) {
-	return os.Open(f.Path)
-}
-
-type zipReaderFile struct {
-	NameInternal string
-	*zip.File
-}
-
-func (f zipReaderFile) Name() string {
-	return f.NameInternal
-}
-
-type readerFile struct {
-	NameInternal string
-	Reader       *io.ReadCloser
-}
-
-func (f readerFile) Name() string {
-	return f.NameInternal
-}
-
-func (f readerFile) Open() (io.ReadCloser, error) {
-	return *f.Reader, nil
-}
-
-func diskFilesFromPath(base string) ([]importPackFile, error) {
-	list := make([]importPackFile, 0)
-	err := filepath.Walk(base, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
-		}
-		if info.IsDir() {
-			return nil
-		}
-		name, err := filepath.Rel(base, path)
-		if err != nil {
-			return err
-		}
-		list = append(list, diskFile{name, path})
-		return nil
-	})
-	if err != nil {
-		return nil, err
-	}
-	return list, nil
-}
-
-type diskPackSource struct {
-	MetaSource *bufio.Reader
-	MetaName   string
-	BasePath   string
-}
-
-func (s diskPackSource) GetFile(path string) (importPackFile, error) {
-	return diskFile{s.BasePath, path}, nil
-}
-
-func (s diskPackSource) GetFileList() ([]importPackFile, error) {
-	return diskFilesFromPath(s.BasePath)
-}
-
-func (s diskPackSource) GetPackFile() importPackFile {
-	rc := ioutil.NopCloser(s.MetaSource)
-	return readerFile{s.MetaName, &rc}
-}
-
-type zipPackSource struct {
-	MetaFile       *zip.File
-	Reader         *zip.Reader
-	cachedFileList []importPackFile
-}
-
-func (s zipPackSource) GetFile(path string) (importPackFile, error) {
-	if s.cachedFileList == nil {
-		s.cachedFileList = make([]importPackFile, len(s.Reader.File))
-		for i, v := range s.Reader.File {
-			s.cachedFileList[i] = zipReaderFile{v.Name, v}
-		}
-	}
-	for _, v := range s.cachedFileList {
-		if v.Name() == path {
-			return v, nil
-		}
-	}
-	return zipReaderFile{}, errors.New("file not found in zip")
-}
-
-func (s zipPackSource) GetFileList() ([]importPackFile, error) {
-	if s.cachedFileList == nil {
-		s.cachedFileList = make([]importPackFile, len(s.Reader.File))
-		for i, v := range s.Reader.File {
-			s.cachedFileList[i] = zipReaderFile{v.Name, v}
-		}
-	}
-	return s.cachedFileList, nil
-}
-
-func (s zipPackSource) GetPackFile() importPackFile {
-	return zipReaderFile{s.MetaFile.Name, s.MetaFile}
-}
-
-type twitchInstalledPackMeta struct {
-	NameInternal string `json:"name"`
-	Path         string `json:"installPath"`
-	// TODO: javaArgsOverride?
-	// TODO: allocatedMemory?
-	MCVersion string `json:"gameVersion"`
-	Modloader struct {
-		Name               string `json:"name"`
-		MavenVersionString string `json:"mavenVersionString"`
-	} `json:"baseModLoader"`
-	ModpackOverrides []string `json:"modpackOverrides"`
-	ModsInternal     []struct {
-		ID   int `json:"addonID"`
-		File struct {
-			// I've given up on using this cached data, just going to re-request it
-			ID int `json:"id"`
-		} `json:"installedFile"`
-	} `json:"installedAddons"`
-	// Used to determine if modpackOverrides should be used or not
-	IsUnlocked bool `json:"isUnlocked"`
-	srcFile    string
-}
-
-func (m twitchInstalledPackMeta) Name() string {
-	return m.NameInternal
-}
-
-func (m twitchInstalledPackMeta) Versions() map[string]string {
-	vers := make(map[string]string)
-	vers["minecraft"] = m.MCVersion
-	if strings.HasPrefix(m.Modloader.Name, "forge") {
-		if len(m.Modloader.MavenVersionString) > 0 {
-			vers["forge"] = strings.TrimPrefix(m.Modloader.MavenVersionString, "net.minecraftforge:forge:")
-		} else {
-			vers["forge"] = m.MCVersion + "-" + strings.TrimPrefix(m.Modloader.Name, "forge-")
-		}
-	}
-	return vers
-}
-
-func (m twitchInstalledPackMeta) Mods() []struct {
-	ModID  int
-	FileID int
-} {
-	list := make([]struct {
-		ModID  int
-		FileID int
-	}, len(m.ModsInternal))
-	for i, v := range m.ModsInternal {
-		list[i] = struct {
-			ModID  int
-			FileID int
-		}{
-			ModID:  v.ID,
-			FileID: v.File.ID,
-		}
-	}
-	return list
-}
-
-func (m twitchInstalledPackMeta) GetFiles() ([]importPackFile, error) {
-	dir := filepath.Dir(m.srcFile)
-	if _, err := os.Stat(m.Path); err == nil {
-		dir = m.Path
-	}
-	if m.IsUnlocked {
-		return diskFilesFromPath(dir)
-	}
-	list := make([]importPackFile, len(m.ModpackOverrides))
-	for i, v := range m.ModpackOverrides {
-		list[i] = diskFile{
-			Path:         filepath.Join(dir, v),
-			NameInternal: v,
-		}
-	}
-	return list, nil
-}
-
-func readMetadata(s importPackSource) importPackMetadata {
-	var packImport importPackMetadata
-	metaFile := s.GetPackFile()
-	rdr, err := metaFile.Open()
-	if err != nil {
-		fmt.Printf("Error reading file: %s\n", err)
-		os.Exit(1)
-	}
-
-	// Read the whole file (as we are going to parse it multiple times)
-	fileData, err := ioutil.ReadAll(rdr)
-	if err != nil {
-		fmt.Printf("Error reading file: %s\n", err)
-		os.Exit(1)
-	}
-
-	// Determine what format the file is
-	var jsonFile map[string]interface{}
-	err = json.Unmarshal(fileData, &jsonFile)
-	if err != nil {
-		fmt.Printf("Error parsing JSON: %s\n", err)
-		os.Exit(1)
-	}
-
-	isManifest := false
-	if v, ok := jsonFile["manifestType"]; ok {
-		isManifest = v.(string) == "minecraftModpack"
-	}
-	if isManifest {
-		fmt.Println("it do be a manifest doe")
-		os.Exit(0)
-		// TODO: implement manifest parsing
-	} else {
-		// Replace FileNameOnDisk with fileNameOnDisk
-		fileData = bytes.ReplaceAll(fileData, []byte("FileNameOnDisk"), []byte("fileNameOnDisk"))
-		packMeta := twitchInstalledPackMeta{}
-		err = json.Unmarshal(fileData, &packMeta)
-		if err != nil {
-			fmt.Printf("Error parsing JSON: %s\n", err)
-			os.Exit(1)
-		}
-		packMeta.srcFile = metaFile.Name()
-		packImport = packMeta
-	}
-
-	return packImport
 }

@@ -1,7 +1,6 @@
 package core
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"io"
@@ -65,7 +64,10 @@ func (pack *Pack) UpdateIndexHash() error {
 	// Hash usage strategy (may change):
 	// Just use SHA256, overwrite existing hash regardless of what it is
 	// May update later to continue using the same hash that was already being used
-	h := sha256.New()
+	h, err := GetHashImpl("sha256")
+	if err != nil {
+		return err
+	}
 	if _, err := io.Copy(h, f); err != nil {
 		return err
 	}
