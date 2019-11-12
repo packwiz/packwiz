@@ -144,6 +144,7 @@ func createModlist(zw *zip.Writer, mods []core.Mod) error {
 		projectRaw, ok := mod.GetParsedUpdateData("curseforge")
 		if !ok {
 			// TODO: read homepage URL or something similar?
+			// TODO: how to handle mods that don't have metadata???
 			_, err = w.WriteString("<li>" + mod.Name + "</li>\r\n")
 			if err != nil {
 				return err
