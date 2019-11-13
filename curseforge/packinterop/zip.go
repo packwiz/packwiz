@@ -20,13 +20,20 @@ type zipPackSource struct {
 	cachedFileList []ImportPackFile
 }
 
-func (s zipPackSource) GetFile(path string) (ImportPackFile, error) {
-	if s.cachedFileList == nil {
-		s.cachedFileList = make([]ImportPackFile, len(s.Reader.File))
-		for i, v := range s.Reader.File {
+func (s *zipPackSource) updateFileList() {
+	s.cachedFileList = make([]ImportPackFile, len(s.Reader.File))
+	i := 0
+	for _, v := range s.Reader.File {
+		// Ignore directories
+		if !v.Mode().IsDir() {
 			s.cachedFileList[i] = zipReaderFile{v.Name, v}
+			i++
 		}
 	}
+	s.cachedFileList = s.cachedFileList[:i]
+}
+
+func (s zipPackSource) GetFile(path string) (ImportPackFile, error) {
 	for _, v := range s.cachedFileList {
 		if v.Name() == path {
 			return v, nil
@@ -36,12 +43,6 @@ func (s zipPackSource) GetFile(path string) (ImportPackFile, error) {
 }
 
 func (s zipPackSource) GetFileList() ([]ImportPackFile, error) {
-	if s.cachedFileList == nil {
-		s.cachedFileList = make([]ImportPackFile, len(s.Reader.File))
-		for i, v := range s.Reader.File {
-			s.cachedFileList[i] = zipReaderFile{v.Name, v}
-		}
-	}
 	return s.cachedFileList, nil
 }
 
@@ -50,8 +51,10 @@ func (s zipPackSource) GetPackFile() ImportPackFile {
 }
 
 func GetZipPackSource(metaFile *zip.File, reader *zip.Reader) ImportPackSource {
-	return zipPackSource{
+	source := zipPackSource{
 		MetaFile: metaFile,
 		Reader:   reader,
 	}
+	source.updateFileList()
+	return source
 }
