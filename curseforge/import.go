@@ -174,7 +174,7 @@ var importCmd = &cobra.Command{
 		modsList := packImport.Mods()
 		modIDs := make([]int, len(modsList))
 		for i, v := range modsList {
-			modIDs[i] = v.ModID
+			modIDs[i] = v.ProjectID
 		}
 
 		fmt.Println("Querying Curse API for mod info...")
@@ -195,9 +195,9 @@ var importCmd = &cobra.Command{
 		referencedModPaths := make([]string, 0, len(modsList))
 		successes := 0
 		for _, v := range modsList {
-			modInfoValue, ok := modInfosMap[v.ModID]
+			modInfoValue, ok := modInfosMap[v.ProjectID]
 			if !ok {
-				fmt.Printf("Failed to obtain mod information for ID %d\n", v.ModID)
+				fmt.Printf("Failed to obtain mod information for ID %d\n", v.ProjectID)
 				continue
 			}
 
@@ -210,9 +210,9 @@ var importCmd = &cobra.Command{
 				}
 			}
 			if !found {
-				fileInfo, err = getFileInfo(v.ModID, v.FileID)
+				fileInfo, err = getFileInfo(v.ProjectID, v.FileID)
 				if err != nil {
-					fmt.Printf("Failed to obtain file information for Mod / File %d / %d: %s\n", v.ModID, v.FileID, err)
+					fmt.Printf("Failed to obtain file information for Mod / File %d / %d: %s\n", v.ProjectID, v.FileID, err)
 					continue
 				}
 			}

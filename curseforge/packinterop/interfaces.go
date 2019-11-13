@@ -10,11 +10,7 @@ type ImportPackFile interface {
 type ImportPackMetadata interface {
 	Name() string
 	Versions() map[string]string
-	// TODO: use AddonFileReference?
-	Mods() []struct {
-		ModID  int
-		FileID int
-	}
+	Mods() []AddonFileReference
 	GetFiles() ([]ImportPackFile, error)
 }
 

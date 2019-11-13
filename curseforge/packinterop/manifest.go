@@ -48,21 +48,12 @@ func (c cursePackMeta) Versions() map[string]string {
 	return vers
 }
 
-func (c cursePackMeta) Mods() []struct {
-	ModID  int
-	FileID int
-} {
-	list := make([]struct {
-		ModID  int
-		FileID int
-	}, len(c.Files))
+func (c cursePackMeta) Mods() []AddonFileReference {
+	list := make([]AddonFileReference, len(c.Files))
 	for i, v := range c.Files {
-		list[i] = struct {
-			ModID  int
-			FileID int
-		}{
-			ModID:  v.ProjectID,
-			FileID: v.FileID,
+		list[i] = AddonFileReference{
+			ProjectID: v.ProjectID,
+			FileID:    v.FileID,
 		}
 	}
 	return list

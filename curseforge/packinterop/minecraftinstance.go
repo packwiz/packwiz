@@ -47,21 +47,12 @@ func (m twitchInstalledPackMeta) Versions() map[string]string {
 	return vers
 }
 
-func (m twitchInstalledPackMeta) Mods() []struct {
-	ModID  int
-	FileID int
-} {
-	list := make([]struct {
-		ModID  int
-		FileID int
-	}, len(m.ModsInternal))
+func (m twitchInstalledPackMeta) Mods() []AddonFileReference {
+	list := make([]AddonFileReference, len(m.ModsInternal))
 	for i, v := range m.ModsInternal {
-		list[i] = struct {
-			ModID  int
-			FileID int
-		}{
-			ModID:  v.ID,
-			FileID: v.File.ID,
+		list[i] = AddonFileReference{
+			ProjectID: v.ID,
+			FileID:    v.File.ID,
 		}
 	}
 	return list
