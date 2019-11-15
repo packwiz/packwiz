@@ -70,7 +70,6 @@ type AddonFileReference struct {
 }
 
 func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, out io.Writer) error {
-	// TODO: should Required be false sometimes?
 	files := make([]struct {
 		ProjectID int  `json:"projectID"`
 		FileID    int  `json:"fileID"`
