@@ -52,8 +52,9 @@ func (c cursePackMeta) Mods() []AddonFileReference {
 	list := make([]AddonFileReference, len(c.Files))
 	for i, v := range c.Files {
 		list[i] = AddonFileReference{
-			ProjectID: v.ProjectID,
-			FileID:    v.FileID,
+			ProjectID:        v.ProjectID,
+			FileID:           v.FileID,
+			OptionalDisabled: !v.Required,
 		}
 	}
 	return list

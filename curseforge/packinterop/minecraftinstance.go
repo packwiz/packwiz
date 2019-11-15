@@ -21,6 +21,8 @@ type twitchInstalledPackMeta struct {
 		File struct {
 			// I've given up on using this cached data, just going to re-request it
 			ID int `json:"id"`
+			// Used to determine if the mod is optional-disabled
+			FileNameOnDisk string
 		} `json:"installedFile"`
 	} `json:"installedAddons"`
 	// Used to determine if modpackOverrides should be used or not
@@ -51,8 +53,9 @@ func (m twitchInstalledPackMeta) Mods() []AddonFileReference {
 	list := make([]AddonFileReference, len(m.ModsInternal))
 	for i, v := range m.ModsInternal {
 		list[i] = AddonFileReference{
-			ProjectID: v.ID,
-			FileID:    v.File.ID,
+			ProjectID:        v.ID,
+			FileID:           v.File.ID,
+			OptionalDisabled: strings.HasSuffix(v.File.FileNameOnDisk, ".disabled"),
 		}
 	}
 	return list

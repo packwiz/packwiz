@@ -54,7 +54,11 @@ var exportCmd = &cobra.Command{
 			// TODO: how to handle files with CF metadata, but with different download path?
 			if ok {
 				p := projectRaw.(cfUpdateData)
-				cfFileRefs = append(cfFileRefs, packinterop.AddonFileReference{ProjectID: p.ProjectID, FileID: p.FileID})
+				cfFileRefs = append(cfFileRefs, packinterop.AddonFileReference{
+					ProjectID:        p.ProjectID,
+					FileID:           p.FileID,
+					OptionalDisabled: mod.Option != nil && mod.Option.Optional && !mod.Option.Default,
+				})
 			} else {
 				// If the mod doesn't have the metadata, save it into the zip
 				path, err := filepath.Rel(filepath.Dir(indexPath), mod.GetDestFilePath())

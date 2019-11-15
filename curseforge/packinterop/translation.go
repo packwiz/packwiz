@@ -61,10 +61,12 @@ func ReadMetadata(s ImportPackSource) ImportPackMetadata {
 	return packImport
 }
 
-// AddonFileReference is a pair of Project ID and File ID to reference a single file on CurseForge
+// AddonFileReference is a struct to reference a single file on CurseForge
 type AddonFileReference struct {
 	ProjectID int
 	FileID    int
+	// OptionalDisabled is true if the file is optional and disabled (turned off in Twitch launcher)
+	OptionalDisabled bool
 }
 
 func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, out io.Writer) error {
@@ -79,7 +81,7 @@ func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, out io
 			ProjectID int  `json:"projectID"`
 			FileID    int  `json:"fileID"`
 			Required  bool `json:"required"`
-		}{ProjectID: fr.ProjectID, FileID: fr.FileID, Required: true}
+		}{ProjectID: fr.ProjectID, FileID: fr.FileID, Required: !fr.OptionalDisabled}
 	}
 
 	modLoaders := make([]modLoaderDef, 0, 1)
