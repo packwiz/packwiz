@@ -328,27 +328,27 @@ type modLoaderComponent struct {
 }
 
 var modLoaders = map[string][]modLoaderComponent{
-	"fabric": []modLoaderComponent{
-		modLoaderComponent{
+	"fabric": {
+		{
 			Name:              "fabric",
 			FriendlyName:      "Fabric loader",
 			VersionListGetter: fetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml"),
 		},
-		modLoaderComponent{
+		{
 			Name:              "yarn",
 			FriendlyName:      "Yarn (mappings)",
 			VersionListGetter: fetchMavenVersionPrefixedList("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml", "Yarn"),
 		},
 	},
-	"forge": []modLoaderComponent{
-		modLoaderComponent{
+	"forge": {
+		{
 			Name:              "forge",
 			FriendlyName:      "Forge",
 			VersionListGetter: fetchMavenVersionPrefixedList("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
 		},
 	},
-	"liteloader": []modLoaderComponent{
-		modLoaderComponent{
+	"liteloader": {
+		{
 			Name:              "liteloader",
 			FriendlyName:      "LiteLoader",
 			VersionListGetter: fetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
