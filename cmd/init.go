@@ -243,25 +243,25 @@ func init() {
 
 	initCmd.Flags().String("name", "", "The name of the modpack (omit to define interactively)")
 	initCmd.Flags().String("index-file", "index.toml", "The index file to use")
-	viper.BindPFlag("init.index-file", initCmd.Flags().Lookup("index-file"))
+	_ = viper.BindPFlag("init.index-file", initCmd.Flags().Lookup("index-file"))
 	initCmd.Flags().String("mc-version", "", "The Minecraft version to use (omit to define interactively)")
-	viper.BindPFlag("init.mc-version", initCmd.Flags().Lookup("mc-version"))
+	_ = viper.BindPFlag("init.mc-version", initCmd.Flags().Lookup("mc-version"))
 	initCmd.Flags().BoolP("latest", "l", false, "Automatically select the latest version of Minecraft")
-	viper.BindPFlag("init.latest", initCmd.Flags().Lookup("latest"))
+	_ = viper.BindPFlag("init.latest", initCmd.Flags().Lookup("latest"))
 	initCmd.Flags().BoolP("snapshot", "s", false, "Use the latest snapshot version with --latest")
-	viper.BindPFlag("init.snapshot", initCmd.Flags().Lookup("snapshot"))
+	_ = viper.BindPFlag("init.snapshot", initCmd.Flags().Lookup("snapshot"))
 	initCmd.Flags().BoolP("reinit", "r", false, "Recreate the pack file if it already exists, rather than exiting")
-	viper.BindPFlag("init.reinit", initCmd.Flags().Lookup("reinit"))
+	_ = viper.BindPFlag("init.reinit", initCmd.Flags().Lookup("reinit"))
 	initCmd.Flags().String("modloader", "", "The mod loader to use (omit to define interactively)")
-	viper.BindPFlag("init.modloader", initCmd.Flags().Lookup("modloader"))
+	_ = viper.BindPFlag("init.modloader", initCmd.Flags().Lookup("modloader"))
 
 	// ok this is epic
 	for _, loader := range modLoaders {
 		for _, component := range loader {
 			initCmd.Flags().String(component.Name+"-version", "", "The "+component.FriendlyName+" version to use (omit to define interactively)")
-			viper.BindPFlag("init."+component.Name+"-version", initCmd.Flags().Lookup(component.Name+"-version"))
+			_ = viper.BindPFlag("init."+component.Name+"-version", initCmd.Flags().Lookup(component.Name+"-version"))
 			initCmd.Flags().Bool(component.Name+"-latest", false, "Automatically select the latest version of "+component.FriendlyName)
-			viper.BindPFlag("init."+component.Name+"-latest", initCmd.Flags().Lookup(component.Name+"-latest"))
+			_ = viper.BindPFlag("init."+component.Name+"-latest", initCmd.Flags().Lookup(component.Name+"-latest"))
 		}
 	}
 }

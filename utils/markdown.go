@@ -35,5 +35,5 @@ func init() {
 	utilsCmd.AddCommand(markdownCmd)
 
 	markdownCmd.Flags().String("dir", ".", "The destination directory to save docs in")
-	viper.BindPFlag("utils.markdown.dir", markdownCmd.Flags().Lookup("dir"))
+	_ = viper.BindPFlag("utils.markdown.dir", markdownCmd.Flags().Lookup("dir"))
 }

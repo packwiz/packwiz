@@ -111,21 +111,24 @@ var serveCmd = &cobra.Command{
 					if err != nil {
 						fmt.Printf("Error reading file \"%s\": %s\n", path, err)
 						w.WriteHeader(404)
-						w.Write([]byte("File not found"))
+						_, _ = w.Write([]byte("File not found"))
 						return
 					}
-					defer f.Close()
 					_, err = io.Copy(w, f)
+					err2 := f.Close()
+					if err == nil {
+						err = err2
+					}
 					if err != nil {
 						fmt.Printf("Error reading file \"%s\": %s\n", path, err)
 						w.WriteHeader(500)
-						w.Write([]byte("Failed to read file"))
+						_, _ = w.Write([]byte("Failed to read file"))
 						return
 					}
 				} else {
 					fmt.Printf("File not found: %s\n", path)
 					w.WriteHeader(404)
-					w.Write([]byte("File not found"))
+					_, _ = w.Write([]byte("File not found"))
 					return
 				}
 			})
@@ -145,9 +148,9 @@ func init() {
 	rootCmd.AddCommand(serveCmd)
 
 	serveCmd.Flags().IntP("port", "p", 8080, "The port to run the server on")
-	viper.BindPFlag("serve.port", serveCmd.Flags().Lookup("port"))
+	_ = viper.BindPFlag("serve.port", serveCmd.Flags().Lookup("port"))
 	serveCmd.Flags().BoolP("refresh", "r", true, "Automatically refresh the index file")
-	viper.BindPFlag("serve.refresh", serveCmd.Flags().Lookup("refresh"))
+	_ = viper.BindPFlag("serve.refresh", serveCmd.Flags().Lookup("refresh"))
 	serveCmd.Flags().Bool("basic", false, "Disable refreshing and allow all files in the directory, rather than just files listed in the index")
-	viper.BindPFlag("serve.basic", serveCmd.Flags().Lookup("basic"))
+	_ = viper.BindPFlag("serve.basic", serveCmd.Flags().Lookup("basic"))
 }

@@ -33,6 +33,9 @@ func getFileIDsFromString(mod string) (bool, int, int, error) {
 		matches := v.FindStringSubmatch(mod)
 		if matches != nil && len(matches) == 3 {
 			modID, err := modIDFromSlug(matches[1])
+			if err != nil {
+				return true, 0, 0, err
+			}
 			fileID, err := strconv.Atoi(matches[2])
 			if err != nil {
 				return true, 0, 0, err

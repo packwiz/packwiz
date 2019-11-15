@@ -59,23 +59,24 @@ func (pack *Pack) UpdateIndexHash() error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	// Hash usage strategy (may change):
 	// Just use SHA256, overwrite existing hash regardless of what it is
 	// May update later to continue using the same hash that was already being used
 	h, err := GetHashImpl("sha256")
 	if err != nil {
+		_ = f.Close()
 		return err
 	}
 	if _, err := io.Copy(h, f); err != nil {
+		_ = f.Close()
 		return err
 	}
 	hashString := hex.EncodeToString(h.Sum(nil))
 
 	pack.Index.HashFormat = "sha256"
 	pack.Index.Hash = hashString
-	return nil
+	return f.Close()
 }
 
 // Write saves the pack file
@@ -84,12 +85,16 @@ func (pack Pack) Write() error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	enc := toml.NewEncoder(f)
 	// Disable indentation
 	enc.Indent = ""
-	return enc.Encode(pack)
+	err = enc.Encode(pack)
+	if err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 // GetMCVersion gets the version of Minecraft this pack uses, if it has been correctly specified

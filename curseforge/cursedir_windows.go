@@ -21,5 +21,5 @@ func getCurseDir() (string, error) {
 	if _, err := os.Stat(curseDir); err == nil {
 		return curseDir, nil
 	}
-	return "", errors.New("Curse installation directory cannot be found")
+	return "", errors.New("curse installation directory cannot be found")
 }

@@ -88,10 +88,10 @@ func (m Mod) Write() (string, string, error) {
 			return "sha256", "", err
 		}
 	}
-	defer f.Close()
 
 	h, err := GetHashImpl("sha256")
 	if err != nil {
+		_ = f.Close()
 		return "", "", err
 	}
 	w := io.MultiWriter(h, f)
@@ -101,7 +101,11 @@ func (m Mod) Write() (string, string, error) {
 	enc.Indent = ""
 	err = enc.Encode(m)
 	hashString := hex.EncodeToString(h.Sum(nil))
-	return "sha256", hashString, err
+	if err != nil {
+		_ = f.Close()
+		return "sha256", hashString, err
+	}
+	return "sha256", hashString, f.Close()
 }
 
 // GetParsedUpdateData can be used to retrieve updater-specific information after parsing a mod file

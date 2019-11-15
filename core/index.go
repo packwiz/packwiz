@@ -125,16 +125,21 @@ func (in *Index) updateFile(path string) error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	// Hash usage strategy (may change):
 	// Just use SHA256, overwrite existing hash regardless of what it is
 	// May update later to continue using the same hash that was already being used
 	h, err := GetHashImpl("sha256")
 	if err != nil {
+		_ = f.Close()
 		return err
 	}
 	if _, err := io.Copy(h, f); err != nil {
+		_ = f.Close()
+		return err
+	}
+	err = f.Close()
+	if err != nil {
 		return err
 	}
 	hashString := hex.EncodeToString(h.Sum(nil))
@@ -270,12 +275,16 @@ func (in Index) Write() error {
 	if err != nil {
 		return err
 	}
-	defer f.Close()
 
 	enc := toml.NewEncoder(f)
 	// Disable indentation
 	enc.Indent = ""
-	return enc.Encode(in)
+	err = enc.Encode(in)
+	if err != nil {
+		_ = f.Close()
+		return err
+	}
+	return f.Close()
 }
 
 // RefreshFileWithHash updates a file in the index, given a file hash and whether it is a mod or not

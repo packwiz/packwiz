@@ -45,9 +45,7 @@ var exportCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		defer expFile.Close()
 		exp := zip.NewWriter(expFile)
-		defer exp.Close()
 
 		cfFileRefs := make([]packinterop.AddonFileReference, 0, len(mods))
 		for _, mod := range mods {
@@ -82,18 +80,24 @@ var exportCmd = &cobra.Command{
 
 		manifestFile, err := exp.Create("manifest.json")
 		if err != nil {
+			_ = exp.Close()
+			_ = expFile.Close()
 			fmt.Println("Error creating manifest: " + err.Error())
 			os.Exit(1)
 		}
 
 		err = packinterop.WriteManifestFromPack(pack, cfFileRefs, manifestFile)
 		if err != nil {
+			_ = exp.Close()
+			_ = expFile.Close()
 			fmt.Println("Error creating manifest: " + err.Error())
 			os.Exit(1)
 		}
 
 		err = createModlist(exp, mods)
 		if err != nil {
+			_ = exp.Close()
+			_ = expFile.Close()
 			fmt.Println("Error creating mod list: " + err.Error())
 			os.Exit(1)
 		}
@@ -122,6 +126,17 @@ var exportCmd = &cobra.Command{
 				}
 				i++
 			}
+		}
+
+		err = exp.Close()
+		if err != nil {
+			fmt.Println("Error writing export file: " + err.Error())
+			os.Exit(1)
+		}
+		err = expFile.Close()
+		if err != nil {
+			fmt.Println("Error writing export file: " + err.Error())
+			os.Exit(1)
 		}
 
 		fmt.Println("Modpack exported to export.zip!")

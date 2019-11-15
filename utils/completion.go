@@ -24,7 +24,11 @@ Please note that the completions may be incomplete or broken, see https://github
 	Run: func(cmd *cobra.Command, args []string) {
 		if args[0] == "bash" {
 			if viper.GetBool("utils.completion.source") {
-				cmd.Root().GenBashCompletion(os.Stdout)
+				err := cmd.Root().GenBashCompletion(os.Stdout)
+				if err != nil {
+					fmt.Printf("Error generating completion file: %s\n", err)
+					os.Exit(1)
+				}
 			} else {
 				file, err := getConfigPath("completion.sh")
 				if err != nil {
@@ -59,7 +63,11 @@ Please note that the completions may be incomplete or broken, see https://github
 				}
 				if !commandFound {
 					// Append to bashrc
-					os.MkdirAll(filepath.Dir(bashrc), os.ModePerm)
+					err = os.MkdirAll(filepath.Dir(bashrc), os.ModePerm)
+					if err != nil {
+						fmt.Printf("Failed to make folder for bashrc: %s\n", err)
+						os.Exit(1)
+					}
 					f, err := os.OpenFile(bashrc, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 					if err != nil {
 						fmt.Printf("Failed to open bashrc: %s\n", err)
@@ -68,16 +76,24 @@ Please note that the completions may be incomplete or broken, see https://github
 					_, err = f.WriteString("\r\n" + command + "\r\n")
 					if err != nil {
 						fmt.Printf("Failed to write to bashrc: %s\n", err)
-						f.Close()
+						_ = f.Close()
 						os.Exit(1)
 					}
-					f.Close()
+					err = f.Close()
+					if err != nil {
+						fmt.Printf("Failed to write to bashrc: %s\n", err)
+						os.Exit(1)
+					}
 				}
 				fmt.Println("Completions installed! Restart your shell to load them.")
 			}
 		} else if args[0] == "powershell" {
 			if viper.GetBool("utils.completion.source") {
-				cmd.Root().GenPowerShellCompletion(os.Stdout)
+				err := cmd.Root().GenPowerShellCompletion(os.Stdout)
+				if err != nil {
+					fmt.Printf("Error generating completion file: %s\n", err)
+					os.Exit(1)
+				}
 			} else {
 				file, err := getConfigPath("completion.ps1")
 				if err != nil {
@@ -111,7 +127,11 @@ Please note that the completions may be incomplete or broken, see https://github
 				}
 				if !commandFound {
 					// Append to profile
-					os.MkdirAll(filepath.Dir(profile), os.ModePerm)
+					err = os.MkdirAll(filepath.Dir(profile), os.ModePerm)
+					if err != nil {
+						fmt.Printf("Failed to make folder for profile: %s\n", err)
+						os.Exit(1)
+					}
 					f, err := os.OpenFile(profile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
 					if err != nil {
 						fmt.Printf("Failed to open profile: %s\n", err)
@@ -120,16 +140,24 @@ Please note that the completions may be incomplete or broken, see https://github
 					_, err = f.WriteString("\r\n" + command + "\r\n")
 					if err != nil {
 						fmt.Printf("Failed to write to profile: %s\n", err)
-						f.Close()
+						_ = f.Close()
 						os.Exit(1)
 					}
-					f.Close()
+					err = f.Close()
+					if err != nil {
+						fmt.Printf("Failed to write to profile: %s\n", err)
+						os.Exit(1)
+					}
 				}
 				fmt.Println("Completions installed! Restart your shell to load them.")
 			}
 		} else if args[0] == "zsh" {
 			if viper.GetBool("utils.completion.source") {
-				cmd.Root().GenZshCompletion(os.Stdout)
+				err := cmd.Root().GenZshCompletion(os.Stdout)
+				if err != nil {
+					fmt.Printf("Error generating completion file: %s\n", err)
+					os.Exit(1)
+				}
 			} else {
 				file, err := getConfigPath("completion.zsh")
 				if err != nil {
@@ -182,5 +210,5 @@ func init() {
 	utilsCmd.AddCommand(completionCmd)
 
 	completionCmd.Flags().Bool("source", false, "Output the source of the commands to be installed, rather than installing them")
-	viper.BindPFlag("utils.completion.source", completionCmd.Flags().Lookup("source"))
+	_ = viper.BindPFlag("utils.completion.source", completionCmd.Flags().Lookup("source"))
 }

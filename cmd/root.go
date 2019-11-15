@@ -36,10 +36,10 @@ func init() {
 	cobra.OnInitialize(initConfig)
 
 	rootCmd.PersistentFlags().StringVar(&packFile, "pack-file", "pack.toml", "The modpack metadata file to use")
-	viper.BindPFlag("pack-file", rootCmd.PersistentFlags().Lookup("pack-file"))
+	_ = viper.BindPFlag("pack-file", rootCmd.PersistentFlags().Lookup("pack-file"))
 
 	rootCmd.PersistentFlags().StringVar(&modsFolder, "mods-folder", "mods", "The default folder to store mod metadata files in")
-	viper.BindPFlag("mods-folder", rootCmd.PersistentFlags().Lookup("mods-folder"))
+	_ = viper.BindPFlag("mods-folder", rootCmd.PersistentFlags().Lookup("mods-folder"))
 
 	file, err := os.UserConfigDir()
 	if err != nil {

@@ -79,22 +79,24 @@ func modIDFromSlug(slug string) (int, error) {
 	}
 
 	if len(response.Exception) > 0 || len(response.Message) > 0 {
-		return 0, fmt.Errorf("Error requesting id for slug: %s", response.Message)
+		return 0, fmt.Errorf("error requesting id for slug: %s", response.Message)
 	}
 
 	if len(response.Data.Addons) < 1 {
-		return 0, errors.New("Addon not found")
+		return 0, errors.New("addon not found")
 	}
 
 	return response.Data.Addons[0].ID, nil
 }
 
+//noinspection GoUnusedConst
 const (
 	fileTypeRelease int = iota + 1
 	fileTypeBeta
 	fileTypeAlpha
 )
 
+//noinspection GoUnusedConst
 const (
 	dependencyTypeEmbedded int = iota + 1
 	dependencyTypeOptional
@@ -146,7 +148,7 @@ func getModInfo(modID int) (modInfo, error) {
 	}
 
 	if infoRes.ID != modID {
-		return modInfo{}, fmt.Errorf("Unexpected addon ID in CurseForge response: %d/%d", modID, infoRes.ID)
+		return modInfo{}, fmt.Errorf("unexpected addon ID in CurseForge response: %d/%d", modID, infoRes.ID)
 	}
 
 	return infoRes, nil
@@ -250,7 +252,7 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	}
 
 	if infoRes.ID != fileID {
-		return modFileInfo{}, fmt.Errorf("Unexpected file ID in CurseForge response: %d/%d", modID, infoRes.ID)
+		return modFileInfo{}, fmt.Errorf("unexpected file ID in CurseForge response: %d/%d", modID, infoRes.ID)
 	}
 
 	return infoRes, nil
