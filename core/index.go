@@ -241,6 +241,7 @@ func (in *Index) Refresh() error {
 		progress.Increment(time.Since(start))
 	}
 	// Close bar
+	progress.SetTotal(int64(len(fileList)), true) // If len = 0, we have to manually set complete to true
 	progressContainer.Wait()
 
 	// Check all the files exist, remove them if they don't
