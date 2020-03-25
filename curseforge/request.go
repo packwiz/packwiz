@@ -220,7 +220,7 @@ type modFileInfo struct {
 	GameVersions []string `json:"gameVersion"`
 	Fingerprint  int      `json:"packageFingerprint"`
 	Dependencies []struct {
-		ModID int `json:"addonId"`
+		ModID int `json:"addonIDFlag"`
 		Type  int `json:"type"`
 	} `json:"dependencies"`
 }

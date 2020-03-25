@@ -27,10 +27,6 @@ var installCmd = &cobra.Command{
 	Aliases: []string{"add", "get"},
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args[0]) == 0 {
-			fmt.Println("You must specify a mod.")
-			os.Exit(1)
-		}
 		pack, err := core.LoadPack()
 		if err != nil {
 			fmt.Println(err)
@@ -49,8 +45,19 @@ var installCmd = &cobra.Command{
 
 		var done bool
 		var modID, fileID int
+		// If mod/file IDs are provided in command line, use those
+		// TODO: use file id with slug if it exists?
+		if addonIDFlag != 0 {
+			modID = addonIDFlag
+			fileID = fileIDFlag
+			done = true
+		}
+		if (len(args) == 0 || len(args[0]) == 0) && !done {
+			fmt.Println("You must specify a mod.")
+			os.Exit(1)
+		}
 		// If there are more than 1 argument, go straight to searching - URLs/Slugs should not have spaces!
-		if len(args) == 1 {
+		if !done && len(args) == 1 {
 			done, modID, fileID, err = getFileIDsFromString(args[0])
 			if err != nil {
 				fmt.Println(err)
@@ -269,6 +276,7 @@ func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 	if len(results) == 0 {
 		fmt.Println("No mods found!")
 		os.Exit(1)
+		return false, modInfo{}
 	} else if len(results) == 1 {
 		return false, results[0]
 	} else {
@@ -316,8 +324,6 @@ func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 		}
 		return false, modInfoData
 	}
-	// This should never be executed, but Go requires it!
-	return false, modInfo{}
 }
 
 func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileInfo, error) {
@@ -349,6 +355,12 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 	return fileInfoData, nil
 }
 
+var addonIDFlag int
+var fileIDFlag int
+
 func init() {
 	curseforgeCmd.AddCommand(installCmd)
+
+	installCmd.Flags().IntVar(&addonIDFlag, "addon-id", 0, "The curseforge addon ID to use")
+	installCmd.Flags().IntVar(&fileIDFlag, "file-id", 0, "The curseforge file ID to use")
 }
