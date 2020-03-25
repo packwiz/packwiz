@@ -268,7 +268,7 @@ func (r modResultsList) Len() int {
 func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 	fmt.Println("Searching CurseForge...")
 	searchTerm := strings.Join(args, " ")
-	results, err := getSearch(searchTerm, mcVersion)
+	results, err := getSearch(searchTerm, fixThisLater(mcVersion))
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -326,12 +326,36 @@ func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 	}
 }
 
+func sliceContainsString(slice []string, elem string) bool {
+	for _, a := range slice {
+		if a == elem {
+			return true
+		}
+	}
+	return false
+}
+
 func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileInfo, error) {
+	// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
+	if fileID == 0 {
+		var fileInfoData modFileInfo
+		for _, v := range modInfoData.LatestFiles {
+			// Choose "newest" version by largest ID
+			if sliceContainsString(v.GameVersions, fixThisLater(mcVersion)) && v.ID > fileID {
+				fileID = v.ID
+				fileInfoData = v
+			}
+		}
+		if fileID != 0 {
+			return fileInfoData, nil
+		}
+	}
+
 	if fileID == 0 {
 		// TODO: change to timestamp-based comparison??
 		for _, v := range modInfoData.GameVersionLatestFiles {
 			// Choose "newest" version by largest ID
-			if v.GameVersion == mcVersion && v.ID > fileID {
+			if v.GameVersion == fixThisLater(mcVersion) && v.ID > fileID {
 				fileID = v.ID
 			}
 		}

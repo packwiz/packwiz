@@ -28,6 +28,14 @@ var fileIDRegexes = [...]*regexp.Regexp{
 	regexp.MustCompile("^https?://(?:www\\.)?curseforge\\.com/minecraft/mc-mods/(.+)/download/(\\d+)"),
 }
 
+// TODO: fix this later
+func fixThisLater(mcVersion string) string {
+	if mcVersion == "20w12a" {
+		return "1.16-Snapshot"
+	}
+	return mcVersion
+}
+
 func getFileIDsFromString(mod string) (bool, int, int, error) {
 	for _, v := range fileIDRegexes {
 		matches := v.FindStringSubmatch(mod)
@@ -196,7 +204,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 			// TODO: change to timestamp-based comparison??
 			// TODO: manage alpha/beta/release correctly, check update channel?
 			// Choose "newest" version by largest ID
-			if file.GameVersion == mcVersion && file.ID > fileID {
+			if file.GameVersion == fixThisLater(mcVersion) && file.ID > fileID {
 				updateAvailable = true
 				fileID = file.ID
 				fileName = file.Name
