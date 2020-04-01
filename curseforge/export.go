@@ -22,6 +22,12 @@ var exportCmd = &cobra.Command{
 	// TODO: arguments for file name, author? projectID?
 	Args: cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		side := viper.GetString("curseforge.export.side")
+		if len(side) == 0 || (side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide) {
+			fmt.Println("Invalid side!")
+			os.Exit(1)
+		}
+
 		fmt.Println("Loading modpack...")
 		pack, err := core.LoadPack()
 		if err != nil {
@@ -37,8 +43,19 @@ var exportCmd = &cobra.Command{
 		// TODO: should index just expose indexPath itself, through a function?
 		indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
 
-		// TODO: filter mods for optional/server/etc
 		mods := loadMods(index)
+		i := 0
+		// Filter mods by side/optional
+		for _, mod := range mods {
+			if len(mod.Side) == 0 || mod.Side == side || mod.Side == "both" || side == "both" {
+				if mod.Option != nil && mod.Option.Optional && !mod.Option.Default {
+					continue
+				}
+				mods[i] = mod
+				i++
+			}
+		}
+		mods = mods[:i]
 
 		expFile, err := os.Create("export.zip")
 		if err != nil {
@@ -106,7 +123,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		i := 0
+		i = 0
 		for _, v := range index.Files {
 			if !v.MetaFile {
 				// Save all non-metadata files into the zip
@@ -205,4 +222,7 @@ func loadMods(index core.Index) []core.Mod {
 
 func init() {
 	curseforgeCmd.AddCommand(exportCmd)
+
+	exportCmd.Flags().StringP("side", "s", "client", "The side to export mods with")
+	_ = viper.BindPFlag("curseforge.export.side", exportCmd.Flags().Lookup("side"))
 }
