@@ -5,7 +5,8 @@ A command line tool for creating minecraft modpacks.
 In future I will have a lot more installation options, but for now the easiest way is to compile from source.
 
 1. Install Go
-2. Run `go get -u github.com/comp500/packwiz`
+2. Clone or download the repository (`git clone https://github.com/comp500/packwiz`), and open the folder in a terminal
+3. Run `go install .`
 
 ## Getting Started
 - Run `packwiz init` to create a modpack in the current folder
