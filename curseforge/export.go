@@ -39,6 +39,27 @@ var exportCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		// Do a refresh to ensure files are up to date
+		err = index.Refresh()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		err = index.Write()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		err = pack.UpdateIndexHash()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
+		err = pack.Write()
+		if err != nil {
+			fmt.Println(err)
+			return
+		}
 
 		// TODO: should index just expose indexPath itself, through a function?
 		indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
@@ -59,10 +80,17 @@ var exportCmd = &cobra.Command{
 
 		expFile, err := os.Create("export.zip")
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("Failed to create zip: %s\n", err.Error())
 			os.Exit(1)
 		}
 		exp := zip.NewWriter(expFile)
+
+		// Add an overrides folder even if there are no files to go in it
+		_, err = exp.Create("overrides/")
+		if err != nil {
+			fmt.Printf("Failed to add overrides folder: %s\n", err.Error())
+			os.Exit(1)
+		}
 
 		cfFileRefs := make([]packinterop.AddonFileReference, 0, len(mods))
 		for _, mod := range mods {
