@@ -344,7 +344,7 @@ var modLoaders = map[string][]modLoaderComponent{
 		{
 			Name:              "forge",
 			FriendlyName:      "Forge",
-			VersionListGetter: fetchMavenVersionPrefixedList("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
+			VersionListGetter: fetchMavenVersionPrefixedListStrip("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
 		},
 	},
 	"liteloader": {
@@ -369,6 +369,21 @@ func fetchMavenVersionList(url string) func(mcVersion string) ([]string, string,
 			return []string{}, "", err
 		}
 		return out.Versioning.Versions.Version, out.Versioning.Release, nil
+	}
+}
+
+func fetchMavenVersionPrefixedListStrip(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
+	noStrip := fetchMavenVersionPrefixedList(url, friendlyName)
+	return func(mcVersion string) ([]string, string, error) {
+		versions, latestVersion, err := noStrip(mcVersion)
+		if err != nil {
+			return nil, "", err
+		}
+		for k, v := range versions {
+			versions[k] = strings.TrimPrefix(v, mcVersion+"-")
+		}
+		latestVersion = strings.TrimPrefix(latestVersion, mcVersion+"-")
+		return versions, latestVersion, nil
 	}
 }
 
