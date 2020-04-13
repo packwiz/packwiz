@@ -30,7 +30,7 @@ var fileIDRegexes = [...]*regexp.Regexp{
 
 // TODO: fix this later
 func fixThisLater(mcVersion string) string {
-	if mcVersion == "20w12a" {
+	if mcVersion == "20w15a" {
 		return "1.16-Snapshot"
 	}
 	return mcVersion
