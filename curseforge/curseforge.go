@@ -272,6 +272,18 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 		var fileInfoData modFileInfo
 		var fileName string
 
+		// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
+		for _, v := range modInfos[i].LatestFiles {
+			// Choose "newest" version by largest ID
+			if sliceContainsString(v.GameVersions, getCurseforgeVersion(mcVersion)) && v.ID > fileID {
+				updateAvailable = true
+				fileID = v.ID
+				fileInfoData = v
+				fileInfoObtained = true
+				fileName = v.FileName
+			}
+		}
+
 		for _, file := range modInfos[i].GameVersionLatestFiles {
 			// TODO: change to timestamp-based comparison??
 			// TODO: manage alpha/beta/release correctly, check update channel?
@@ -289,10 +301,12 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 		}
 
 		// The API also provides some files inline, because that's efficient!
-		for _, file := range modInfos[i].LatestFiles {
-			if file.ID == fileID {
-				fileInfoObtained = true
-				fileInfoData = file
+		if !fileInfoObtained {
+			for _, file := range modInfos[i].LatestFiles {
+				if file.ID == fileID {
+					fileInfoObtained = true
+					fileInfoData = file
+				}
 			}
 		}
 
