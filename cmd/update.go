@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"github.com/spf13/viper"
 	"os"
 	"strings"
 
@@ -12,10 +13,10 @@ import (
 
 // updateCmd represents the update command
 var updateCmd = &cobra.Command{
-	Use:     "update",
+	Use:     "update [mod]",
 	Short:   "Update a mod (or all mods) in the modpack",
 	Aliases: []string{"upgrade"},
-	Args:    cobra.ExactArgs(1),
+	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO: --check flag?
 		// TODO: specify multiple mods to update at once?
@@ -37,11 +38,8 @@ var updateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		multiple := false
 		var singleUpdatedName string
-		if len(args[0]) == 0 || args[0] == "*" {
-			multiple = true
-
+		if viper.GetBool("update.all") {
 			updaterMap := make(map[string][]core.Mod)
 			fmt.Println("Reading mod files...")
 			for _, v := range index.GetAllMods() {
@@ -138,6 +136,10 @@ var updateCmd = &cobra.Command{
 				}
 			}
 		} else {
+			if len(args) < 1 || len(args[0]) == 0 {
+				fmt.Println("Must specify a valid mod, or use the --all flag!")
+				os.Exit(1)
+			}
 			modPath, ok := index.FindMod(args[0])
 			if !ok {
 				fmt.Println("You don't have this mod installed.")
@@ -215,7 +217,7 @@ var updateCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		if multiple {
+		if viper.GetBool("update.all") {
 			fmt.Println("Mods updated!")
 		} else {
 			fmt.Printf("\"%s\" updated!\n", singleUpdatedName)
@@ -225,4 +227,7 @@ var updateCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(updateCmd)
+
+	updateCmd.Flags().BoolP("all", "a", false, "Update all mods")
+	_ = viper.BindPFlag("update.all", updateCmd.Flags().Lookup("all"))
 }
