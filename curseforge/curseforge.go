@@ -31,18 +31,14 @@ var fileIDRegexes = [...]*regexp.Regexp{
 
 var snapshotVersionRegex = regexp.MustCompile("(?:Snapshot )?(\\d+)w0?(0|[1-9]\\d*)([a-z])")
 
+var snapshotNames = [...]string{"-pre", " Pre-Release ", " Pre-release ", "-rc"}
+
 func getCurseforgeVersion(mcVersion string) string {
-	if strings.HasSuffix(mcVersion, "-pre") {
-		return strings.TrimSuffix(mcVersion, "-pre") + "-Snapshot"
-	}
-	// Mojang why must it be this way
-	index := strings.Index(mcVersion, " Pre-Release ")
-	if index > -1 {
-		return mcVersion[:index] + "-Snapshot"
-	}
-	index = strings.Index(mcVersion, " Pre-release ")
-	if index > -1 {
-		return mcVersion[:index] + "-Snapshot"
+	for _, name := range snapshotNames {
+		index := strings.Index(mcVersion, name)
+		if index > -1 {
+			return mcVersion[:index] + "-Snapshot"
+		}
 	}
 
 	matches := snapshotVersionRegex.FindStringSubmatch(mcVersion)
