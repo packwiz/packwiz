@@ -27,7 +27,3 @@ In future I will have a lot more installation options, but for now the easiest w
     - This repository can be published to a service like Github Pages or Netlify and installed using packwiz-installer
     - This repository also shows the use of `.gitattributes` and `.packwizignore` to disable line ending modification (so that the hashes are correct) and ignore git-specific files
 
-### Things that are broken
-- The CurseForge API is currently broken, so for 1.16/1.16.1 mods
-    - You need to specify the URL directly when installing e.g. `packwiz cf install https://www.curseforge.com/minecraft/mc-mods/motiono/files/2983176`
-    - The update command may not find a new version properly
