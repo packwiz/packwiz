@@ -291,3 +291,49 @@ func getSearch(searchText string, gameVersion string) ([]modInfo, error) {
 
 	return infoRes, nil
 }
+
+type addonFingerprintResponse struct {
+	IsCacheBuilt bool `json:"isCacheBuilt"`
+	ExactMatches []struct {
+		ID          int           `json:"id"`
+		File        modFileInfo   `json:"file"`
+		LatestFiles []modFileInfo `json:"latestFiles"`
+	} `json:"exactMatches"`
+	ExactFingerprints        []int    `json:"exactFingerprints"`
+	PartialMatches           []int    `json:"partialMatches"`
+	PartialMatchFingerprints struct{} `json:"partialMatchFingerprints"`
+	InstalledFingerprints    []int    `json:"installedFingerprints"`
+	UnmatchedFingerprints    []int    `json:"unmatchedFingerprints"`
+}
+
+func getFingerprintInfo(hashes []int) (addonFingerprintResponse, error) {
+	var infoRes addonFingerprintResponse
+	client := &http.Client{}
+
+	hashesData, err := json.Marshal(hashes)
+	if err != nil {
+		return addonFingerprintResponse{}, err
+	}
+
+	req, err := http.NewRequest("POST", "https://addons-ecs.forgesvc.net/api/v2/fingerprint", bytes.NewBuffer(hashesData))
+	if err != nil {
+		return addonFingerprintResponse{}, err
+	}
+
+	// TODO: make this configurable application-wide
+	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return addonFingerprintResponse{}, err
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&infoRes)
+	if err != nil && err != io.EOF {
+		return addonFingerprintResponse{}, err
+	}
+
+	return infoRes, nil
+}

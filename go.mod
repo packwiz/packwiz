@@ -2,6 +2,7 @@ module github.com/comp500/packwiz
 
 require (
 	github.com/BurntSushi/toml v0.3.1
+	github.com/aviddiviner/go-murmur v0.0.0-20150519214947-b9740d71e571
 	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/daviddengcn/go-colortext v0.0.0-20180409174941-186a3d44e920 // indirect
 	github.com/denormal/go-gitignore v0.0.0-20180930084346-ae8ad1d07817
