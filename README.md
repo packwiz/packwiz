@@ -17,6 +17,7 @@ In future I will have a lot more installation options, but for now the easiest w
 - Run `packwiz update --all` to update all the mods in the modpack
 - Run `packwiz curseforge export` to export the modpack in the format supported by the Twitch Launcher
 - Run `packwiz serve` to start a local HTTP server running the pack - which packwiz-installer can install from
+- Run `packwiz curseforge detect` to detect files that are available on CurseForge and make them downloaded from there
 - Use the `--help` flag for more information about any command
 - Use [packwiz-installer](https://github.com/comp500/packwiz-installer) as a MultiMC prelaunch task for auto updating, optional mods and side-only mods!
 
@@ -27,3 +28,12 @@ In future I will have a lot more installation options, but for now the easiest w
     - This repository can be published to a service like Github Pages or Netlify and installed using packwiz-installer
     - This repository also shows the use of `.gitattributes` and `.packwizignore` to disable line ending modification (so that the hashes are correct) and ignore git-specific files
 
+### Tips
+- There are some useful aliases, like `packwiz cf` => `packwiz curseforge`
+- The `packwiz cf install` command supports multiple formats:
+    - `packwiz cf install sodium` (by slug)
+    - `packwiz cf install https://www.curseforge.com/minecraft/mc-mods/sodium` (by mod page URL)
+    - `packwiz cf install https://www.curseforge.com/minecraft/mc-mods/sodium/files/3067101` (by file page URL)
+    - `packwiz cf install Sodium` (by search)
+    - `packwiz cf install --addon-id 394468 --file-id 3067101` (if all else fails)
+- If files aren't being found, try running the `packwiz refresh` command to update the index!
