@@ -19,6 +19,7 @@ type addonSlugRequest struct {
 	Variables struct {
 		Slug string `json:"slug"`
 	} `json:"variables"`
+	OperationName string `json:"operationName"`
 }
 
 // addonSlugResponse is received from the CurseProxy GraphQL api to get the id from a slug
@@ -39,13 +40,12 @@ func modIDFromSlug(slug string) (int, error) {
 	request := addonSlugRequest{
 		Query: `
 		query getIDFromSlug($slug: String) {
-			{
-				addons(slug: $slug) {
-					id
-				}
+			addons(slug: $slug) {
+				id
 			}
 		}
 		`,
+		OperationName: "getIDFromSlug",
 	}
 	request.Variables.Slug = slug
 
