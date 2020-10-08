@@ -98,12 +98,7 @@ var initCmd = &cobra.Command{
 		// TODO: minecraft modloader
 		modLoaderName := viper.GetString("init.modloader")
 		if len(modLoaderName) == 0 {
-			var defaultLoader string
-			if viper.GetBool("init.snapshot") {
-				defaultLoader = "fabric"
-			} else {
-				defaultLoader = "forge"
-			}
+			defaultLoader := "fabric"
 			fmt.Print("Mod loader [" + defaultLoader + "]: ")
 			modLoaderName, err = bufio.NewReader(os.Stdin).ReadString('\n')
 			if err != nil {
@@ -334,11 +329,12 @@ var modLoaders = map[string][]modLoaderComponent{
 			FriendlyName:      "Fabric loader",
 			VersionListGetter: fetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml"),
 		},
-		{
-			Name:              "yarn",
-			FriendlyName:      "Yarn (mappings)",
-			VersionListGetter: fetchMavenVersionPrefixedList("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml", "Yarn"),
-		},
+		// There's no need to specify yarn version - yarn isn't used outside a dev environment, and intermediary corresponds to game version anyway
+		//{
+		//	Name:              "yarn",
+		//	FriendlyName:      "Yarn (mappings)",
+		//	VersionListGetter: fetchMavenVersionPrefixedList("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml", "Yarn"),
+		//},
 	},
 	"forge": {
 		{
