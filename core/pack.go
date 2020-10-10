@@ -14,6 +14,9 @@ import (
 // Pack stores the modpack metadata, usually in pack.toml
 type Pack struct {
 	Name  string `toml:"name"`
+	Author string `toml:"author"`
+	Version string `toml:"version"`
+	ProjectID int `toml:"project_id"`
 	Index struct {
 		// Path is stored in forward slash format relative to pack.toml
 		File       string `toml:"file"`
@@ -104,4 +107,14 @@ func (pack Pack) GetMCVersion() (string, error) {
 		return "", errors.New("no minecraft version specified in modpack")
 	}
 	return mcVersion, nil
+}
+
+func (pack Pack) GetPackName() (string) {
+	if pack.Name == "" {
+		return "pack"
+	} else if pack.Version == "" {
+		return pack.Name
+	} else {
+		return pack.Name + "-" + pack.Version
+	}
 }

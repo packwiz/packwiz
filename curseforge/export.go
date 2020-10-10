@@ -78,7 +78,9 @@ var exportCmd = &cobra.Command{
 		}
 		mods = mods[:i]
 
-		expFile, err := os.Create("export.zip")
+		var fileName = pack.GetPackName() + ".zip"
+
+		expFile, err := os.Create(fileName)
 		if err != nil {
 			fmt.Printf("Failed to create zip: %s\n", err.Error())
 			os.Exit(1)
@@ -188,7 +190,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println("Modpack exported to export.zip!")
+		fmt.Println("Modpack exported to " + fileName)
 	},
 }
 

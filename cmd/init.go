@@ -63,6 +63,22 @@ var initCmd = &cobra.Command{
 			}
 		}
 
+		// Pack author
+		author, err := cmd.Flags().GetString("author")
+		if err != nil || len(name) == 0 {
+			fmt.Print("Author: ")
+			readAuthor, err := bufio.NewReader(os.Stdin).ReadString('\n')
+			if err != nil {
+				fmt.Printf("Error reading input: %s\n", err)
+				os.Exit(1)
+			}
+			// Trims both CR and LF
+			readAuthor = strings.TrimSpace(strings.TrimRight(readAuthor, "\r\n"))
+			if len(readAuthor) > 0 {
+				author = readAuthor
+			}
+		}
+
 		mcVersions, err := getValidMCVersions()
 		if err != nil {
 			fmt.Printf("Failed to get latest minecraft versions: %s\n", err)
@@ -186,6 +202,8 @@ var initCmd = &cobra.Command{
 		// Create the pack
 		pack := core.Pack{
 			Name: name,
+			Author: author,
+			Version: "1.0.0",
 			Index: struct {
 				File       string `toml:"file"`
 				HashFormat string `toml:"hash-format"`

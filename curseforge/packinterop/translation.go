@@ -103,9 +103,9 @@ func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, out io
 		ManifestType:    "minecraftModpack",
 		ManifestVersion: 1,
 		NameInternal:    pack.Name,
-		Version:         "", // TODO: store or take this?
-		Author:          "", // TODO: store or take this?
-		ProjectID:       0,  // TODO: store or take this?
+		Version:         pack.Version,
+		Author:          pack.Author,
+		ProjectID:       pack.ProjectID,
 		Files:           files,
 		Overrides:       "overrides",
 	}
