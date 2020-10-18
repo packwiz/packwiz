@@ -114,13 +114,13 @@ var exportCmd = &cobra.Command{
 				}
 				modFile, err := exp.Create(filepath.ToSlash(filepath.Join("overrides", path)))
 				if err != nil {
-					fmt.Printf("Error creating mod file: %s\n", err.Error())
+					fmt.Printf("Error creating mod file %s: %s\n", path, err.Error())
 					// TODO: exit(1)?
 					continue
 				}
 				err = mod.DownloadFile(modFile)
 				if err != nil {
-					fmt.Printf("Error downloading mod file: %s\n", err.Error())
+					fmt.Printf("Error downloading mod file %s: %s\n", path, err.Error())
 					// TODO: exit(1)?
 					continue
 				}
@@ -237,7 +237,7 @@ func loadMods(index core.Index) []core.Mod {
 	for _, v := range modPaths {
 		modData, err := core.LoadMod(v)
 		if err != nil {
-			fmt.Printf("Error reading mod file: %s\n", err.Error())
+			fmt.Printf("Error reading mod file %s: %s\n", v, err.Error())
 			// TODO: exit(1)?
 			continue
 		}
