@@ -152,9 +152,9 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 	// Check if the hash of the downloaded file matches the expected hash.
 	// Also check if the uppercase version of the expected hash matches.
 	if(strings.ToUpper(calculatedHash) != m.Download.Hash) {
-		return errors.New(fmt.Sprintf("Hash of saved file %s only matches when uppercased. Consider changing this to prevent future issues.", m.GetFilePath()))
+		return errors.New(fmt.Sprintf("Hash of saved file %s only matches when uppercased. Consider changing this to prevent future issues.\n", m.GetFilePath()))
 	} else if calculatedHash != m.Download.Hash {
-		return errors.New(fmt.Sprintf("hash of saved file is invalid!\n .toml hash: %s\n download hash: %s", calculatedHash, m.Download.Hash))
+		return errors.New(fmt.Sprintf("hash of saved file is invalid!\n .toml hash: %s\n download hash: %s\n", calculatedHash, m.Download.Hash))
 	}
 
 	return nil
