@@ -8,6 +8,8 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"fmt"
+	"strings"
 
 	"github.com/BurntSushi/toml"
 )
@@ -146,8 +148,8 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 	}
 
 	calculatedHash := hex.EncodeToString(h.Sum(nil))
-	if calculatedHash != m.Download.Hash {
-		return errors.New("hash of saved file is invalid")
+	if calculatedHash != m.Download.Hash && strings.ToUpper(calculatedHash) != m.Download.Hash {
+		return errors.New(fmt.Sprintf("hash of saved file is invalid!\n .toml hash: %s\n download hash: %s", calculatedHash, m.Download.Hash))
 	}
 	return nil
 }
