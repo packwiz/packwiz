@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"fmt"
 
 	"github.com/BurntSushi/toml"
 )
@@ -146,8 +147,11 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 	}
 
 	calculatedHash := hex.EncodeToString(h.Sum(nil))
+
+	// Check if the hash of the downloaded file matches the expected hash.
 	if calculatedHash != m.Download.Hash {
-		return errors.New("hash of saved file is invalid")
+		return fmt.Errorf("Hash of downloaded file does not match with expected hash!\n download hash: %s\n expected hash: %s\n", calculatedHash, m.Download.Hash)
 	}
+
 	return nil
 }
