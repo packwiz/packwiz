@@ -150,7 +150,7 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 
 	// Check if the hash of the downloaded file matches the expected hash.
 	if calculatedHash != m.Download.Hash {
-		return errors.New(fmt.Sprintf("Hash of downloaded file does not match with expected hash!\n download hash: %s\n expected hash: %s\n", calculatedHash, m.Download.Hash))
+		return fmt.Errorf("Hash of downloaded file does not match with expected hash!\n download hash: %s\n expected hash: %s\n", calculatedHash, m.Download.Hash)
 	}
 
 	return nil
