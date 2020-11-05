@@ -26,7 +26,10 @@ type addonSlugRequest struct {
 type addonSlugResponse struct {
 	Data struct {
 		Addons []struct {
-			ID int `json:"id"`
+			ID              int `json:"id"`
+			CategorySection struct {
+				ID int `json:"id"`
+			} `json:"categorySection"`
 		} `json:"addons"`
 	} `json:"data"`
 	Exception  string   `json:"exception"`
@@ -42,6 +45,9 @@ func modIDFromSlug(slug string) (int, error) {
 		query getIDFromSlug($slug: String) {
 			addons(slug: $slug) {
 				id
+				categorySection {
+					id
+				}
 			}
 		}
 		`,
@@ -82,11 +88,13 @@ func modIDFromSlug(slug string) (int, error) {
 		return 0, fmt.Errorf("error requesting id for slug: %s", response.Message)
 	}
 
-	if len(response.Data.Addons) < 1 {
-		return 0, errors.New("addon not found")
+	for _, addonData := range response.Data.Addons {
+		// Only use mods, not resource packs/modpacks
+		if addonData.CategorySection.ID == 8 {
+			return addonData.ID, nil
+		}
 	}
-
-	return response.Data.Addons[0].ID, nil
+	return 0, errors.New("addon not found")
 }
 
 //noinspection GoUnusedConst
