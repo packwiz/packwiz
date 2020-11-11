@@ -339,37 +339,31 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 	// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
 	if fileID == 0 {
 		var fileInfoData modFileInfo
+		fileInfoObtained := false
+
 		for _, v := range modInfoData.LatestFiles {
 			// Choose "newest" version by largest ID
 			if sliceContainsString(v.GameVersions, getCurseforgeVersion(mcVersion)) && v.ID > fileID {
 				fileID = v.ID
 				fileInfoData = v
+				fileInfoObtained = true
 			}
 		}
-		if fileID != 0 {
-			return fileInfoData, nil
-		}
-	}
-
-	if fileID == 0 {
 		// TODO: change to timestamp-based comparison??
 		for _, v := range modInfoData.GameVersionLatestFiles {
 			// Choose "newest" version by largest ID
 			if v.GameVersion == getCurseforgeVersion(mcVersion) && v.ID > fileID {
 				fileID = v.ID
+				fileInfoObtained = false // Make sure we get the file info
 			}
+		}
+		if fileInfoObtained {
+			return fileInfoData, nil
 		}
 	}
 
 	if fileID == 0 {
 		return modFileInfo{}, errors.New("mod not available for this minecraft version")
-	}
-
-	// The API also provides some files inline, because that's efficient!
-	for _, v := range modInfoData.LatestFiles {
-		if v.ID == fileID {
-			return v, nil
-		}
 	}
 
 	fileInfoData, err := getFileInfo(modInfoData.ID, fileID)

@@ -288,6 +288,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 				updateAvailable = true
 				fileID = file.ID
 				fileName = file.Name
+				fileInfoObtained = false // Make sure we get the file info again
 			}
 		}
 
