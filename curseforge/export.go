@@ -19,8 +19,7 @@ import (
 var exportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Export the current modpack into a .zip for curseforge",
-	// TODO: arguments for file name, author? projectID?
-	Args: cobra.NoArgs,
+	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		side := viper.GetString("curseforge.export.side")
 		if len(side) == 0 || (side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide) {
@@ -78,7 +77,19 @@ var exportCmd = &cobra.Command{
 		}
 		mods = mods[:i]
 
-		expFile, err := os.Create("export.zip")
+		var exportData cfExportData
+		exportDataUnparsed, ok := pack.Export["curseforge"]
+		if ok {
+			exportData, err = parseExportData(exportDataUnparsed)
+			if err != nil {
+				fmt.Printf("Failed to parse export metadata: %s\n", err.Error())
+				os.Exit(1)
+			}
+		}
+
+		var fileName = pack.GetPackName() + ".zip"
+
+		expFile, err := os.Create(fileName)
 		if err != nil {
 			fmt.Printf("Failed to create zip: %s\n", err.Error())
 			os.Exit(1)
@@ -135,7 +146,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		err = packinterop.WriteManifestFromPack(pack, cfFileRefs, manifestFile)
+		err = packinterop.WriteManifestFromPack(pack, cfFileRefs, exportData.ProjectID, manifestFile)
 		if err != nil {
 			_ = exp.Close()
 			_ = expFile.Close()
@@ -188,7 +199,8 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println("Modpack exported to export.zip!")
+		fmt.Println("Modpack exported to " + fileName)
+		fmt.Println("Make sure you remove this file before running packwiz refresh, or add it to .packwizignore")
 	},
 }
 

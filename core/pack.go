@@ -13,16 +13,19 @@ import (
 
 // Pack stores the modpack metadata, usually in pack.toml
 type Pack struct {
-	Name  string `toml:"name"`
-	Index struct {
+	Name    string `toml:"name"`
+	Author  string `toml:"author"`
+	Version string `toml:"version"`
+	Index   struct {
 		// Path is stored in forward slash format relative to pack.toml
 		File       string `toml:"file"`
 		HashFormat string `toml:"hash-format"`
 		Hash       string `toml:"hash"`
 	} `toml:"index"`
-	Versions map[string]string         `toml:"versions"`
-	Client   map[string]toml.Primitive `toml:"client"`
-	Server   map[string]toml.Primitive `toml:"server"`
+	Versions map[string]string                 `toml:"versions"`
+	Client   map[string]toml.Primitive         `toml:"client"`
+	Server   map[string]toml.Primitive         `toml:"server"`
+	Export   map[string]map[string]interface{} `toml:"export"`
 }
 
 // LoadPack loads the modpack metadata to a Pack struct
@@ -104,4 +107,14 @@ func (pack Pack) GetMCVersion() (string, error) {
 		return "", errors.New("no minecraft version specified in modpack")
 	}
 	return mcVersion, nil
+}
+
+func (pack Pack) GetPackName() string {
+	if pack.Name == "" {
+		return "export"
+	} else if pack.Version == "" {
+		return pack.Name
+	} else {
+		return pack.Name + "-" + pack.Version
+	}
 }

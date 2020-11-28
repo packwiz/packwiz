@@ -69,7 +69,7 @@ type AddonFileReference struct {
 	OptionalDisabled bool
 }
 
-func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, out io.Writer) error {
+func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projectID int, out io.Writer) error {
 	files := make([]struct {
 		ProjectID int  `json:"projectID"`
 		FileID    int  `json:"fileID"`
@@ -103,9 +103,9 @@ func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, out io
 		ManifestType:    "minecraftModpack",
 		ManifestVersion: 1,
 		NameInternal:    pack.Name,
-		Version:         "", // TODO: store or take this?
-		Author:          "", // TODO: store or take this?
-		ProjectID:       0,  // TODO: store or take this?
+		Version:         pack.Version,
+		Author:          pack.Author,
+		ProjectID:       projectID,
 		Files:           files,
 		Overrides:       "overrides",
 	}
