@@ -345,3 +345,19 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 
 	return nil
 }
+
+type cfExportData struct {
+	ProjectID int `mapstructure:"project-id"`
+}
+
+func (e cfExportData) ToMap() (map[string]interface{}, error) {
+	newMap := make(map[string]interface{})
+	err := mapstructure.Decode(e, &newMap)
+	return newMap, err
+}
+
+func parseExportData(from map[string]interface{}) (cfExportData, error) {
+	var exportData cfExportData
+	err := mapstructure.Decode(from, &exportData)
+	return exportData, err
+}

@@ -13,19 +13,19 @@ import (
 
 // Pack stores the modpack metadata, usually in pack.toml
 type Pack struct {
-	Name  string `toml:"name"`
-	Author string `toml:"author"`
+	Name    string `toml:"name"`
+	Author  string `toml:"author"`
 	Version string `toml:"version"`
-	ProjectID int `toml:"project_id"`
-	Index struct {
+	Index   struct {
 		// Path is stored in forward slash format relative to pack.toml
 		File       string `toml:"file"`
 		HashFormat string `toml:"hash-format"`
 		Hash       string `toml:"hash"`
 	} `toml:"index"`
-	Versions map[string]string         `toml:"versions"`
-	Client   map[string]toml.Primitive `toml:"client"`
-	Server   map[string]toml.Primitive `toml:"server"`
+	Versions map[string]string                 `toml:"versions"`
+	Client   map[string]toml.Primitive         `toml:"client"`
+	Server   map[string]toml.Primitive         `toml:"server"`
+	Export   map[string]map[string]interface{} `toml:"export"`
 }
 
 // LoadPack loads the modpack metadata to a Pack struct
@@ -109,9 +109,9 @@ func (pack Pack) GetMCVersion() (string, error) {
 	return mcVersion, nil
 }
 
-func (pack Pack) GetPackName() (string) {
+func (pack Pack) GetPackName() string {
 	if pack.Name == "" {
-		return "pack"
+		return "export"
 	} else if pack.Version == "" {
 		return pack.Name
 	} else {

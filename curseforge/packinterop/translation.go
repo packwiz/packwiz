@@ -69,7 +69,7 @@ type AddonFileReference struct {
 	OptionalDisabled bool
 }
 
-func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, out io.Writer) error {
+func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projectID int, out io.Writer) error {
 	files := make([]struct {
 		ProjectID int  `json:"projectID"`
 		FileID    int  `json:"fileID"`
@@ -105,7 +105,7 @@ func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, out io
 		NameInternal:    pack.Name,
 		Version:         pack.Version,
 		Author:          pack.Author,
-		ProjectID:       pack.ProjectID,
+		ProjectID:       projectID,
 		Files:           files,
 		Overrides:       "overrides",
 	}

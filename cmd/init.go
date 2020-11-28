@@ -47,36 +47,20 @@ var initCmd = &cobra.Command{
 			if directoryName != "." && len(directoryName) > 0 {
 				// Turn directory name into a space-seperated proper name
 				name = titlecase.Title(strings.ReplaceAll(strings.ReplaceAll(strings.Join(camelcase.Split(directoryName), " "), " - ", " "), " _ ", " "))
-				fmt.Print("Modpack name [" + name + "]: ")
+				name = initReadValue("Modpack name ["+name+"]: ", name)
 			} else {
-				fmt.Print("Modpack name: ")
-			}
-			readName, err := bufio.NewReader(os.Stdin).ReadString('\n')
-			if err != nil {
-				fmt.Printf("Error reading input: %s\n", err)
-				os.Exit(1)
-			}
-			// Trims both CR and LF
-			readName = strings.TrimSpace(strings.TrimRight(readName, "\r\n"))
-			if len(readName) > 0 {
-				name = readName
+				name = initReadValue("Modpack name: ", "")
 			}
 		}
 
-		// Pack author
 		author, err := cmd.Flags().GetString("author")
-		if err != nil || len(name) == 0 {
-			fmt.Print("Author: ")
-			readAuthor, err := bufio.NewReader(os.Stdin).ReadString('\n')
-			if err != nil {
-				fmt.Printf("Error reading input: %s\n", err)
-				os.Exit(1)
-			}
-			// Trims both CR and LF
-			readAuthor = strings.TrimSpace(strings.TrimRight(readAuthor, "\r\n"))
-			if len(readAuthor) > 0 {
-				author = readAuthor
-			}
+		if err != nil || len(author) == 0 {
+			author = initReadValue("Author: ", "")
+		}
+
+		version, err := cmd.Flags().GetString("version")
+		if err != nil || len(version) == 0 {
+			version = initReadValue("Version [1.0.0]: ", "1.0.0")
 		}
 
 		mcVersions, err := getValidMCVersions()
@@ -96,36 +80,14 @@ var initCmd = &cobra.Command{
 			if viper.GetBool("init.latest") {
 				mcVersion = latestVersion
 			} else {
-				fmt.Print("Minecraft version [" + latestVersion + "]: ")
-				mcVersion, err = bufio.NewReader(os.Stdin).ReadString('\n')
-				if err != nil {
-					fmt.Printf("Error reading input: %s\n", err)
-					os.Exit(1)
-				}
-				// Trims both CR and LF
-				mcVersion = strings.TrimSpace(strings.TrimRight(mcVersion, "\r\n"))
-				if len(mcVersion) == 0 {
-					mcVersion = latestVersion
-				}
+				mcVersion = initReadValue("Minecraft version ["+latestVersion+"]: ", latestVersion)
 			}
 		}
 		mcVersions.checkValid(mcVersion)
 
-		// TODO: minecraft modloader
 		modLoaderName := viper.GetString("init.modloader")
 		if len(modLoaderName) == 0 {
-			defaultLoader := "fabric"
-			fmt.Print("Mod loader [" + defaultLoader + "]: ")
-			modLoaderName, err = bufio.NewReader(os.Stdin).ReadString('\n')
-			if err != nil {
-				fmt.Printf("Error reading input: %s\n", err)
-				os.Exit(1)
-			}
-			// Trims both CR and LF
-			modLoaderName = strings.ToLower(strings.TrimSpace(strings.TrimRight(modLoaderName, "\r\n")))
-			if len(modLoaderName) == 0 {
-				modLoaderName = defaultLoader
-			}
+			modLoaderName = initReadValue("Mod loader [fabric]: ", "fabric")
 		}
 		_, ok := modLoaders[modLoaderName]
 		if modLoaderName != "none" && !ok {
@@ -156,17 +118,7 @@ var initCmd = &cobra.Command{
 					if viper.GetBool("init." + component.Name + "-latest") {
 						componentVersion = latestVersion
 					} else {
-						fmt.Print(component.FriendlyName + " version [" + latestVersion + "]: ")
-						componentVersion, err = bufio.NewReader(os.Stdin).ReadString('\n')
-						if err != nil {
-							fmt.Printf("Error reading input: %s\n", err)
-							os.Exit(1)
-						}
-						// Trims both CR and LF
-						componentVersion = strings.ToLower(strings.TrimSpace(strings.TrimRight(componentVersion, "\r\n")))
-						if len(componentVersion) == 0 {
-							componentVersion = latestVersion
-						}
+						componentVersion = initReadValue(component.FriendlyName+" version ["+latestVersion+"]: ", latestVersion)
 					}
 				}
 				found := false
@@ -201,9 +153,9 @@ var initCmd = &cobra.Command{
 
 		// Create the pack
 		pack := core.Pack{
-			Name: name,
-			Author: author,
-			Version: "1.0.0",
+			Name:    name,
+			Author:  author,
+			Version: version,
 			Index: struct {
 				File       string `toml:"file"`
 				HashFormat string `toml:"hash-format"`
@@ -255,6 +207,8 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 
 	initCmd.Flags().String("name", "", "The name of the modpack (omit to define interactively)")
+	initCmd.Flags().String("author", "", "The author of the modpack (omit to define interactively)")
+	initCmd.Flags().String("version", "", "The version of the modpack (omit to define interactively)")
 	initCmd.Flags().String("index-file", "index.toml", "The index file to use")
 	_ = viper.BindPFlag("init.index-file", initCmd.Flags().Lookup("index-file"))
 	initCmd.Flags().String("mc-version", "", "The Minecraft version to use (omit to define interactively)")
@@ -277,6 +231,21 @@ func init() {
 			_ = viper.BindPFlag("init."+component.Name+"-latest", initCmd.Flags().Lookup(component.Name+"-latest"))
 		}
 	}
+}
+
+func initReadValue(prompt string, def string) string {
+	fmt.Print(prompt)
+	value, err := bufio.NewReader(os.Stdin).ReadString('\n')
+	if err != nil {
+		fmt.Printf("Error reading input: %s\n", err)
+		os.Exit(1)
+	}
+	// Trims both CR and LF
+	value = strings.TrimSpace(strings.TrimRight(value, "\r\n"))
+	if len(value) > 0 {
+		return value
+	}
+	return def
 }
 
 type mcVersionManifest struct {
