@@ -348,7 +348,10 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 }
 
 type cfExportData struct {
-	ProjectID int `mapstructure:"project-id"`
+	ProjectID              int    `mapstructure:"project-id"`
+	DisableJumploader      bool   `mapstructure:"disable-jumploader"`
+	JumploaderForgeVersion string `mapstructure:"jumploader-forge-version"`
+	JumploaderFileID       int    `mapstructure:"jumploader-version-id"`
 }
 
 func (e cfExportData) ToMap() (map[string]interface{}, error) {

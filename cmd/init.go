@@ -3,8 +3,6 @@ package cmd
 import (
 	"bufio"
 	"encoding/json"
-	"encoding/xml"
-	"errors"
 	"fmt"
 	"io/ioutil"
 	"net/http"
@@ -89,13 +87,13 @@ var initCmd = &cobra.Command{
 		if len(modLoaderName) == 0 {
 			modLoaderName = initReadValue("Mod loader [fabric]: ", "fabric")
 		}
-		_, ok := modLoaders[modLoaderName]
+		_, ok := core.ModLoaders[modLoaderName]
 		if modLoaderName != "none" && !ok {
 			fmt.Println("Given mod loader is not supported! Use \"none\" to specify no modloader, or to configure one manually.")
 			fmt.Print("The following mod loaders are supported: ")
-			keys := make([]string, len(modLoaders))
+			keys := make([]string, len(core.ModLoaders))
 			i := 0
-			for k := range modLoaders {
+			for k := range core.ModLoaders {
 				keys[i] = k
 				i++
 			}
@@ -105,7 +103,7 @@ var initCmd = &cobra.Command{
 
 		modLoaderVersions := make(map[string]string)
 		if modLoaderName != "none" {
-			components := modLoaders[modLoaderName]
+			components := core.ModLoaders[modLoaderName]
 
 			for _, component := range components {
 				versions, latestVersion, err := component.VersionListGetter(mcVersion)
@@ -223,7 +221,7 @@ func init() {
 	_ = viper.BindPFlag("init.modloader", initCmd.Flags().Lookup("modloader"))
 
 	// ok this is epic
-	for _, loader := range modLoaders {
+	for _, loader := range core.ModLoaders {
 		for _, component := range loader {
 			initCmd.Flags().String(component.Name+"-version", "", "The "+component.FriendlyName+" version to use (omit to define interactively)")
 			_ = viper.BindPFlag("init."+component.Name+"-version", initCmd.Flags().Lookup(component.Name+"-version"))
@@ -288,112 +286,4 @@ func getValidMCVersions() (mcVersionManifest, error) {
 		return out.Versions[i].ReleaseTime.Before(out.Versions[j].ReleaseTime)
 	})
 	return out, nil
-}
-
-type mavenMetadata struct {
-	XMLName    xml.Name `xml:"metadata"`
-	GroupID    string   `xml:"groupId"`
-	ArtifactID string   `xml:"artifactId"`
-	Versioning struct {
-		Release  string `xml:"release"`
-		Versions struct {
-			Version []string `xml:"version"`
-		} `xml:"versions"`
-		LastUpdated string `xml:"lastUpdated"`
-	} `xml:"versioning"`
-}
-
-type modLoaderComponent struct {
-	Name              string
-	FriendlyName      string
-	VersionListGetter func(mcVersion string) ([]string, string, error)
-}
-
-var modLoaders = map[string][]modLoaderComponent{
-	"fabric": {
-		{
-			Name:              "fabric",
-			FriendlyName:      "Fabric loader",
-			VersionListGetter: fetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml"),
-		},
-		// There's no need to specify yarn version - yarn isn't used outside a dev environment, and intermediary corresponds to game version anyway
-		//{
-		//	Name:              "yarn",
-		//	FriendlyName:      "Yarn (mappings)",
-		//	VersionListGetter: fetchMavenVersionPrefixedList("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml", "Yarn"),
-		//},
-	},
-	"forge": {
-		{
-			Name:              "forge",
-			FriendlyName:      "Forge",
-			VersionListGetter: fetchMavenVersionPrefixedListStrip("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
-		},
-	},
-	"liteloader": {
-		{
-			Name:              "liteloader",
-			FriendlyName:      "LiteLoader",
-			VersionListGetter: fetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
-		},
-	},
-}
-
-func fetchMavenVersionList(url string) func(mcVersion string) ([]string, string, error) {
-	return func(mcVersion string) ([]string, string, error) {
-		res, err := http.Get(url)
-		if err != nil {
-			return []string{}, "", err
-		}
-		dec := xml.NewDecoder(res.Body)
-		out := mavenMetadata{}
-		err = dec.Decode(&out)
-		if err != nil {
-			return []string{}, "", err
-		}
-		return out.Versioning.Versions.Version, out.Versioning.Release, nil
-	}
-}
-
-func fetchMavenVersionPrefixedListStrip(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
-	noStrip := fetchMavenVersionPrefixedList(url, friendlyName)
-	return func(mcVersion string) ([]string, string, error) {
-		versions, latestVersion, err := noStrip(mcVersion)
-		if err != nil {
-			return nil, "", err
-		}
-		for k, v := range versions {
-			versions[k] = strings.TrimPrefix(v, mcVersion+"-")
-		}
-		latestVersion = strings.TrimPrefix(latestVersion, mcVersion+"-")
-		return versions, latestVersion, nil
-	}
-}
-
-func fetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
-	return func(mcVersion string) ([]string, string, error) {
-		res, err := http.Get(url)
-		if err != nil {
-			return []string{}, "", err
-		}
-		dec := xml.NewDecoder(res.Body)
-		out := mavenMetadata{}
-		err = dec.Decode(&out)
-		if err != nil {
-			return []string{}, "", err
-		}
-		allowedVersions := make([]string, 0, len(out.Versioning.Versions.Version))
-		for _, v := range out.Versioning.Versions.Version {
-			if strings.HasPrefix(v, mcVersion) {
-				allowedVersions = append(allowedVersions, v)
-			}
-		}
-		if len(allowedVersions) == 0 {
-			return []string{}, "", errors.New("no " + friendlyName + " versions available for this Minecraft version")
-		}
-		if strings.HasPrefix(out.Versioning.Release, mcVersion) {
-			return allowedVersions, out.Versioning.Release, nil
-		}
-		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
-	}
 }

@@ -69,7 +69,7 @@ type AddonFileReference struct {
 	OptionalDisabled bool
 }
 
-func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projectID int, out io.Writer) error {
+func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projectID int, jumploaderForgeVersion string, out io.Writer) error {
 	files := make([]struct {
 		ProjectID int  `json:"projectID"`
 		FileID    int  `json:"fileID"`
@@ -88,6 +88,11 @@ func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projec
 	if ok {
 		modLoaders = append(modLoaders, modLoaderDef{
 			ID:      "forge-" + forgeVersion,
+			Primary: true,
+		})
+	} else if len(jumploaderForgeVersion) > 0 {
+		modLoaders = append(modLoaders, modLoaderDef{
+			ID:      "forge-" + jumploaderForgeVersion,
 			Primary: true,
 		})
 	}

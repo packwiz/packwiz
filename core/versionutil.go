@@ -1,0 +1,116 @@
+package core
+
+import (
+	"encoding/xml"
+	"errors"
+	"net/http"
+	"strings"
+)
+
+type MavenMetadata struct {
+	XMLName    xml.Name `xml:"metadata"`
+	GroupID    string   `xml:"groupId"`
+	ArtifactID string   `xml:"artifactId"`
+	Versioning struct {
+		Release  string `xml:"release"`
+		Versions struct {
+			Version []string `xml:"version"`
+		} `xml:"versions"`
+		LastUpdated string `xml:"lastUpdated"`
+	} `xml:"versioning"`
+}
+
+type ModLoaderComponent struct {
+	Name              string
+	FriendlyName      string
+	VersionListGetter func(mcVersion string) ([]string, string, error)
+}
+
+var ModLoaders = map[string][]ModLoaderComponent{
+	"fabric": {
+		{
+			Name:              "fabric",
+			FriendlyName:      "Fabric loader",
+			VersionListGetter: FetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml"),
+		},
+		// There's no need to specify yarn version - yarn isn't used outside a dev environment, and intermediary corresponds to game version anyway
+		//{
+		//	Name:              "yarn",
+		//	FriendlyName:      "Yarn (mappings)",
+		//	VersionListGetter: fetchMavenVersionPrefixedList("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml", "Yarn"),
+		//},
+	},
+	"forge": {
+		{
+			Name:              "forge",
+			FriendlyName:      "Forge",
+			VersionListGetter: FetchMavenVersionPrefixedListStrip("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
+		},
+	},
+	"liteloader": {
+		{
+			Name:              "liteloader",
+			FriendlyName:      "LiteLoader",
+			VersionListGetter: FetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
+		},
+	},
+}
+
+func FetchMavenVersionList(url string) func(mcVersion string) ([]string, string, error) {
+	return func(mcVersion string) ([]string, string, error) {
+		res, err := http.Get(url)
+		if err != nil {
+			return []string{}, "", err
+		}
+		dec := xml.NewDecoder(res.Body)
+		out := MavenMetadata{}
+		err = dec.Decode(&out)
+		if err != nil {
+			return []string{}, "", err
+		}
+		return out.Versioning.Versions.Version, out.Versioning.Release, nil
+	}
+}
+
+func FetchMavenVersionPrefixedListStrip(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
+	noStrip := FetchMavenVersionPrefixedList(url, friendlyName)
+	return func(mcVersion string) ([]string, string, error) {
+		versions, latestVersion, err := noStrip(mcVersion)
+		if err != nil {
+			return nil, "", err
+		}
+		for k, v := range versions {
+			versions[k] = strings.TrimPrefix(v, mcVersion+"-")
+		}
+		latestVersion = strings.TrimPrefix(latestVersion, mcVersion+"-")
+		return versions, latestVersion, nil
+	}
+}
+
+func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
+	return func(mcVersion string) ([]string, string, error) {
+		res, err := http.Get(url)
+		if err != nil {
+			return []string{}, "", err
+		}
+		dec := xml.NewDecoder(res.Body)
+		out := MavenMetadata{}
+		err = dec.Decode(&out)
+		if err != nil {
+			return []string{}, "", err
+		}
+		allowedVersions := make([]string, 0, len(out.Versioning.Versions.Version))
+		for _, v := range out.Versioning.Versions.Version {
+			if strings.HasPrefix(v, mcVersion) {
+				allowedVersions = append(allowedVersions, v)
+			}
+		}
+		if len(allowedVersions) == 0 {
+			return []string{}, "", errors.New("no " + friendlyName + " versions available for this Minecraft version")
+		}
+		if strings.HasPrefix(out.Versioning.Release, mcVersion) {
+			return allowedVersions, out.Versioning.Release, nil
+		}
+		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
+	}
+}
