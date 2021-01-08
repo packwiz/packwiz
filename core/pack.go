@@ -14,8 +14,8 @@ import (
 // Pack stores the modpack metadata, usually in pack.toml
 type Pack struct {
 	Name    string `toml:"name"`
-	Author  string `toml:"author"`
-	Version string `toml:"version"`
+	Author  string `toml:"author,omitempty"`
+	Version string `toml:"version,omitempty"`
 	Index   struct {
 		// Path is stored in forward slash format relative to pack.toml
 		File       string `toml:"file"`
