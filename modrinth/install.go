@@ -13,7 +13,8 @@ import (
 	"github.com/comp500/packwiz/core"
 )
 
-var modSiteRegex = regexp.MustCompile("modrinth\\.com\\/mod\\/([^\\/]+)\\/?")
+var modSiteRegex = regexp.MustCompile("modrinth\\.com\\/mod\\/([^\\/]+)\\/?$")
+var versionSiteRegex = regexp.MustCompile("modrinth\\.com\\/mod\\/([^\\/]+)\\/version\\/([^\\/]+)\\/?$")
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
@@ -49,10 +50,21 @@ var installCmd = &cobra.Command{
             }
         }
 
-        //Try interpreting this arg as a mod.
+        //Try interpreting the arg as a version url
+        matches := versionSiteRegex.FindStringSubmatch(args[0]) //try extracting the mod out of the url
+        if matches != nil && len(matches) == 3 {
+            err = installVersionById(matches[2], pack)
+            if err != nil {
+                fmt.Println(err)
+                os.Exit(1)
+            }
+            return
+        }
+
+        //Try interpreting the arg as a mod url.
         //Modrinth transparently handles slugs/mod ids in their api. So we don't have to detect whether this is a slug or a mod id.
         var modStr string
-        matches := modSiteRegex.FindStringSubmatch(args[0]) //try extracting the mod out of the url
+        matches = modSiteRegex.FindStringSubmatch(args[0]) //try extracting the mod out of the url
         if matches != nil && len(matches) == 2 {
             modStr = matches[1]
         } else { //This isn't a url. Interpret as a slug/id directly
@@ -193,6 +205,20 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
     }
 
     return index.RefreshFileWithHash(path, format, hash, true)
+}
+
+func installVersionById(versionId string, pack core.Pack) error {
+    version, err := fetchVersion(versionId)
+    if err != nil {
+        return err
+    }
+
+    mod, err := fetchMod(version.Mod_id)
+    if err != nil {
+        return err
+    }
+
+    return installVersion(mod, version, pack)
 }
 
 func init() {

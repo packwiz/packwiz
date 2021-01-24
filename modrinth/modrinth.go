@@ -168,27 +168,36 @@ func fetchMod(mod string) (Mod, error) {
     return result, nil
 }
 
+func fetchVersion(versionId string) (Version, error) {
+    var version Version;
+    baseUrl, err := url.Parse(modrinthApiUrl)
+    baseUrl.Path += "version/"
+    baseUrl.Path += versionId
+
+    resp, err := http.Get(baseUrl.String())
+    if err != nil {
+        return version, err
+    }
+
+    defer resp.Body.Close()
+    body, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        return version, err
+    }
+
+    json.Unmarshal(body, &version)
+
+    return version, nil
+}
+
 func (mod Mod) fetchAllVersions() ([]Version, error) {
     ret := make([]Version, len(mod.Versions))
 
     for i,v := range mod.Versions {
-        baseUrl, err := url.Parse(modrinthApiUrl)
-        baseUrl.Path += "version/"
-        baseUrl.Path += v
-
-        resp, err := http.Get(baseUrl.String())
+        version, err := fetchVersion(v)
         if err != nil {
             return ret, err
         }
-
-        defer resp.Body.Close()
-        body, err := ioutil.ReadAll(resp.Body)
-        if err != nil {
-            return ret, err
-        }
-
-        var version Version;
-        json.Unmarshal(body, &version)
 
         ret[i] = version
     }
