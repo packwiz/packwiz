@@ -6,10 +6,12 @@ import (
     "net/http"
     "net/url"
     "errors"
+	"time"
     "strings"
 
-	"github.com/comp500/packwiz/cmd"
+	"golang.org/x/mod/semver"
     "github.com/spf13/cobra"
+	"github.com/comp500/packwiz/cmd"
     "github.com/comp500/packwiz/core"
 )
 
@@ -23,7 +25,7 @@ var modrinthCmd = &cobra.Command{
 
 func init() {
 	cmd.Add(modrinthCmd)
-	//core.Updaters["modrinth"] = cfUpdater{}
+	core.Updaters["modrinth"] = mrUpdater{}
 }
 
 type License struct {
@@ -259,6 +261,36 @@ func (mod Mod) getSide() string {
 
 func shouldDownloadOnSide(side string) bool {
     return side == "required" || side == "optional"
+}
+
+func (mod Mod) fetchAndGetLatestVersion(mcVersion string) (Version, error) {
+    versions, err := mod.fetchAllVersions()
+    if err != nil {
+        return Version{}, err
+    }
+
+    var latestValidVersion Version;
+    for _,v := range versions {
+        if v.isValid(mcVersion) {
+            var semverCompare = semver.Compare(v.Version_number, latestValidVersion.Version_number)
+            if semverCompare == 0 {
+                //Semver is equal, compare date instead
+                vDate, _ := time.Parse(time.RFC3339Nano, v.Date_published)
+                latestDate, _ := time.Parse(time.RFC3339Nano, latestValidVersion.Date_published)
+                if (vDate.After(latestDate)) {
+                    latestValidVersion = v
+                }
+            } else if semverCompare == 1 {
+                latestValidVersion = v
+            }
+        }
+    }
+
+    if latestValidVersion.Id == "" {
+        return Version{},errors.New("Mod is not available for this minecraft version.")
+    }
+
+    return latestValidVersion, nil
 }
 
 func (v VersionFile) getBestHash() (string, string) {

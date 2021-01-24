@@ -5,10 +5,8 @@ import (
 	"os"
 	"strings"
 	"regexp"
-	"time"
 	"errors"
 
-	"golang.org/x/mod/semver"
 	"github.com/spf13/cobra"
 	"github.com/comp500/packwiz/core"
 )
@@ -114,41 +112,19 @@ func installViaSearch(query string, pack core.Pack) error {
 }
 
 func installMod(mod Mod, pack core.Pack) error {
-    fmt.Printf("Installing mod %s: '%s'.\n", mod.Title, mod.Description)
+    fmt.Printf("Found mod %s: '%s'.\n", mod.Title, mod.Description)
 
     mcVersion, err := pack.GetMCVersion()
     if err != nil {
         return err;
     }
 
-    versions, err := mod.fetchAllVersions()
+    latestVersion, err := mod.fetchAndGetLatestVersion(mcVersion);
     if err != nil {
-        return err
+        return err;
     }
 
-    //Tries to find the latest version
-    var latestValidVersion Version;
-    for _,v := range versions {
-        if v.isValid(mcVersion) {
-            var semverCompare = semver.Compare(v.Version_number, latestValidVersion.Version_number)
-            if semverCompare == 0 {
-                //Semver is equal, compare date instead
-                vDate, _ := time.Parse(time.RFC3339Nano, v.Date_published)
-                latestDate, _ := time.Parse(time.RFC3339Nano, latestValidVersion.Date_published)
-                if (vDate.After(latestDate)) {
-                    latestValidVersion = v
-                }
-            } else if semverCompare == 1 {
-                latestValidVersion = v
-            }
-        }
-    }
-
-    if latestValidVersion.Id == "" {
-        return errors.New("Mod is not available for this minecraft version.")
-    }
-
-    return installVersion(mod, latestValidVersion, pack)
+    return installVersion(mod, latestVersion, pack)
 }
 
 func installVersion(mod Mod, version Version, pack core.Pack) error {
@@ -167,17 +143,16 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
         return err
     }
 
-//     updateMap := make(map[string]map[string]interface{})
+    updateMap := make(map[string]map[string]interface{})
 
-//     updateMap["modrinth"], err = cfUpdateData{
-//         ProjectID: modInfo.ID,
-//         FileID:    fileInfo.ID,
-//         // TODO: determine update channel
-//         ReleaseChannel: "beta",
-//     }.ToMap()
-//     if err != nil {
-//         return err
-//     }
+    updateMap["modrinth"], err = mrUpdateData{
+        ModID: mod.Id,
+        Versions: len(mod.Versions),
+        InstalledVersion: version.Id,
+    }.ToMap()
+    if err != nil {
+        return err
+    }
 
     side := mod.getSide()
     if side == "" {
@@ -195,12 +170,10 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
         Side:     side,
         Download: core.ModDownload{
             URL: file.Url,
-            // TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
-            // TODO: check if the hash is invalid (e.g. 0)
             HashFormat: algorithm,
             Hash:       hash,
         },
-        //Update: updateMap,
+        Update: updateMap,
     }
     var path string
     if mod.Slug != "" {
