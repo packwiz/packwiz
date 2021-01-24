@@ -29,80 +29,78 @@ func init() {
 }
 
 type License struct {
-    Id string   //The license id of a mod, retrieved from the licenses get route
-    Name string //The long for name of a license
-    Url string  //The URL to this license
+    Id string   `json:"id"`  //The license id of a mod, retrieved from the licenses get route
+    Name string `json:"name"`//The long for name of a license
+    Url string  `json:"url"` //The URL to this license
 }
 
 type Mod struct {
-    Id string           //The ID of the mod, encoded as a base62 string
-    Slug string         //The slug of a mod, used for vanity URLs
-    Team string         //The id of the team that has ownership of this mod
-    Title string        //The title or name of the mod
-    Description string  //A short description of the mod
-    Body string         //A long form description of the mod.
-    body_url string     //DEPRECATED The link to the long description of the mod (Optional)
-    Published string    //The date at which the mod was first published
-    Updated string      //The date at which the mod was updated
-    Status string       //The status of the mod - approved, rejected, draft, unlisted, processing, or unknown
-    License string      //The license of the mod
-    Client_side string  //The support range for the client mod - required, optional, unsupported, or unknown
-    Server_side string  //The support range for the server mod - required, optional, unsupported, or unknown
-    Downloads string    //The total number of downloads the mod has
-    Categories []string //A list of the categories that the mod is in
-    Versions []string   //A list of ids for versions of the mod
-    Icon_url string     //The URL of the icon of the mod (Optional)
-    Issues_url string   //An optional link to where to submit bugs or issues with the mod (Optional)
-    Source_url string   //An optional link to the source code for the mod (Optional)
-    Wiki_url string     //An optional link to the mod's wiki page or other relevant information (Optional)
-    Discord_url string  //An optional link to the mod's discord (Optional)
-    //Donation_urls []DonationPlatform //An optional list of all donation links the mod has (Optional)
+    ID string    `json:"id"`                 //The ID of the mod, encoded as a base62 string
+    Slug string  `json:"slug"`               //The slug of a mod, used for vanity URLs
+    Team string  `json:"team"`               //The id of the team that has ownership of this mod
+    Title string `json:"title"`              //The title or name of the mod
+    Description string `json:"description"`  //A short description of the mod
+    Body string      `json:"body"`           //A long form description of the mod.
+    body_url string  `json:"body_url"`       //DEPRECATED The link to the long description of the mod (Optional)
+    Published string `json:"published"`      //The date at which the mod was first published
+    Updated string   `json:"updated"`        //The date at which the mod was updated
+    Status string    `json:"status"`         //The status of the mod - approved, rejected, draft, unlisted, processing, or unknown
+    License string   `json:"license"`        //The license of the mod
+    ClientSide string   `json:"client_side"` //The support range for the client mod - required, optional, unsupported, or unknown
+    ServerSide string   `json:"server_side"` //The support range for the server mod - required, optional, unsupported, or unknown
+    Downloads string    `json:"downloads"`   //The total number of downloads the mod has
+    Categories []string `json:"categories"`  //A list of the categories that the mod is in
+    Versions []string `json:"versions"`      //A list of ids for versions of the mod
+    IconUrl string    `json:"icon_url"`      //The URL of the icon of the mod (Optional)
+    IssuesUrl string  `json:"issues_url"`    //An optional link to where to submit bugs or issues with the mod (Optional)
+    SourceUrl string  `json:"source_url"`    //An optional link to the source code for the mod (Optional)
+    WikiUrl string    `json:"wiki_url"`      //An optional link to the mod's wiki page or other relevant information (Optional)
+    DiscordUrl string `json:"discord_url"`   //An optional link to the mod's discord (Optional)
 }
 
 type ModResult struct {
-    Mod_id string 	      //The id of the mod; prefixed with local-
-    Project_type string   //The project type of the mod
-    Author string 	      //The username of the author of the mod
-    Title string 	      //The name of the mod
-    Description string    //A short description of the mod
-    Categories []string   //A list of the categories the mod is in
-    Versions []string     //A list of the minecraft versions supported by the mod
-    Downloads int         //The total number of downloads for the mod
-    Page_url string       //A link to the mod's main page;
-    Icon_url string       //The url of the mod's icon
-    Author_url string     //The url of the mod's author
-    Date_created string   //The date that the mod was originally created
-    Date_modified string  //The date that the mod was last modified
-    Latest_version string //The latest version of minecraft that this mod supports
-    License string        //The id of the license this mod follows
-    Client_side string    //The side type id that this mod is on the client
-    Server_side string    //The side type id that this mod is on the server
-    Host string           //The host that this mod is from, always modrinth
+    ModID string `json:"mod_id"`	                //The id of the mod; prefixed with local-
+    ProjectType string `json:"project_id"`          //The project type of the mod
+    Author string `json:"author"`	                //The username of the author of the mod
+    Title string  `json:"title"`	                //The name of the mod
+    Description string  `json:"description"`        //A short description of the mod
+    Categories []string `json:"categories"`         //A list of the categories the mod is in
+    Versions []string `json:"versions"`             //A list of the minecraft versions supported by the mod
+    Downloads int  `json:"downloads"`               //The total number of downloads for the mod
+    PageUrl string `json:"page_url"`                //A link to the mod's main page;
+    IconUrl string `json:"icon_url"`                //The url of the mod's icon
+    AuthorUrl string `json:"author_url"`            //The url of the mod's author
+    DateCreated string `json:"date_created"`        //The date that the mod was originally created
+    DateModified string `json:"date_modified"`      //The date that the mod was last modified
+    LatestVersion string `json:"latest_version"`    //The latest version of minecraft that this mod supports
+    License string `json:"license"`                 //The id of the license this mod follows
+    ClientSide string `json:"client_side"`          //The side type id that this mod is on the client
+    ServerSide string `json:"server_side"`          //The side type id that this mod is on the server
+    Host string `json:"host"`                       //The host that this mod is from, always modrinth
 }
 
 type ModSearchResult struct {
-    Hits []ModResult      //The list of results
-    Offset int            //The number of results that were skipped by the query
-    Limit int             //The number of mods returned by the query
-    Total_hits int        //The total number of mods that the query found
+    Hits []ModResult `json:"hits"`    //The list of results
+    Offset int `json:"offset"`        //The number of results that were skipped by the query
+    Limit int  `json:"limit"`         //The number of mods returned by the query
+    TotalHits int `json:"total_hits"` //The total number of mods that the query found
 }
 
 type Version struct {
-    Id string               //The ID of the version, encoded as a base62 string
-    Mod_id string           //The ID of the mod this version is for
-    Author_id string        //The ID of the author who published this version
-    Featured bool           //Whether the version is featured or not
-    Name string             //The name of this version
-    Version_number string   //The version number. Ideally will follow semantic versioning
-    Changelog string        //The changelog for this version of the mod. (Optional)
-    Changelog_url string    //DEPRECATED A link to the changelog for this version of the mod (Optional)
-    Date_published string   //The date that this version was published
-    Downloads int           //The number of downloads this specific version has
-    Version_type []string   //The type of the release - alpha, beta, or release
-    Files []VersionFile     //A list of files available for download for this version
-    Dependencies []string   //A list of specific versions of mods that this version depends on
-    Game_versions []string    //A list of versions of Minecraft that this version of the mod supports
-    Loaders []string          //The mod loaders that this version supports
+    ID string        `json:"id"`                 //The ID of the version, encoded as a base62 string
+    ModID string     `json:"mod_id"`             //The ID of the mod this version is for
+    AuthorId string `json:"author_id"`           //The ID of the author who published this version
+    Featured bool `json:"featured"`              //Whether the version is featured or not
+    Name string   `json:"name"`                  //The name of this version
+    VersionNumber string `json:"version_number"` //The version number. Ideally will follow semantic versioning
+    Changelog string      `json:"changelog"`     //The changelog for this version of the mod. (Optional)
+    DatePublished string  `json:"date_published"`//The date that this version was published
+    Downloads int         `json:"downloads"`     //The number of downloads this specific version has
+    VersionType []string  `json:"version_type"`  //The type of the release - alpha, beta, or release
+    Files []VersionFile   `json:"files"`         //A list of files available for download for this version
+    Dependencies []string `json:"dependencies"`  //A list of specific versions of mods that this version depends on
+    GameVersions []string `json:"game_versions"` //A list of versions of Minecraft that this version of the mod supports
+    Loaders []string `json:"loaders"`            //The mod loaders that this version supports
 }
 
 type VersionFile struct {
@@ -139,7 +137,7 @@ func getFirstModIdViaSearch(query string, version string) (ModResult,error) {
     var result ModSearchResult;
     json.Unmarshal(body, &result)
 
-    if result.Total_hits <= 0 {
+    if result.TotalHits <= 0 {
         return null, errors.New("Couldn't find that mod for this version.")
     }
 
@@ -170,7 +168,7 @@ func fetchMod(modId string) (Mod, error) {
 
     json.Unmarshal(body, &mod)
 
-    if (mod.Id == "") {
+    if (mod.ID == "") {
         return mod, errors.New("Invalid json whilst fetching mod: "+modId)
     }
 
@@ -200,7 +198,7 @@ func fetchVersion(versionId string) (Version, error) {
 
     json.Unmarshal(body, &version)
 
-    if (version.Id == "") {
+    if (version.ID == "") {
         return version, errors.New("Invalid json whilst fetching version: "+versionId)
     }
 
@@ -227,7 +225,7 @@ func (v Version) isValid(mcVersion string) bool {
 }
 
 func (v Version) containsVersion(mcVersion string) bool {
-    for _,v := range v.Game_versions {
+    for _,v := range v.GameVersions {
         if strings.EqualFold(v, mcVersion) {
             return true
         }
@@ -245,8 +243,8 @@ func (v Version) containsLoader(modLoader string) bool {
 }
 
 func (mod Mod) getSide() string {
-    server := shouldDownloadOnSide(mod.Server_side)
-    client := shouldDownloadOnSide(mod.Client_side)
+    server := shouldDownloadOnSide(mod.ServerSide)
+    client := shouldDownloadOnSide(mod.ClientSide)
 
     if server && client {
         return core.UniversalSide
@@ -272,11 +270,11 @@ func (mod Mod) fetchAndGetLatestVersion(mcVersion string) (Version, error) {
     var latestValidVersion Version;
     for _,v := range versions {
         if v.isValid(mcVersion) {
-            var semverCompare = semver.Compare(v.Version_number, latestValidVersion.Version_number)
+            var semverCompare = semver.Compare(v.VersionNumber, latestValidVersion.VersionNumber)
             if semverCompare == 0 {
                 //Semver is equal, compare date instead
-                vDate, _ := time.Parse(time.RFC3339Nano, v.Date_published)
-                latestDate, _ := time.Parse(time.RFC3339Nano, latestValidVersion.Date_published)
+                vDate, _ := time.Parse(time.RFC3339Nano, v.DatePublished)
+                latestDate, _ := time.Parse(time.RFC3339Nano, latestValidVersion.DatePublished)
                 if (vDate.After(latestDate)) {
                     latestValidVersion = v
                 }
@@ -286,7 +284,7 @@ func (mod Mod) fetchAndGetLatestVersion(mcVersion string) (Version, error) {
         }
     }
 
-    if latestValidVersion.Id == "" {
+    if latestValidVersion.ID == "" {
         return Version{},errors.New("Mod is not available for this minecraft version.")
     }
 

@@ -62,7 +62,7 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
             continue
         }
 
-        if latestVersion.Id == data.InstalledVersion {
+        if latestVersion.ID == data.InstalledVersion {
             results[i] = core.UpdateCheck{UpdateAvailable: false}
             continue
         }

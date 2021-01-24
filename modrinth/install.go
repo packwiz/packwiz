@@ -101,7 +101,7 @@ func installViaSearch(query string, pack core.Pack) error {
         return err
     }
 
-    modId := strings.TrimPrefix(searchResult.Mod_id, "local-")
+    modId := strings.TrimPrefix(searchResult.ModID, "local-")
 
     mod, err := fetchMod(modId)
     if err != nil {
@@ -137,7 +137,7 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
     var file = files[0]
 
     //Install the file
-    fmt.Printf("Installing %s from version %s\n", file.Filename, version.Version_number)
+    fmt.Printf("Installing %s from version %s\n", file.Filename, version.VersionNumber)
     index, err := pack.LoadIndex()
     if err != nil {
         return err
@@ -146,9 +146,9 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
     updateMap := make(map[string]map[string]interface{})
 
     updateMap["modrinth"], err = mrUpdateData{
-        ModID: mod.Id,
+        ModID: mod.ID,
         Versions: len(mod.Versions),
-        InstalledVersion: version.Id,
+        InstalledVersion: version.ID,
     }.ToMap()
     if err != nil {
         return err
@@ -156,7 +156,7 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 
     side := mod.getSide()
     if side == "" {
-        return errors.New("Version doesn't have a side that's supported. Server: "+mod.Server_side+" Client: "+mod.Client_side)
+        return errors.New("Version doesn't have a side that's supported. Server: "+mod.ServerSide+" Client: "+mod.ClientSide)
     }
 
     algorithm, hash := file.getBestHash()
@@ -216,7 +216,7 @@ func installVersionById(versionId string, pack core.Pack) error {
         return err
     }
 
-    mod, err := fetchMod(version.Mod_id)
+    mod, err := fetchMod(version.ModID)
     if err != nil {
         return err
     }
