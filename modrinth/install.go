@@ -34,7 +34,6 @@ var installCmd = &cobra.Command{
             os.Exit(1)
         }
 
-
         // If there are more than 1 argument, go straight to searching - URLs/Slugs should not have spaces!
         if len(args) > 1 {
             err = installViaSearch(strings.Join(args," "), pack)
@@ -46,7 +45,7 @@ var installCmd = &cobra.Command{
         }
 
         //Try interpreting the arg as a version url
-        matches := versionSiteRegex.FindStringSubmatch(args[0]) //try extracting the mod out of the url
+        matches := versionSiteRegex.FindStringSubmatch(args[0])
         if matches != nil && len(matches) == 3 {
             err = installVersionById(matches[2], pack)
             if err != nil {
@@ -56,18 +55,23 @@ var installCmd = &cobra.Command{
             return
         }
 
-        //Try interpreting the arg as a mod url.
-        //Modrinth transparently handles slugs/mod ids in their api. So we don't have to detect whether this is a slug or a mod id.
+        //Try interpreting the arg as a modId or slug.
+        //Modrinth transparently handles slugs/mod ids in their api; we don't have to detect which one it is.
         var modStr string
-        matches = modSiteRegex.FindStringSubmatch(args[0]) //try extracting the mod out of the url
+
+        //Try to see if it's a site, if extract the id/slug from the url.
+        //Otherwise, interpret the arg as a id/slug straight up
+        matches = modSiteRegex.FindStringSubmatch(args[0])
         if matches != nil && len(matches) == 2 {
             modStr = matches[1]
-        } else { //This isn't a url. Interpret as a slug/id directly
+        } else {
             modStr = args[0]
         }
+
         mod, err := fetchMod(modStr)
 
-        if err == nil { //the mod was found
+        if err == nil {
+            //We found a mod with that id/slug
             err = installMod(mod, pack)
             if err != nil {
                 fmt.Println(err)
@@ -110,7 +114,7 @@ func installViaSearch(query string, pack core.Pack) error {
 }
 
 func installMod(mod Mod, pack core.Pack) error {
-    fmt.Printf("Installing mod %s: '%s'\n", mod.Title, mod.Description)
+    fmt.Printf("Installing mod %s: '%s'.\n", mod.Title, mod.Description)
 
     mcVersion, err := pack.GetMCVersion()
     if err != nil {
@@ -141,7 +145,7 @@ func installMod(mod Mod, pack core.Pack) error {
     }
 
     if latestValidVersion.Id == "" {
-        return errors.New("mod not available for this minecraft version")
+        return errors.New("Mod is not available for this minecraft version.")
     }
 
     return installVersion(mod, latestValidVersion, pack)
@@ -151,7 +155,7 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
     var files = version.Files
 
     if len(files) == 0 {
-        return errors.New("version doesn't have any files attached")
+        return errors.New("Version doesn't have any files attached.")
     }
 
     var file = files[0]
@@ -177,12 +181,12 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 
     side := mod.getSide()
     if side == "" {
-        return errors.New("version is unsupported on both sides")
+        return errors.New("Version doesn't have a side that's supported. Server: "+mod.Server_side+" Client: "+mod.Client_side)
     }
 
     algorithm, hash := file.getBestHash()
     if algorithm == "" {
-        return errors.New("file doesn't have a hash")
+        return errors.New("File doesn't have a hash.")
     }
 
     modMeta := core.Mod{

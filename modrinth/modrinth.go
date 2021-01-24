@@ -138,7 +138,7 @@ func getFirstModIdViaSearch(query string, version string) (ModResult,error) {
     json.Unmarshal(body, &result)
 
     if result.Total_hits <= 0 {
-        return null, errors.New("Couldn't find that mod for this version")
+        return null, errors.New("Couldn't find that mod for this version.")
     }
 
     return result.Hits[0], nil
@@ -157,7 +157,7 @@ func fetchMod(modId string) (Mod, error) {
     }
 
     if resp.StatusCode == 404 {
-        return mod, errors.New("couldn't find version: "+modId)
+        return mod, errors.New("Couldn't find version: "+modId)
     }
 
     defer resp.Body.Close()
@@ -169,7 +169,7 @@ func fetchMod(modId string) (Mod, error) {
     json.Unmarshal(body, &mod)
 
     if (mod.Id == "") {
-        return mod, errors.New("invalid json whilst fetching mod: "+modId)
+        return mod, errors.New("Invalid json whilst fetching mod: "+modId)
     }
 
     return mod, nil
@@ -187,7 +187,7 @@ func fetchVersion(versionId string) (Version, error) {
     }
 
     if resp.StatusCode == 404 {
-        return version, errors.New("couldn't find version: "+versionId)
+        return version, errors.New("Couldn't find version: "+versionId)
     }
 
     defer resp.Body.Close()
@@ -199,7 +199,7 @@ func fetchVersion(versionId string) (Version, error) {
     json.Unmarshal(body, &version)
 
     if (version.Id == "") {
-        return version, errors.New("invalid json whilst fetching version: "+versionId)
+        return version, errors.New("Invalid json whilst fetching version: "+versionId)
     }
 
     return version, nil
