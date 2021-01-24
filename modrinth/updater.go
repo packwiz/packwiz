@@ -10,7 +10,7 @@ import (
 type mrUpdateData struct {
 	ModID               string  `mapstructure:"mod-id"`
 	Versions            int     `mapstructure:"versions"`
-	InstalledVersion    string  `mapstructure:"installed"`
+	InstalledVersion    string  `mapstructure:"installed-version"`
 }
 
 func (u mrUpdateData) ToMap() (map[string]interface{}, error) {
