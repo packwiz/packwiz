@@ -28,11 +28,6 @@ var installCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		mcVersion, err := pack.GetMCVersion()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 
 		if len(args) == 0 || len(args[0]) == 0 {
             fmt.Println("You must specify a mod.")
@@ -42,12 +37,12 @@ var installCmd = &cobra.Command{
 
         // If there are more than 1 argument, go straight to searching - URLs/Slugs should not have spaces!
         if len(args) > 1 {
-            println(strings.Join(args," "))
-            err = installViaSearch(strings.Join(args," "), mcVersion)
+            err = installViaSearch(strings.Join(args," "), pack)
             if err != nil {
                 fmt.Println(err)
                 os.Exit(1)
             }
+            return
         }
 
         //Try interpreting the arg as a version url
@@ -72,17 +67,18 @@ var installCmd = &cobra.Command{
         }
         mod, err := fetchMod(modStr)
 
-        if mod.Id != "" { //the mod was found
-            fmt.Printf("Found mod %s: '%s'\n", mod.Title, mod.Description)
+        if err == nil { //the mod was found
             err = installMod(mod, pack)
             if err != nil {
                 fmt.Println(err)
                 os.Exit(1)
             }
             return
-        } else { //There wasn't a mod with that exact name, if the user didn't input a url, we should try searching
-            if strings.Contains(args[0], "modrinth.com") { //don't bother searching for a url. There shouldn't be a mod with such a name
-                err = installViaSearch(args[0], mcVersion)
+        } else {
+            //This wasn't a valid modid/slug, try to search for it instead:
+            //Don't bother to search if it looks like a url though
+            if !strings.Contains(args[0], "modrinth.com") {
+                err = installViaSearch(args[0], pack)
                 if err != nil {
                     fmt.Println(err)
                     os.Exit(1)
@@ -92,15 +88,30 @@ var installCmd = &cobra.Command{
 	},
 }
 
-func installViaSearch(query string, mcVersion string) error {
-    _, err := getFirstModIdViaSearch(query, mcVersion)
+func installViaSearch(query string, pack core.Pack) error {
+    mcVersion, err := pack.GetMCVersion()
+    if err != nil {
+        return err;
+    }
+
+    searchResult, err := getFirstModIdViaSearch(query, mcVersion)
     if err != nil {
         return err
     }
-    return nil
+
+    modId := strings.TrimPrefix(searchResult.Mod_id, "local-")
+
+    mod, err := fetchMod(modId)
+    if err != nil {
+        return err
+    }
+
+    return installMod(mod, pack)
 }
 
 func installMod(mod Mod, pack core.Pack) error {
+    fmt.Printf("Installing mod %s: '%s'\n", mod.Title, mod.Description)
+
     mcVersion, err := pack.GetMCVersion()
     if err != nil {
         return err;
