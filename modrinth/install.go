@@ -218,8 +218,23 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
     if err != nil {
         return err
     }
-
-    return index.RefreshFileWithHash(path, format, hash, true)
+    err = index.RefreshFileWithHash(path, format, hash, true)
+    if err != nil {
+        return err
+    }
+    err = index.Write()
+    if err != nil {
+        return err
+    }
+    err = pack.UpdateIndexHash()
+    if err != nil {
+        return err
+    }
+    err = pack.Write()
+    if err != nil {
+        return err
+    }
+    return nil
 }
 
 func installVersionById(versionId string, pack core.Pack) error {
