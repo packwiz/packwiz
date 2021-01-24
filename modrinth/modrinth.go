@@ -219,14 +219,22 @@ func (mod Mod) fetchAllVersions() ([]Version, error) {
     return ret, nil
 }
 
-func (v Version) isValid(mcVersion string) bool {
-    // TODO this should also check if the version is for the correct modLoader
-    return v.containsVersion(mcVersion)
+func (v Version) isValid(mcVersion string, dependencies map[string]string) bool {
+    return v.containsVersion(mcVersion) && v.containsAnyLoader(dependencies)
 }
 
 func (v Version) containsVersion(mcVersion string) bool {
     for _,v := range v.GameVersions {
         if strings.EqualFold(v, mcVersion) {
+            return true
+        }
+    }
+    return false
+}
+
+func (v Version) containsAnyLoader(dependencies map[string]string) bool {
+    for dependency,_ := range dependencies {
+        if v.containsLoader(dependency) {
             return true
         }
     }
@@ -261,7 +269,14 @@ func shouldDownloadOnSide(side string) bool {
     return side == "required" || side == "optional"
 }
 
-func (mod Mod) fetchAndGetLatestVersion(mcVersion string) (Version, error) {
+func (mod Mod) fetchAndGetLatestVersion(pack core.Pack) (Version, error) {
+    mcVersion, err := pack.GetMCVersion()
+    if err != nil {
+        return Version{}, err;
+    }
+
+    dependencies := pack.Versions
+
     versions, err := mod.fetchAllVersions()
     if err != nil {
         return Version{}, err
@@ -269,7 +284,7 @@ func (mod Mod) fetchAndGetLatestVersion(mcVersion string) (Version, error) {
 
     var latestValidVersion Version;
     for _,v := range versions {
-        if v.isValid(mcVersion) {
+        if v.isValid(mcVersion, dependencies) {
             var semverCompare = semver.Compare(v.VersionNumber, latestValidVersion.VersionNumber)
             if semverCompare == 0 {
                 //Semver is equal, compare date instead
@@ -285,7 +300,7 @@ func (mod Mod) fetchAndGetLatestVersion(mcVersion string) (Version, error) {
     }
 
     if latestValidVersion.ID == "" {
-        return Version{},errors.New("Mod is not available for this minecraft version.")
+        return Version{},errors.New("Mod is not available for this minecraft version or mod loader.")
     }
 
     return latestValidVersion, nil

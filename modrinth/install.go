@@ -114,12 +114,7 @@ func installViaSearch(query string, pack core.Pack) error {
 func installMod(mod Mod, pack core.Pack) error {
     fmt.Printf("Found mod %s: '%s'.\n", mod.Title, mod.Description)
 
-    mcVersion, err := pack.GetMCVersion()
-    if err != nil {
-        return err;
-    }
-
-    latestVersion, err := mod.fetchAndGetLatestVersion(mcVersion);
+    latestVersion, err := mod.fetchAndGetLatestVersion(pack);
     if err != nil {
         return err;
     }
