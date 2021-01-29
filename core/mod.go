@@ -3,12 +3,12 @@ package core
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
-	"fmt"
 
 	"github.com/BurntSushi/toml"
 )
