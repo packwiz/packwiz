@@ -15,7 +15,7 @@ import (
 	"golang.org/x/mod/semver"
 )
 
-var modrinthApiUrl = "https://api.modrinth.com/api/v1/"
+const modrinthApiUrl = "https://api.modrinth.com/api/v1/"
 
 var modrinthCmd = &cobra.Command{
 	Use:     "modrinth",
@@ -41,21 +41,25 @@ type Mod struct {
 	Title       string   `json:"title"`       //The title or name of the mod
 	Description string   `json:"description"` //A short description of the mod
 	Body        string   `json:"body"`        //A long form description of the mod.
-	body_url    string   `json:"body_url"`    //DEPRECATED The link to the long description of the mod (Optional)
+	BodyUrl     string   `json:"body_url"`    //DEPRECATED The link to the long description of the mod (Optional)
 	Published   string   `json:"published"`   //The date at which the mod was first published
 	Updated     string   `json:"updated"`     //The date at which the mod was updated
 	Status      string   `json:"status"`      //The status of the mod - approved, rejected, draft, unlisted, processing, or unknown
-	License     string   `json:"license"`     //The license of the mod
-	ClientSide  string   `json:"client_side"` //The support range for the client mod - required, optional, unsupported, or unknown
-	ServerSide  string   `json:"server_side"` //The support range for the server mod - required, optional, unsupported, or unknown
-	Downloads   string   `json:"downloads"`   //The total number of downloads the mod has
-	Categories  []string `json:"categories"`  //A list of the categories that the mod is in
-	Versions    []string `json:"versions"`    //A list of ids for versions of the mod
-	IconUrl     string   `json:"icon_url"`    //The URL of the icon of the mod (Optional)
-	IssuesUrl   string   `json:"issues_url"`  //An optional link to where to submit bugs or issues with the mod (Optional)
-	SourceUrl   string   `json:"source_url"`  //An optional link to the source code for the mod (Optional)
-	WikiUrl     string   `json:"wiki_url"`    //An optional link to the mod's wiki page or other relevant information (Optional)
-	DiscordUrl  string   `json:"discord_url"` //An optional link to the mod's discord (Optional)
+	License     struct { //The license of the mod
+		ID   string `json:"id"`
+		Name string `json:"name"`
+		URL  string `json:"url"`
+	} `json:"license"`
+	ClientSide string   `json:"client_side"` //The support range for the client mod - required, optional, unsupported, or unknown
+	ServerSide string   `json:"server_side"` //The support range for the server mod - required, optional, unsupported, or unknown
+	Downloads  int      `json:"downloads"`   //The total number of downloads the mod has
+	Categories []string `json:"categories"`  //A list of the categories that the mod is in
+	Versions   []string `json:"versions"`    //A list of ids for versions of the mod
+	IconUrl    string   `json:"icon_url"`    //The URL of the icon of the mod (Optional)
+	IssuesUrl  string   `json:"issues_url"`  //An optional link to where to submit bugs or issues with the mod (Optional)
+	SourceUrl  string   `json:"source_url"`  //An optional link to the source code for the mod (Optional)
+	WikiUrl    string   `json:"wiki_url"`    //An optional link to the mod's wiki page or other relevant information (Optional)
+	DiscordUrl string   `json:"discord_url"` //An optional link to the mod's discord (Optional)
 }
 
 type ModResult struct {
@@ -96,7 +100,7 @@ type Version struct {
 	Changelog     string        `json:"changelog"`      //The changelog for this version of the mod. (Optional)
 	DatePublished string        `json:"date_published"` //The date that this version was published
 	Downloads     int           `json:"downloads"`      //The number of downloads this specific version has
-	VersionType   []string      `json:"version_type"`   //The type of the release - alpha, beta, or release
+	VersionType   string        `json:"version_type"`   //The type of the release - alpha, beta, or release
 	Files         []VersionFile `json:"files"`          //A list of files available for download for this version
 	Dependencies  []string      `json:"dependencies"`   //A list of specific versions of mods that this version depends on
 	GameVersions  []string      `json:"game_versions"`  //A list of versions of Minecraft that this version of the mod supports
@@ -110,35 +114,31 @@ type VersionFile struct {
 }
 
 func getFirstModIdViaSearch(query string, version string) (ModResult, error) {
-	var null ModResult
-
-	baseUrl, err := url.Parse(modrinthApiUrl)
-	baseUrl.Path += "mod"
-
 	params := url.Values{}
 	params.Add("limit", "1")
 	params.Add("index", "relevance")
 	params.Add("facets", "[[\"versions:"+version+"\"]]")
 	params.Add("query", query)
 
-	baseUrl.RawQuery = params.Encode()
-
-	resp, err := http.Get(baseUrl.String())
+	resp, err := http.Get(modrinthApiUrl + "mod?" + params.Encode())
 	if err != nil {
-		return null, err
+		return ModResult{}, err
 	}
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		return null, err
+		return ModResult{}, err
 	}
 
 	var result ModSearchResult
-	json.Unmarshal(body, &result)
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return ModResult{}, err
+	}
 
 	if result.TotalHits <= 0 {
-		return null, errors.New("Couldn't find that mod for this version.")
+		return ModResult{}, errors.New("couldn't find that mod for this version")
 	}
 
 	return result.Hits[0], nil
@@ -147,17 +147,13 @@ func getFirstModIdViaSearch(query string, version string) (ModResult, error) {
 func fetchMod(modId string) (Mod, error) {
 	var mod Mod
 
-	baseUrl, err := url.Parse(modrinthApiUrl)
-	baseUrl.Path += "mod/"
-	baseUrl.Path += modId
-
-	resp, err := http.Get(baseUrl.String())
+	resp, err := http.Get(modrinthApiUrl + "mod/" + modId)
 	if err != nil {
 		return mod, err
 	}
 
 	if resp.StatusCode == 404 {
-		return mod, errors.New("Couldn't find version: " + modId)
+		return mod, errors.New("couldn't find version: " + modId)
 	}
 
 	defer resp.Body.Close()
@@ -166,10 +162,13 @@ func fetchMod(modId string) (Mod, error) {
 		return mod, err
 	}
 
-	json.Unmarshal(body, &mod)
+	err = json.Unmarshal(body, &mod)
+	if err != nil {
+		return mod, err
+	}
 
 	if mod.ID == "" {
-		return mod, errors.New("Invalid json whilst fetching mod: " + modId)
+		return mod, errors.New("invalid json whilst fetching mod: " + modId)
 	}
 
 	return mod, nil
@@ -177,17 +176,14 @@ func fetchMod(modId string) (Mod, error) {
 
 func fetchVersion(versionId string) (Version, error) {
 	var version Version
-	baseUrl, err := url.Parse(modrinthApiUrl)
-	baseUrl.Path += "version/"
-	baseUrl.Path += versionId
 
-	resp, err := http.Get(baseUrl.String())
+	resp, err := http.Get(modrinthApiUrl + "version/" + versionId)
 	if err != nil {
 		return version, err
 	}
 
 	if resp.StatusCode == 404 {
-		return version, errors.New("Couldn't find version: " + versionId)
+		return version, errors.New("couldn't find version: " + versionId)
 	}
 
 	defer resp.Body.Close()
@@ -196,10 +192,13 @@ func fetchVersion(versionId string) (Version, error) {
 		return version, err
 	}
 
-	json.Unmarshal(body, &version)
+	err = json.Unmarshal(body, &version)
+	if err != nil {
+		return version, err
+	}
 
 	if version.ID == "" {
-		return version, errors.New("Invalid json whilst fetching version: " + versionId)
+		return version, errors.New("invalid json whilst fetching version: " + versionId)
 	}
 
 	return version, nil
@@ -300,7 +299,7 @@ func (mod Mod) fetchAndGetLatestVersion(pack core.Pack) (Version, error) {
 	}
 
 	if latestValidVersion.ID == "" {
-		return Version{}, errors.New("Mod is not available for this minecraft version or mod loader.")
+		return Version{}, errors.New("mod is not available for this minecraft version or mod loader")
 	}
 
 	return latestValidVersion, nil

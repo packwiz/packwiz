@@ -11,8 +11,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var modSiteRegex = regexp.MustCompile("modrinth\\.com\\/mod\\/([^\\/]+)\\/?$")
-var versionSiteRegex = regexp.MustCompile("modrinth\\.com\\/mod\\/([^\\/]+)\\/version\\/([^\\/]+)\\/?$")
+var modSiteRegex = regexp.MustCompile("modrinth\\.com/mod/([^/]+)/?$")
+var versionSiteRegex = regexp.MustCompile("modrinth\\.com/mod/([^/]+)/version/([^/]+)/?$")
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
@@ -36,7 +36,7 @@ var installCmd = &cobra.Command{
 		if len(args) > 1 {
 			err = installViaSearch(strings.Join(args, " "), pack)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("Failed installing mod: %s\n", err)
 				os.Exit(1)
 			}
 			return
@@ -47,7 +47,7 @@ var installCmd = &cobra.Command{
 		if matches != nil && len(matches) == 3 {
 			err = installVersionById(matches[2], pack)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("Failed installing mod: %s\n", err)
 				os.Exit(1)
 			}
 			return
@@ -72,7 +72,7 @@ var installCmd = &cobra.Command{
 			//We found a mod with that id/slug
 			err = installMod(mod, pack)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("Failed installing mod: %s\n", err)
 				os.Exit(1)
 			}
 			return
@@ -82,7 +82,7 @@ var installCmd = &cobra.Command{
 			if !strings.Contains(args[0], "modrinth.com") {
 				err = installViaSearch(args[0], pack)
 				if err != nil {
-					fmt.Println(err)
+					fmt.Printf("Failed installing mod: %s\n", err)
 					os.Exit(1)
 				}
 			}
@@ -126,7 +126,7 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 	var files = version.Files
 
 	if len(files) == 0 {
-		return errors.New("Version doesn't have any files attached.")
+		return errors.New("version doesn't have any files attached")
 	}
 
 	var file = files[0]
@@ -151,12 +151,12 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 
 	side := mod.getSide()
 	if side == "" {
-		return errors.New("Version doesn't have a side that's supported. Server: " + mod.ServerSide + " Client: " + mod.ClientSide)
+		return errors.New("version doesn't have a side that's supported. Server: " + mod.ServerSide + " Client: " + mod.ClientSide)
 	}
 
 	algorithm, hash := file.getBestHash()
 	if algorithm == "" {
-		return errors.New("File doesn't have a hash.")
+		return errors.New("file doesn't have a hash")
 	}
 
 	modMeta := core.Mod{
