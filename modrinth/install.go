@@ -9,6 +9,7 @@ import (
 
 	"github.com/comp500/packwiz/core"
 	"github.com/spf13/cobra"
+	"gopkg.in/dixonwille/wmenu.v4"
 )
 
 var modSiteRegex = regexp.MustCompile("modrinth\\.com/mod/([^/]+)/?$")
@@ -96,19 +97,41 @@ func installViaSearch(query string, pack core.Pack) error {
 		return err
 	}
 
-	searchResult, err := getFirstModIdViaSearch(query, mcVersion)
+	results, err := getModIdsViaSearch(query, mcVersion)
 	if err != nil {
 		return err
 	}
 
-	modId := strings.TrimPrefix(searchResult.ModID, "local-")
+	//Create menu for the user to choose the correct mod
+    menu := wmenu.NewMenu("Choose a number:")
+    for i, v := range results {
+        menu.Option(v.Title, v, i == 0, nil)
+    }
+    menu.Option("Cancel", nil, false, nil)
 
-	mod, err := fetchMod(modId)
-	if err != nil {
-		return err
-	}
+    menu.Action(func(menuRes []wmenu.Opt) error {
+        if len(menuRes) != 1 || menuRes[0].Value == nil {
+            return errors.New("Cancelled!")
+        }
 
-	return installMod(mod, pack)
+        //Get the selected mod
+        selectedMod, ok := menuRes[0].Value.(ModResult)
+        if !ok {
+            return errors.New("error converting interface from wmenu")
+        }
+
+        //Install the selected mod
+        modId := strings.TrimPrefix(selectedMod.ModID, "local-")
+
+        mod, err := fetchMod(modId)
+        if err != nil {
+            return err
+        }
+
+        return installMod(mod, pack)
+    })
+
+    return menu.Run()
 }
 
 func installMod(mod Mod, pack core.Pack) error {

@@ -113,35 +113,37 @@ type VersionFile struct {
 	Filename string            //The name of the file
 }
 
-func getFirstModIdViaSearch(query string, version string) (ModResult, error) {
-	params := url.Values{}
-	params.Add("limit", "1")
-	params.Add("index", "relevance")
-	params.Add("facets", "[[\"versions:"+version+"\"]]")
-	params.Add("query", query)
+func getModIdsViaSearch(query string, version string) ([]ModResult,error) {
+    baseUrl, err := url.Parse(modrinthApiUrl)
+    baseUrl.Path += "mod"
 
-	resp, err := http.Get(modrinthApiUrl + "mod?" + params.Encode())
-	if err != nil {
-		return ModResult{}, err
-	}
+    params := url.Values{}
+    params.Add("limit", "5")
+    params.Add("index", "relevance")
+    params.Add("facets", "[[\"versions:"+version+"\"]]")
+    params.Add("query", query)
 
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return ModResult{}, err
-	}
+    baseUrl.RawQuery = params.Encode()
 
-	var result ModSearchResult
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return ModResult{}, err
-	}
+    resp, err := http.Get(baseUrl.String())
+    if err != nil {
+        return []ModResult{}, err
+    }
 
-	if result.TotalHits <= 0 {
-		return ModResult{}, errors.New("couldn't find that mod for this version")
-	}
+    defer resp.Body.Close()
+    body, err := ioutil.ReadAll(resp.Body)
+    if err != nil {
+        return []ModResult{}, err
+    }
 
-	return result.Hits[0], nil
+    var result ModSearchResult;
+    json.Unmarshal(body, &result)
+
+    if result.TotalHits <= 0 {
+        return []ModResult{}, errors.New("Couldn't find that mod for this version.")
+    }
+
+	return result.Hits, nil
 }
 
 func fetchMod(modId string) (Mod, error) {
