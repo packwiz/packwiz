@@ -9,8 +9,7 @@ import (
 
 type mrUpdateData struct {
 	ModID            string `mapstructure:"mod-id"`
-	Versions         int    `mapstructure:"versions"`
-	InstalledVersion string `mapstructure:"installed-version"`
+	InstalledVersion string `mapstructure:"version"`
 }
 
 func (u mrUpdateData) ToMap() (map[string]interface{}, error) {
@@ -28,7 +27,7 @@ func (u mrUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 }
 
 type cachedStateStore struct {
-	Mod     Mod
+	ModID string
 	Version Version
 }
 
@@ -49,38 +48,31 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 
 		data := rawData.(mrUpdateData)
 
-		fetchedMod, err := fetchMod(data.ModID)
+		newVersion, err := getLatestVersion(data.ModID, pack)
 		if err != nil {
 			results[i] = core.UpdateCheck{Error: err}
 			continue
 		}
 
-		if len(fetchedMod.Versions) == data.Versions {
-			//the amount of listed versions hasn't changed. There shouldn't be any update
+		if newVersion.ID == "" { //There is no version available for this minecraft version or loader.
+			results[i] = core.UpdateCheck{UpdateAvailable: false}
+        	continue
+		}
+
+		if newVersion.ID == data.InstalledVersion { //The latest version from the site is the same as the installed one
 			results[i] = core.UpdateCheck{UpdateAvailable: false}
 			continue
 		}
 
-		latestVersion, err := fetchedMod.fetchAndGetLatestVersion(pack)
-		if err != nil {
-			results[i] = core.UpdateCheck{Error: err}
-			continue
-		}
-
-		if latestVersion.ID == data.InstalledVersion {
-			results[i] = core.UpdateCheck{UpdateAvailable: false}
-			continue
-		}
-
-		if len(latestVersion.Files) == 0 {
+		if len(newVersion.Files) == 0 {
 			results[i] = core.UpdateCheck{Error: errors.New("new version doesn't have any files")}
 			continue
 		}
 
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,
-			UpdateString:    mod.FileName + " -> " + latestVersion.Files[0].Filename,
-			CachedState:     cachedStateStore{fetchedMod, latestVersion},
+			UpdateString:    mod.FileName + " -> " + newVersion.Files[0].Filename,
+			CachedState:     cachedStateStore{data.ModID, newVersion},
 		}
 	}
 
@@ -88,18 +80,24 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 }
 
 func (u mrUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
-	pack, err := core.LoadPack()
-	if err != nil {
-		return err
-	}
-
-	for i := range mods {
+	for i, mod := range mods {
 		modState := cachedState[i].(cachedStateStore)
+		var version = modState.Version
 
-		err := installVersion(modState.Mod, modState.Version, pack)
-		if err != nil {
-			return err
+		var file = version.Files[0]
+
+		algorithm, hash := file.getBestHash()
+		if algorithm == "" {
+			return errors.New("file for mod "+mod.Name+" doesn't have a hash")
 		}
+
+		mod.FileName = file.Filename
+		mod.Download = core.ModDownload {
+			URL:        file.Url,
+			HashFormat: algorithm,
+			Hash:       hash,
+		}
+		mod.Update["modrinth"]["version"] = version.ID
 	}
 
 	return nil

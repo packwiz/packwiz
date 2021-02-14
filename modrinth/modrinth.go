@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
 	"github.com/comp500/packwiz/cmd"
@@ -140,22 +139,121 @@ func getModIdsViaSearch(query string, version string) ([]ModResult,error) {
     json.Unmarshal(body, &result)
 
     if result.TotalHits <= 0 {
-        return []ModResult{}, errors.New("Couldn't find that mod for this version.")
+        return []ModResult{}, errors.New("Couldn't find that mod. Is it available for this version?")
     }
 
 	return result.Hits, nil
 }
 
-func fetchMod(modId string) (Mod, error) {
+
+
+func getLatestVersion(modID string, pack core.Pack) (Version, error) {
+	mcVersion, err := pack.GetMCVersion()
+	if err != nil {
+		return Version{}, err
+	}
+
+	loader := getLoader(pack)
+
+	baseUrl, err := url.Parse(modrinthApiUrl)
+	baseUrl.Path += "mod/"
+	baseUrl.Path += modID
+	baseUrl.Path += "/version"
+
+	params := url.Values{}
+	params.Add("game_versions", "[\""+mcVersion+"\"]")
+	if loader != "any" {
+		params.Add("loaders", "[\""+loader+"\"]")
+	}
+
+	baseUrl.RawQuery = params.Encode()
+
+	resp, err := http.Get(baseUrl.String())
+	if err != nil {
+		return Version{}, err
+	}
+
+	if resp.StatusCode == 404 {
+		return Version{}, errors.New("couldn't find mod: " + modID)
+	}
+
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return Version{}, err
+	}
+
+	var result []Version;
+	json.Unmarshal(body, &result)
+
+	var latestValidVersion Version
+	for _, v := range result {
+		var semverCompare = semver.Compare(v.VersionNumber, latestValidVersion.VersionNumber)
+		if semverCompare == 0 {
+			//Semver is equal, compare date instead
+			vDate, _ := time.Parse(time.RFC3339Nano, v.DatePublished)
+			latestDate, _ := time.Parse(time.RFC3339Nano, latestValidVersion.DatePublished)
+			if vDate.After(latestDate) {
+				latestValidVersion = v
+			}
+		} else if semverCompare == 1 {
+			latestValidVersion = v
+		}
+	}
+
+	return latestValidVersion, nil
+}
+
+// //The mod array will be in reverse order to the modId's array
+// func batchFetchMods(modIDs []string) ([]Mod, error) {
+// 	baseUrl, err := url.Parse(modrinthApiUrl)
+// 	baseUrl.Path += "mods"
+//
+// 	params := url.Values{}
+// 	formattedModIDs, err := json.Marshal(modIDs)
+// 	if err != nil {
+// 		return []Mod{}, err
+// 	}
+// 	params.Add("ids", string(formattedModIDs))
+// 	baseUrl.RawQuery = params.Encode()
+//
+// 	resp, err := http.Get(baseUrl.String())
+// 	if err != nil {
+// 		return []Mod{}, err
+// 	}
+//
+// 	defer resp.Body.Close()
+// 	body, err := ioutil.ReadAll(resp.Body)
+// 	if err != nil {
+// 		return []Mod{}, err
+// 	}
+//
+// 	var modMap map[int]Mod
+// 	err = json.Unmarshal(body, &modMap)
+// 	if err != nil {
+// 		return []Mod{}, err
+// 	}
+//
+// 	mods := make([]Mod, len(modMap))
+// 	var i = 0;
+// 	for _, mod := range modMap {
+// 		mods[i] = mod
+// 		i++
+// 	}
+//
+// 	return mods, nil
+// }
+
+func fetchMod(modID string) (Mod, error) {
 	var mod Mod
 
-	resp, err := http.Get(modrinthApiUrl + "mod/" + modId)
+	resp, err := http.Get(modrinthApiUrl + "mod/" + modID)
 	if err != nil {
 		return mod, err
 	}
 
 	if resp.StatusCode == 404 {
-		return mod, errors.New("couldn't find version: " + modId)
+		return mod, errors.New("couldn't find mod: " + modID)
 	}
 
 	defer resp.Body.Close()
@@ -170,7 +268,7 @@ func fetchMod(modId string) (Mod, error) {
 	}
 
 	if mod.ID == "" {
-		return mod, errors.New("invalid json whilst fetching mod: " + modId)
+		return mod, errors.New("invalid json whilst fetching mod: " + modID)
 	}
 
 	return mod, nil
@@ -206,51 +304,6 @@ func fetchVersion(versionId string) (Version, error) {
 	return version, nil
 }
 
-func (mod Mod) fetchAllVersions() ([]Version, error) {
-	ret := make([]Version, len(mod.Versions))
-
-	for i, v := range mod.Versions {
-		version, err := fetchVersion(v)
-		if err != nil {
-			return ret, err
-		}
-
-		ret[i] = version
-	}
-	return ret, nil
-}
-
-func (v Version) isValid(mcVersion string, dependencies map[string]string) bool {
-	return v.containsVersion(mcVersion) && v.containsAnyLoader(dependencies)
-}
-
-func (v Version) containsVersion(mcVersion string) bool {
-	for _, v := range v.GameVersions {
-		if strings.EqualFold(v, mcVersion) {
-			return true
-		}
-	}
-	return false
-}
-
-func (v Version) containsAnyLoader(dependencies map[string]string) bool {
-	for dependency := range dependencies {
-		if v.containsLoader(dependency) {
-			return true
-		}
-	}
-	return false
-}
-
-func (v Version) containsLoader(modLoader string) bool {
-	for _, v := range v.Loaders {
-		if strings.EqualFold(v, modLoader) {
-			return true
-		}
-	}
-	return false
-}
-
 func (mod Mod) getSide() string {
 	server := shouldDownloadOnSide(mod.ServerSide)
 	client := shouldDownloadOnSide(mod.ClientSide)
@@ -268,43 +321,6 @@ func (mod Mod) getSide() string {
 
 func shouldDownloadOnSide(side string) bool {
 	return side == "required" || side == "optional"
-}
-
-func (mod Mod) fetchAndGetLatestVersion(pack core.Pack) (Version, error) {
-	mcVersion, err := pack.GetMCVersion()
-	if err != nil {
-		return Version{}, err
-	}
-
-	dependencies := pack.Versions
-
-	versions, err := mod.fetchAllVersions()
-	if err != nil {
-		return Version{}, err
-	}
-
-	var latestValidVersion Version
-	for _, v := range versions {
-		if v.isValid(mcVersion, dependencies) {
-			var semverCompare = semver.Compare(v.VersionNumber, latestValidVersion.VersionNumber)
-			if semverCompare == 0 {
-				//Semver is equal, compare date instead
-				vDate, _ := time.Parse(time.RFC3339Nano, v.DatePublished)
-				latestDate, _ := time.Parse(time.RFC3339Nano, latestValidVersion.DatePublished)
-				if vDate.After(latestDate) {
-					latestValidVersion = v
-				}
-			} else if semverCompare == 1 {
-				latestValidVersion = v
-			}
-		}
-	}
-
-	if latestValidVersion.ID == "" {
-		return Version{}, errors.New("mod is not available for this minecraft version or mod loader")
-	}
-
-	return latestValidVersion, nil
 }
 
 func (v VersionFile) getBestHash() (string, string) {
@@ -329,4 +345,20 @@ func (v VersionFile) getBestHash() (string, string) {
 
 	//No hashes were present
 	return "", ""
+}
+
+func getLoader(pack core.Pack) string {
+	dependencies := pack.Versions
+
+	_, hasFabric := dependencies["fabric"]
+	_, hasForge := dependencies["forge"]
+	if hasFabric && hasForge {
+		return "any"
+	} else if hasFabric {
+		return "fabric"
+	} else if hasForge {
+		return "forge"
+	} else {
+		return "any"
+	}
 }

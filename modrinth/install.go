@@ -137,9 +137,12 @@ func installViaSearch(query string, pack core.Pack) error {
 func installMod(mod Mod, pack core.Pack) error {
 	fmt.Printf("Found mod %s: '%s'.\n", mod.Title, mod.Description)
 
-	latestVersion, err := mod.fetchAndGetLatestVersion(pack)
+	latestVersion, err := getLatestVersion(mod.ID, pack)
 	if err != nil {
 		return err
+	}
+	if latestVersion.ID == "" {
+		return errors.New("mod is not available for this minecraft version or mod loader")
 	}
 
 	return installVersion(mod, latestVersion, pack)
@@ -165,7 +168,6 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 
 	updateMap["modrinth"], err = mrUpdateData{
 		ModID:            mod.ID,
-		Versions:         len(mod.Versions),
 		InstalledVersion: version.ID,
 	}.ToMap()
 	if err != nil {
