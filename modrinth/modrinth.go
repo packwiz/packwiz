@@ -204,46 +204,6 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 	return latestValidVersion, nil
 }
 
-// //The mod array will be in reverse order to the modId's array
-// func batchFetchMods(modIDs []string) ([]Mod, error) {
-// 	baseUrl, err := url.Parse(modrinthApiUrl)
-// 	baseUrl.Path += "mods"
-//
-// 	params := url.Values{}
-// 	formattedModIDs, err := json.Marshal(modIDs)
-// 	if err != nil {
-// 		return []Mod{}, err
-// 	}
-// 	params.Add("ids", string(formattedModIDs))
-// 	baseUrl.RawQuery = params.Encode()
-//
-// 	resp, err := http.Get(baseUrl.String())
-// 	if err != nil {
-// 		return []Mod{}, err
-// 	}
-//
-// 	defer resp.Body.Close()
-// 	body, err := ioutil.ReadAll(resp.Body)
-// 	if err != nil {
-// 		return []Mod{}, err
-// 	}
-//
-// 	var modMap map[int]Mod
-// 	err = json.Unmarshal(body, &modMap)
-// 	if err != nil {
-// 		return []Mod{}, err
-// 	}
-//
-// 	mods := make([]Mod, len(modMap))
-// 	var i = 0;
-// 	for _, mod := range modMap {
-// 		mods[i] = mod
-// 		i++
-// 	}
-//
-// 	return mods, nil
-// }
-
 func fetchMod(modID string) (Mod, error) {
 	var mod Mod
 
