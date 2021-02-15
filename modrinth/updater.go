@@ -27,7 +27,7 @@ func (u mrUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 }
 
 type cachedStateStore struct {
-	ModID string
+	ModID   string
 	Version Version
 }
 
@@ -56,7 +56,7 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 
 		if newVersion.ID == "" { //There is no version available for this minecraft version or loader.
 			results[i] = core.UpdateCheck{UpdateAvailable: false}
-        	continue
+			continue
 		}
 
 		if newVersion.ID == data.InstalledVersion { //The latest version from the site is the same as the installed one
@@ -88,11 +88,11 @@ func (u mrUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 
 		algorithm, hash := file.getBestHash()
 		if algorithm == "" {
-			return errors.New("file for mod "+mod.Name+" doesn't have a hash")
+			return errors.New("file for mod " + mod.Name + " doesn't have a hash")
 		}
 
 		mod.FileName = file.Filename
-		mod.Download = core.ModDownload {
+		mod.Download = core.ModDownload{
 			URL:        file.Url,
 			HashFormat: algorithm,
 			Hash:       hash,

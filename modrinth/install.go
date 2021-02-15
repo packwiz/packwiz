@@ -103,35 +103,35 @@ func installViaSearch(query string, pack core.Pack) error {
 	}
 
 	//Create menu for the user to choose the correct mod
-    menu := wmenu.NewMenu("Choose a number:")
-    for i, v := range results {
-        menu.Option(v.Title, v, i == 0, nil)
-    }
-    menu.Option("Cancel", nil, false, nil)
+	menu := wmenu.NewMenu("Choose a number:")
+	for i, v := range results {
+		menu.Option(v.Title, v, i == 0, nil)
+	}
+	menu.Option("Cancel", nil, false, nil)
 
-    menu.Action(func(menuRes []wmenu.Opt) error {
-        if len(menuRes) != 1 || menuRes[0].Value == nil {
-            return errors.New("Cancelled!")
-        }
+	menu.Action(func(menuRes []wmenu.Opt) error {
+		if len(menuRes) != 1 || menuRes[0].Value == nil {
+			return errors.New("Cancelled!")
+		}
 
-        //Get the selected mod
-        selectedMod, ok := menuRes[0].Value.(ModResult)
-        if !ok {
-            return errors.New("error converting interface from wmenu")
-        }
+		//Get the selected mod
+		selectedMod, ok := menuRes[0].Value.(ModResult)
+		if !ok {
+			return errors.New("error converting interface from wmenu")
+		}
 
-        //Install the selected mod
-        modId := strings.TrimPrefix(selectedMod.ModID, "local-")
+		//Install the selected mod
+		modId := strings.TrimPrefix(selectedMod.ModID, "local-")
 
-        mod, err := fetchMod(modId)
-        if err != nil {
-            return err
-        }
+		mod, err := fetchMod(modId)
+		if err != nil {
+			return err
+		}
 
-        return installMod(mod, pack)
-    })
+		return installMod(mod, pack)
+	})
 
-    return menu.Run()
+	return menu.Run()
 }
 
 func installMod(mod Mod, pack core.Pack) error {

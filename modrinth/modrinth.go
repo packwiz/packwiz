@@ -112,40 +112,38 @@ type VersionFile struct {
 	Filename string            //The name of the file
 }
 
-func getModIdsViaSearch(query string, version string) ([]ModResult,error) {
-    baseUrl, err := url.Parse(modrinthApiUrl)
-    baseUrl.Path += "mod"
+func getModIdsViaSearch(query string, version string) ([]ModResult, error) {
+	baseUrl, err := url.Parse(modrinthApiUrl)
+	baseUrl.Path += "mod"
 
-    params := url.Values{}
-    params.Add("limit", "5")
-    params.Add("index", "relevance")
-    params.Add("facets", "[[\"versions:"+version+"\"]]")
-    params.Add("query", query)
+	params := url.Values{}
+	params.Add("limit", "5")
+	params.Add("index", "relevance")
+	params.Add("facets", "[[\"versions:"+version+"\"]]")
+	params.Add("query", query)
 
-    baseUrl.RawQuery = params.Encode()
+	baseUrl.RawQuery = params.Encode()
 
-    resp, err := http.Get(baseUrl.String())
-    if err != nil {
-        return []ModResult{}, err
-    }
+	resp, err := http.Get(baseUrl.String())
+	if err != nil {
+		return []ModResult{}, err
+	}
 
-    defer resp.Body.Close()
-    body, err := ioutil.ReadAll(resp.Body)
-    if err != nil {
-        return []ModResult{}, err
-    }
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return []ModResult{}, err
+	}
 
-    var result ModSearchResult;
-    json.Unmarshal(body, &result)
+	var result ModSearchResult
+	json.Unmarshal(body, &result)
 
-    if result.TotalHits <= 0 {
-        return []ModResult{}, errors.New("Couldn't find that mod. Is it available for this version?")
-    }
+	if result.TotalHits <= 0 {
+		return []ModResult{}, errors.New("Couldn't find that mod. Is it available for this version?")
+	}
 
 	return result.Hits, nil
 }
-
-
 
 func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 	mcVersion, err := pack.GetMCVersion()
@@ -183,7 +181,7 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 		return Version{}, err
 	}
 
-	var result []Version;
+	var result []Version
 	json.Unmarshal(body, &result)
 
 	var latestValidVersion Version
