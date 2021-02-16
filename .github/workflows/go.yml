@@ -1,13 +1,12 @@
 name: Go
 on: [push]
 jobs:
-
   build:
     name: Build
-    runs-on: {{ matrix.platform }}
     strategy:
       matrix:
         platform: [linux, windows, mac]
+    runs-on: {{ matrix.platform }}
     steps:
     - name: Set up Go 1.13
       uses: actions/setup-go@v1
