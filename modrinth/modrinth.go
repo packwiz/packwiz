@@ -16,6 +16,8 @@ import (
 
 const modrinthApiUrl = "https://api.modrinth.com/api/v1/"
 
+var modrinthApiUrlParsed, _ = url.Parse(modrinthApiUrl)
+
 var modrinthCmd = &cobra.Command{
 	Use:     "modrinth",
 	Aliases: []string{"mr"},
@@ -114,7 +116,7 @@ type VersionFile struct {
 }
 
 func getModIdsViaSearch(query string, version string) ([]ModResult, error) {
-	baseUrl, err := url.Parse(modrinthApiUrl)
+	baseUrl := *modrinthApiUrlParsed
 	baseUrl.Path += "mod"
 
 	params := url.Values{}
@@ -137,7 +139,10 @@ func getModIdsViaSearch(query string, version string) ([]ModResult, error) {
 	}
 
 	var result ModSearchResult
-	json.Unmarshal(body, &result)
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return []ModResult{}, err
+	}
 
 	if result.TotalHits <= 0 {
 		return []ModResult{}, errors.New("Couldn't find that mod. Is it available for this version?")
@@ -154,7 +159,7 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 
 	loader := getLoader(pack)
 
-	baseUrl, err := url.Parse(modrinthApiUrl)
+	baseUrl := modrinthApiUrlParsed
 	baseUrl.Path += "mod/"
 	baseUrl.Path += modID
 	baseUrl.Path += "/version"
@@ -183,7 +188,10 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 	}
 
 	var result []Version
-	json.Unmarshal(body, &result)
+	err = json.Unmarshal(body, &result)
+	if err != nil {
+		return Version{}, err
+	}
 
 	var latestValidVersion Version
 	for _, v := range result {
