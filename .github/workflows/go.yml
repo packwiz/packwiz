@@ -16,7 +16,7 @@ jobs:
          env:
             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
          with:
-            tag_name: auto-${{ steps.vars.outputs.sha_short }} 
+            tag_name: nightly-${{ steps.vars.outputs.sha_short }} 
             release_name: Packwiz - ${{ steps.vars.outputs.sha_short }} 
             body: |
               This is an automatic release. It may be unstable.
@@ -40,7 +40,7 @@ jobs:
       with:
         github_token: ${{ github.token }} 
         goos: ${{ matrix.goos }}
-        release_tag: auto-${{ steps.vars.outputs.sha_short }} 
+        release_tag: nightly-${{ steps.vars.outputs.sha_short }} 
         goarch: ${{ matrix.goarch }}
         goversion: "https://dl.google.com/go/go1.13.1.linux-amd64.tar.gz"
         project_path: "./"
