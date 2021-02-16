@@ -14,6 +14,18 @@ jobs:
     - name: Set outputs
       id: vars
       run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }} # This token is provided by Actions, you do not need to create your own token
+      with:
+          tag_name: auto-${{ steps.vars.outputs.sha_short }} 
+          release_name: Packwiz - ${{ steps.vars.outputs.sha_short }} 
+          body: |
+            This is an automatic release. It may be unstable.
+          draft: false
+          prerelease: true
     - uses: wangyoucao577/go-release-action@v1.14
       with:
         github_token: ${{ github.token }} 
