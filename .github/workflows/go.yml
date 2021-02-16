@@ -4,7 +4,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
     steps:
 
     - name: Set up Go 1.13
@@ -22,8 +22,5 @@ jobs:
 
     - name: Build
       run: go build -v .
-    - name: Upload a Build Artifact
-      uses: actions/upload-artifact@v2.2.2
-      with:
-          name: "Packwiz Binary"
-          path: "./packwiz.exe"
+    - name: Make binaries
+      uses: sosedoff/actions/golang-build@master
