@@ -110,6 +110,7 @@ type VersionFile struct {
 	Hashes   map[string]string //A map of hashes of the file. The key is the hashing algorithm and the value is the string version of the hash.
 	Url      string            //A direct link to the file
 	Filename string            //The name of the file
+	Primary  bool              // Is the file the primary file?
 }
 
 func getModIdsViaSearch(query string, version string) ([]ModResult, error) {

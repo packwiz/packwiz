@@ -155,7 +155,14 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 		return errors.New("version doesn't have any files attached")
 	}
 
+	// TODO: add some way to allow users to pick which file to install?
 	var file = files[0]
+	// Prefer the primary file
+	for _, v := range files {
+		if v.Primary {
+			file = v
+		}
+	}
 
 	//Install the file
 	fmt.Printf("Installing %s from version %s\n", file.Filename, version.VersionNumber)

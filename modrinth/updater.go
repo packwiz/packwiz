@@ -85,6 +85,12 @@ func (u mrUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 		var version = modState.Version
 
 		var file = version.Files[0]
+		// Prefer the primary file
+		for _, v := range version.Files {
+			if v.Primary {
+				file = v
+			}
+		}
 
 		algorithm, hash := file.getBestHash()
 		if algorithm == "" {
