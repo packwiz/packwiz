@@ -3,37 +3,24 @@ on: [push]
 jobs:
   build:
     name: Build
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        platform: [linux, windows, mac]
-    runs-on: ${{ matrix.platform }}
+        goos: [linux, windows, darwin]
+        goarch: ["386", amd64]
     steps:
-    - name: Set up Go 1.13
-      uses: actions/setup-go@v1
-      with:
-        go-version: 1.13
-      id: go
-
     - name: Check out code into the Go module directory
       uses: actions/checkout@v1
-    
     - name: Set outputs
       id: vars
       run: echo "::set-output name=sha_short::$(git rev-parse --short HEAD)"
-
-    - name: Get dependencies
-      run: |
-        go get -v -t -d ./...
-
-    - name: Build
-      id: build
-      uses: josephbmanley/build-godot-action@v1.4.0
+    - uses: wangyoucao577/go-release-action@v1.14
       with:
-          name: packwiz
-          preset: ${{ matrix.platform }}
-          projectDir: "./" 
-    - name: Upload Artifact
-      uses: actions/upload-artifact@v2
-      with:
-          name: Packwiz ${{ steps.vars.outputs.sha_short }} - ${{ matrix.platform }}
-          path: ${{ github.workspace }}/${{ steps.build.outputs.build }}
+        github_token: ${{ github.token }} 
+        goos: ${{ matrix.goos }}
+        release_tag: ${{ steps.vars.outputs.sha_short }} 
+        goarch: ${{ matrix.goarch }}
+        goversion: "https://dl.google.com/go/go1.13.1.linux-amd64.tar.gz"
+        project_path: "./"
+        binary_name: "packwiz"
+        extra_files: LICENSE README.md
