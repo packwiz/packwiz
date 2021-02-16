@@ -22,3 +22,5 @@ jobs:
 
     - name: Build
       run: go build -v .
+    - name: Make binaries
+      uses: sosedoff/actions/golang-build@master
