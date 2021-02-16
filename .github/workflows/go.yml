@@ -4,7 +4,7 @@ jobs:
 
   build:
     name: Build
-    runs-on: ubuntu-latest
+    runs-on: {{ matrix.platform }}
     strategy:
       matrix:
         platform: [linux, windows, mac]
@@ -30,9 +30,9 @@ jobs:
       id: build
       uses: josephbmanley/build-godot-action@v1.4.0
       with:
-          name: example
+          name: packwiz
           preset: ${{ matrix.platform }}
-          debugMode: "true"
+          projectDir: "./" 
     - name: Upload Artifact
       uses: actions/upload-artifact@v2
       with:
