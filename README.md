@@ -1,5 +1,5 @@
 # packwiz
-A command line tool for creating minecraft modpacks.
+A command line tool for creating minecraft modpacks. Join my Discord server if you need help [here](https://discord.gg/Csh8zbbhCt)!
 
 ## Features
 - Git-friendly TOML-based metadata format
