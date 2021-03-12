@@ -159,7 +159,7 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 
 	loader := getLoader(pack)
 
-	baseUrl := modrinthApiUrlParsed
+	baseUrl := *modrinthApiUrlParsed
 	baseUrl.Path += "mod/"
 	baseUrl.Path += modID
 	baseUrl.Path += "/version"
