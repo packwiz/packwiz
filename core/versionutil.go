@@ -13,6 +13,7 @@ type MavenMetadata struct {
 	ArtifactID string   `xml:"artifactId"`
 	Versioning struct {
 		Release  string `xml:"release"`
+		Latest   string `xml:"latest"`
 		Versions struct {
 			Version []string `xml:"version"`
 		} `xml:"versions"`
@@ -72,21 +73,6 @@ func FetchMavenVersionList(url string) func(mcVersion string) ([]string, string,
 	}
 }
 
-func FetchMavenVersionPrefixedListStrip(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
-	noStrip := FetchMavenVersionPrefixedList(url, friendlyName)
-	return func(mcVersion string) ([]string, string, error) {
-		versions, latestVersion, err := noStrip(mcVersion)
-		if err != nil {
-			return nil, "", err
-		}
-		for k, v := range versions {
-			versions[k] = strings.TrimPrefix(v, mcVersion+"-")
-		}
-		latestVersion = strings.TrimPrefix(latestVersion, mcVersion+"-")
-		return versions, latestVersion, nil
-	}
-}
-
 func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
 	return func(mcVersion string) ([]string, string, error) {
 		res, err := http.Get(url)
@@ -101,16 +87,53 @@ func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersi
 		}
 		allowedVersions := make([]string, 0, len(out.Versioning.Versions.Version))
 		for _, v := range out.Versioning.Versions.Version {
-			if strings.HasPrefix(v, mcVersion) {
+			if hasPrefixSplitDash(v, mcVersion) {
 				allowedVersions = append(allowedVersions, v)
 			}
 		}
 		if len(allowedVersions) == 0 {
 			return []string{}, "", errors.New("no " + friendlyName + " versions available for this Minecraft version")
 		}
-		if strings.HasPrefix(out.Versioning.Release, mcVersion) {
+		if hasPrefixSplitDash(out.Versioning.Release, mcVersion) {
 			return allowedVersions, out.Versioning.Release, nil
+		}
+		if hasPrefixSplitDash(out.Versioning.Latest, mcVersion) {
+			return allowedVersions, out.Versioning.Latest, nil
 		}
 		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
 	}
+}
+
+func FetchMavenVersionPrefixedListStrip(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
+	noStrip := FetchMavenVersionPrefixedList(url, friendlyName)
+	return func(mcVersion string) ([]string, string, error) {
+		versions, latestVersion, err := noStrip(mcVersion)
+		if err != nil {
+			return nil, "", err
+		}
+		for k, v := range versions {
+			versions[k] = removeMcVersion(v, mcVersion)
+		}
+		latestVersion = removeMcVersion(latestVersion, mcVersion)
+		return versions, latestVersion, nil
+	}
+}
+
+func removeMcVersion(str string, mcVersion string) string {
+	components := strings.Split(str, "-")
+	newComponents := make([]string, 0)
+	for _, v := range components {
+		if v != mcVersion {
+			newComponents = append(newComponents, v)
+		}
+	}
+	return strings.Join(newComponents, "-")
+}
+
+func hasPrefixSplitDash(str string, prefix string) bool {
+	components := strings.Split(str, "-")
+	if len(components) > 1 && components[0] == prefix {
+		return true
+	}
+	return false
 }
