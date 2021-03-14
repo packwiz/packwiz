@@ -38,7 +38,7 @@ var detectCmd = &cobra.Command{
 			if info.IsDir() {
 				return nil
 			}
-			if !strings.HasSuffix(path, ".jar") {
+			if !strings.HasSuffix(path, ".jar") && !strings.HasSuffix(path, ".litemod") {
 				// TODO: make this less bad
 				return nil
 			}
