@@ -5,12 +5,10 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"github.com/comp500/packwiz/curseforge/packinterop"
 	"github.com/spf13/viper"
 	"os"
 	"path/filepath"
-	"strconv"
-
-	"github.com/comp500/packwiz/curseforge/packinterop"
 
 	"github.com/comp500/packwiz/core"
 	"github.com/spf13/cobra"
@@ -310,8 +308,16 @@ func createModlist(zw *zip.Writer, mods []core.Mod) error {
 			continue
 		}
 		project := projectRaw.(cfUpdateData)
-		projIDString := strconv.Itoa(project.ProjectID)
-		_, err = w.WriteString("<li><a href=\"https://minecraft.curseforge.com/mc-mods/" + projIDString + "\">" + mod.Name + "</a></li>\r\n")
+		// TODO: store this in the metadata
+		modInfo, err := getModInfo(project.ProjectID)
+		if err != nil {
+			_, err = w.WriteString("<li>" + mod.Name + "</li>\r\n")
+			if err != nil {
+				return err
+			}
+			continue
+		}
+		_, err = w.WriteString("<li><a href=\"" + modInfo.WebsiteURL + "\">" + mod.Name + "</a></li>\r\n")
 		if err != nil {
 			return err
 		}

@@ -118,6 +118,7 @@ const (
 type modInfo struct {
 	Name                   string        `json:"name"`
 	Slug                   string        `json:"slug"`
+	WebsiteURL             string        `json:"websiteUrl"`
 	ID                     int           `json:"id"`
 	LatestFiles            []modFileInfo `json:"latestFiles"`
 	GameVersionLatestFiles []struct {
