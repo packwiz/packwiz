@@ -35,6 +35,9 @@ var detectCmd = &cobra.Command{
 		var hashes []int
 		modPaths := make(map[int]string)
 		err = filepath.Walk("mods", func(path string, info os.FileInfo, err error) error {
+			if err != nil {
+				return err
+			}
 			if info.IsDir() {
 				return nil
 			}
