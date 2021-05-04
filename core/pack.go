@@ -20,7 +20,7 @@ type Pack struct {
 		// Path is stored in forward slash format relative to pack.toml
 		File       string `toml:"file"`
 		HashFormat string `toml:"hash-format"`
-		Hash       string `toml:"hash"`
+		Hash       string `toml:"hash,omitempty"`
 	} `toml:"index"`
 	Versions map[string]string                 `toml:"versions"`
 	Client   map[string]toml.Primitive         `toml:"client"`
@@ -61,6 +61,12 @@ func (pack Pack) LoadIndex() (Index, error) {
 
 // UpdateIndexHash recalculates the hash of the index file of this modpack
 func (pack *Pack) UpdateIndexHash() error {
+	if viper.GetBool("no-internal-hashes") {
+		pack.Index.HashFormat = "sha256"
+		pack.Index.Hash = ""
+		return nil
+	}
+
 	fileNative := filepath.FromSlash(pack.Index.File)
 	indexFile := filepath.Join(filepath.Dir(viper.GetString("pack-file")), fileNative)
 	if filepath.IsAbs(pack.Index.File) {

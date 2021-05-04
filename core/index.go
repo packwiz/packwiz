@@ -28,7 +28,7 @@ type Index struct {
 type IndexFile struct {
 	// Files are stored in forward-slash format relative to the index file
 	File           string `toml:"file"`
-	Hash           string `toml:"hash"`
+	Hash           string `toml:"hash,omitempty"`
 	HashFormat     string `toml:"hash-format,omitempty"`
 	Alias          string `toml:"alias,omitempty"`
 	MetaFile       bool   `toml:"metafile,omitempty"` // True when it is a .toml metadata file
@@ -121,28 +121,33 @@ func (in *Index) updateFileHashGiven(path, format, hash string, mod bool) error 
 
 // updateFile calculates the hash for a given path and updates it in the index
 func (in *Index) updateFile(path string) error {
-	f, err := os.Open(path)
-	if err != nil {
-		return err
-	}
+	var hashString string
+	if viper.GetBool("no-internal-hashes") {
+		hashString = ""
+	} else {
+		f, err := os.Open(path)
+		if err != nil {
+			return err
+		}
 
-	// Hash usage strategy (may change):
-	// Just use SHA256, overwrite existing hash regardless of what it is
-	// May update later to continue using the same hash that was already being used
-	h, err := GetHashImpl("sha256")
-	if err != nil {
-		_ = f.Close()
-		return err
+		// Hash usage strategy (may change):
+		// Just use SHA256, overwrite existing hash regardless of what it is
+		// May update later to continue using the same hash that was already being used
+		h, err := GetHashImpl("sha256")
+		if err != nil {
+			_ = f.Close()
+			return err
+		}
+		if _, err := io.Copy(h, f); err != nil {
+			_ = f.Close()
+			return err
+		}
+		err = f.Close()
+		if err != nil {
+			return err
+		}
+		hashString = hex.EncodeToString(h.Sum(nil))
 	}
-	if _, err := io.Copy(h, f); err != nil {
-		_ = f.Close()
-		return err
-	}
-	err = f.Close()
-	if err != nil {
-		return err
-	}
-	hashString := hex.EncodeToString(h.Sum(nil))
 
 	mod := false
 	// If the file has an extension of toml and is in the mods folder, set mod to true
@@ -290,6 +295,9 @@ func (in Index) Write() error {
 
 // RefreshFileWithHash updates a file in the index, given a file hash and whether it is a mod or not
 func (in *Index) RefreshFileWithHash(path, format, hash string, mod bool) error {
+	if viper.GetBool("no-internal-hashes") {
+		hash = ""
+	}
 	err := in.updateFileHashGiven(path, format, hash, mod)
 	if err != nil {
 		return err
@@ -351,7 +359,7 @@ func (in Index) SaveFile(f IndexFile, dest io.Writer) error {
 	}
 
 	calculatedHash := hex.EncodeToString(h.Sum(nil))
-	if calculatedHash != f.Hash {
+	if calculatedHash != f.Hash && !viper.GetBool("no-internal-hashes") {
 		return errors.New("hash of saved file is invalid")
 	}
 

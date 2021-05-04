@@ -157,7 +157,7 @@ var initCmd = &cobra.Command{
 			Index: struct {
 				File       string `toml:"file"`
 				HashFormat string `toml:"hash-format"`
-				Hash       string `toml:"hash"`
+				Hash       string `toml:"hash,omitempty"`
 			}{
 				File: indexFilePath,
 			},
