@@ -73,3 +73,8 @@ For use on servers, add the `-g` flag to disable the GUI and `-s server` to down
     - `packwiz cf install Sodium` (by search)
     - `packwiz cf install --addon-id 394468 --file-id 3067101` (if all else fails)
 - If files aren't being found, try running the `packwiz refresh` command to update the index!
+
+## Options
+- Additional options can be configured in the `[options]` section of `pack.toml`, as follows:
+    - `mods-folder` The folder to save mod metadata files into, for the install commands
+    - `acceptable-game-versions` A list of additional Minecraft versions to accept when installing or updating mods

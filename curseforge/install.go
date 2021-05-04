@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/sahilm/fuzzy"
+	"github.com/spf13/viper"
 	"os"
 	"strings"
 
@@ -268,7 +269,13 @@ func (r modResultsList) Len() int {
 func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 	fmt.Println("Searching CurseForge...")
 	searchTerm := strings.Join(args, " ")
-	results, err := getSearch(searchTerm, getCurseforgeVersion(mcVersion))
+
+	// If there are more than one acceptable version, we shouldn't filter by game version at all (as we can't filter by multiple)
+	filterGameVersion := getCurseforgeVersion(mcVersion)
+	if len(viper.GetStringSlice("acceptable-game-versions")) > 0 {
+		filterGameVersion = ""
+	}
+	results, err := getSearch(searchTerm, filterGameVersion)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -343,7 +350,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 
 		for _, v := range modInfoData.LatestFiles {
 			// Choose "newest" version by largest ID
-			if sliceContainsString(v.GameVersions, getCurseforgeVersion(mcVersion)) && v.ID > fileID {
+			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID {
 				fileID = v.ID
 				fileInfoData = v
 				fileInfoObtained = true
@@ -352,7 +359,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 		// TODO: change to timestamp-based comparison??
 		for _, v := range modInfoData.GameVersionLatestFiles {
 			// Choose "newest" version by largest ID
-			if v.GameVersion == getCurseforgeVersion(mcVersion) && v.ID > fileID {
+			if matchGameVersion(mcVersion, v.GameVersion) && v.ID > fileID {
 				fileID = v.ID
 				fileInfoObtained = false // Make sure we get the file info
 			}
@@ -363,7 +370,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 	}
 
 	if fileID == 0 {
-		return modFileInfo{}, errors.New("mod not available for this minecraft version")
+		return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-remote-versions option to accept more)")
 	}
 
 	fileInfoData, err := getFileInfo(modInfoData.ID, fileID)

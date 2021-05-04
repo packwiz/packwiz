@@ -3,6 +3,7 @@ package modrinth
 import (
 	"encoding/json"
 	"errors"
+	"github.com/spf13/viper"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -115,14 +116,22 @@ type VersionFile struct {
 	Primary  bool              // Is the file the primary file?
 }
 
-func getModIdsViaSearch(query string, version string) ([]ModResult, error) {
+func getModIdsViaSearch(query string, versions []string) ([]ModResult, error) {
 	baseUrl := *modrinthApiUrlParsed
 	baseUrl.Path += "mod"
 
 	params := url.Values{}
 	params.Add("limit", "5")
 	params.Add("index", "relevance")
-	params.Add("facets", "[[\"versions:"+version+"\"]]")
+	facets := make([]string, 0)
+	for _, v := range versions {
+		facets = append(facets, "\"versions:"+v+"\"")
+	}
+	facetsEncoded, err := json.Marshal(facets)
+	if err != nil {
+		return []ModResult{}, err
+	}
+	params.Add("facets", "["+string(facetsEncoded)+"]")
 	params.Add("query", query)
 
 	baseUrl.RawQuery = params.Encode()
@@ -156,6 +165,11 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 	if err != nil {
 		return Version{}, err
 	}
+	gameVersions := append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...)
+	gameVersionsEncoded, err := json.Marshal(gameVersions)
+	if err != nil {
+		return Version{}, err
+	}
 
 	loader := getLoader(pack)
 
@@ -165,7 +179,7 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 	baseUrl.Path += "/version"
 
 	params := url.Values{}
-	params.Add("game_versions", "[\""+mcVersion+"\"]")
+	params.Add("game_versions", string(gameVersionsEncoded))
 	if loader != "any" {
 		params.Add("loaders", "[\""+loader+"\"]")
 	}

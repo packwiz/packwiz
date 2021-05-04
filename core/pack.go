@@ -26,6 +26,7 @@ type Pack struct {
 	Client   map[string]toml.Primitive         `toml:"client"`
 	Server   map[string]toml.Primitive         `toml:"server"`
 	Export   map[string]map[string]interface{} `toml:"export"`
+	Options  map[string]interface{}            `toml:"options"`
 }
 
 // LoadPack loads the modpack metadata to a Pack struct
@@ -33,6 +34,14 @@ func LoadPack() (Pack, error) {
 	var modpack Pack
 	if _, err := toml.DecodeFile(viper.GetString("pack-file"), &modpack); err != nil {
 		return Pack{}, err
+	}
+
+	// Read options into viper
+	if modpack.Options != nil {
+		err := viper.MergeConfigMap(modpack.Options)
+		if err != nil {
+			return Pack{}, err
+		}
 	}
 
 	if len(modpack.Index.File) == 0 {

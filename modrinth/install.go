@@ -3,6 +3,7 @@ package modrinth
 import (
 	"errors"
 	"fmt"
+	"github.com/spf13/viper"
 	"os"
 	"regexp"
 	"strings"
@@ -97,7 +98,7 @@ func installViaSearch(query string, pack core.Pack) error {
 		return err
 	}
 
-	results, err := getModIdsViaSearch(query, mcVersion)
+	results, err := getModIdsViaSearch(query, append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...))
 	if err != nil {
 		return err
 	}
@@ -142,7 +143,7 @@ func installMod(mod Mod, pack core.Pack) error {
 		return err
 	}
 	if latestVersion.ID == "" {
-		return errors.New("mod is not available for this minecraft version or mod loader")
+		return errors.New("mod is not available for this Minecraft version (use the acceptable-remote-versions option to accept more) or mod loader")
 	}
 
 	return installVersion(mod, latestVersion, pack)

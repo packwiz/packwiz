@@ -2,6 +2,7 @@ package curseforge
 
 import (
 	"errors"
+	"github.com/spf13/viper"
 	"regexp"
 	"strconv"
 	"strings"
@@ -199,6 +200,34 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) err
 	return index.RefreshFileWithHash(path, format, hash, true)
 }
 
+func matchGameVersion(mcVersion string, modMcVersion string) bool {
+	if getCurseforgeVersion(mcVersion) == modMcVersion {
+		return true
+	} else {
+		for _, v := range viper.GetStringSlice("acceptable-game-versions") {
+			if getCurseforgeVersion(v) == modMcVersion {
+				return true
+			}
+		}
+		return false
+	}
+}
+
+func matchGameVersions(mcVersion string, modMcVersions []string) bool {
+	for _, modMcVersion := range modMcVersions {
+		if getCurseforgeVersion(mcVersion) == modMcVersion {
+			return true
+		} else {
+			for _, v := range viper.GetStringSlice("acceptable-game-versions") {
+				if getCurseforgeVersion(v) == modMcVersion {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
 type cfUpdateData struct {
 	ProjectID      int    `mapstructure:"project-id"`
 	FileID         int    `mapstructure:"file-id"`
@@ -271,7 +300,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 		// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
 		for _, v := range modInfos[i].LatestFiles {
 			// Choose "newest" version by largest ID
-			if sliceContainsString(v.GameVersions, getCurseforgeVersion(mcVersion)) && v.ID > fileID {
+			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID {
 				updateAvailable = true
 				fileID = v.ID
 				fileInfoData = v
@@ -284,7 +313,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 			// TODO: change to timestamp-based comparison??
 			// TODO: manage alpha/beta/release correctly, check update channel?
 			// Choose "newest" version by largest ID
-			if file.GameVersion == getCurseforgeVersion(mcVersion) && file.ID > fileID {
+			if matchGameVersion(mcVersion, file.GameVersion) && file.ID > fileID {
 				updateAvailable = true
 				fileID = file.ID
 				fileName = file.Name
