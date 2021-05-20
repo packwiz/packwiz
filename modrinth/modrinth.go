@@ -125,7 +125,7 @@ func getModIdsViaSearch(query string, versions []string) ([]ModResult, error) {
 	params.Add("index", "relevance")
 	facets := make([]string, 0)
 	for _, v := range versions {
-		facets = append(facets, "\"versions:"+v+"\"")
+		facets = append(facets, "versions:"+v)
 	}
 	facetsEncoded, err := json.Marshal(facets)
 	if err != nil {
