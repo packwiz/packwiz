@@ -22,6 +22,7 @@ var markdownCmd = &cobra.Command{
 			fmt.Printf("Error creating directory: %s\n", err)
 			os.Exit(1)
 		}
+		cmd.DisableAutoGenTag = true
 		err = doc.GenMarkdownTree(cmd.Root(), outDir)
 		if err != nil {
 			fmt.Printf("Error generating markdown: %s\n", err)
