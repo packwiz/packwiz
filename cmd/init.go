@@ -83,9 +83,9 @@ var initCmd = &cobra.Command{
 		}
 		mcVersions.checkValid(mcVersion)
 
-		modLoaderName := viper.GetString("init.modloader")
+		modLoaderName := strings.ToLower(viper.GetString("init.modloader"))
 		if len(modLoaderName) == 0 {
-			modLoaderName = initReadValue("Mod loader [fabric]: ", "fabric")
+			modLoaderName = strings.ToLower(initReadValue("Mod loader [fabric]: ", "fabric"))
 		}
 		_, ok := core.ModLoaders[modLoaderName]
 		if modLoaderName != "none" && !ok {
