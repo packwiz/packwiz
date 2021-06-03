@@ -292,6 +292,7 @@ func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 
 		menu := wmenu.NewMenu("Choose a number:")
 
+		menu.Option("Cancel", nil, false, nil)
 		if len(fuzzySearchResults) == 0 {
 			for i, v := range results {
 				menu.Option(v.Name, v, i == 0, nil)
@@ -301,7 +302,6 @@ func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 				menu.Option(results[v.Index].Name, results[v.Index], i == 0, nil)
 			}
 		}
-		menu.Option("Cancel", nil, false, nil)
 
 		var modInfoData modInfo
 		var cancelled bool

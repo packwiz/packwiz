@@ -105,10 +105,10 @@ func installViaSearch(query string, pack core.Pack) error {
 
 	//Create menu for the user to choose the correct mod
 	menu := wmenu.NewMenu("Choose a number:")
+	menu.Option("Cancel", nil, false, nil)
 	for i, v := range results {
 		menu.Option(v.Title, v, i == 0, nil)
 	}
-	menu.Option("Cancel", nil, false, nil)
 
 	menu.Action(func(menuRes []wmenu.Opt) error {
 		if len(menuRes) != 1 || menuRes[0].Value == nil {
