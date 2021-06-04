@@ -153,7 +153,8 @@ func (in *Index) updateFile(path string) error {
 	// If the file has an extension of toml and is in the mods folder, set mod to true
 	absFileDir, err := filepath.Abs(filepath.Dir(path))
 	if err == nil {
-		absModsDir, err := filepath.Abs(viper.GetString("mods-folder"))
+		modsDir := filepath.Join(in.GetPackRoot(), viper.GetString("mods-folder"))
+		absModsDir, err := filepath.Abs(modsDir)
 		if err == nil {
 			if absFileDir == absModsDir && strings.HasSuffix(filepath.Base(path), ".toml") {
 				mod = true
@@ -162,6 +163,14 @@ func (in *Index) updateFile(path string) error {
 	}
 
 	return in.updateFileHashGiven(path, "sha256", hashString, mod)
+}
+
+func (in Index) GetPackRoot() string {
+	packRoot := viper.GetString("pack-root")
+	if len(packRoot) == 0 {
+		packRoot = filepath.Dir(in.indexFile)
+	}
+	return packRoot
 }
 
 // Refresh updates the hashes of all the files in the index, and adds new files to the index
@@ -173,8 +182,7 @@ func (in *Index) Refresh() error {
 	pathPF, _ := filepath.Abs(viper.GetString("pack-file"))
 	pathIndex, _ := filepath.Abs(in.indexFile)
 
-	// TODO: A method of specifying pack root directory?
-	packRoot := filepath.Dir(viper.GetString("pack-file"))
+	packRoot := in.GetPackRoot()
 	ignoreExists := true
 	pathIgnore, _ := filepath.Abs(filepath.Join(packRoot, ".packwizignore"))
 	ignore, err := gitignore.NewFromFile(filepath.Join(packRoot, ".packwizignore"))

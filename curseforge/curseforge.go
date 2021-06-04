@@ -187,7 +187,7 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) err
 		},
 		Update: updateMap,
 	}
-	path := modMeta.SetMetaName(modInfo.Slug)
+	path := modMeta.SetMetaName(modInfo.Slug, *index)
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?

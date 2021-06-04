@@ -205,9 +205,9 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 	}
 	var path string
 	if mod.Slug != "" {
-		path = modMeta.SetMetaName(mod.Slug)
+		path = modMeta.SetMetaName(mod.Slug, index)
 	} else {
-		path = modMeta.SetMetaName(mod.Title)
+		path = modMeta.SetMetaName(mod.Title, index)
 	}
 
 	// If the file already exists, this will overwrite it!!!
