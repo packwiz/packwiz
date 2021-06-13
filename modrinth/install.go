@@ -143,7 +143,7 @@ func installMod(mod Mod, pack core.Pack) error {
 		return err
 	}
 	if latestVersion.ID == "" {
-		return errors.New("mod is not available for this Minecraft version (use the acceptable-remote-versions option to accept more) or mod loader")
+		return errors.New("mod is not available for this Minecraft version (use the acceptable-game-versions option to accept more) or mod loader")
 	}
 
 	return installVersion(mod, latestVersion, pack)

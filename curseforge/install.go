@@ -370,7 +370,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 	}
 
 	if fileID == 0 {
-		return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-remote-versions option to accept more)")
+		return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-game-versions option to accept more)")
 	}
 
 	fileInfoData, err := getFileInfo(modInfoData.ID, fileID)
