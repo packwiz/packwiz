@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -40,17 +41,25 @@ var serveCmd = &cobra.Command{
 				os.Exit(1)
 			}
 			indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
+			indexDir := filepath.Dir(indexPath)
 
 			http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-				path := strings.TrimPrefix(req.URL.Path, "/")
+				urlPath := strings.TrimPrefix(path.Clean("/"+strings.TrimPrefix(req.URL.Path, "/")), "/")
+				indexRelPath, err := filepath.Rel(indexDir, filepath.FromSlash(urlPath))
+				if err != nil {
+					fmt.Println(err)
+					return
+				}
+				indexRelPathSlash := path.Clean(filepath.ToSlash(indexRelPath))
+				var destPath string
 
 				found := false
-				if path == pack.Index.File {
+				if urlPath == filepath.ToSlash(indexPath) {
 					found = true
-					path = indexPath
+					destPath = indexPath
 					// Must be done here, to ensure all paths gain the lock at some point
 					refreshMutex.RLock()
-				} else if path == filepath.ToSlash(viper.GetString("pack-file")) {
+				} else if urlPath == filepath.ToSlash(viper.GetString("pack-file")) {
 					found = true
 					if viper.GetBool("serve.refresh") {
 						// Get write lock, to do a refresh
@@ -92,24 +101,25 @@ var serveCmd = &cobra.Command{
 						refreshMutex.Unlock()
 					}
 					refreshMutex.RLock()
+					destPath = viper.GetString("pack-file")
 				} else {
 					refreshMutex.RLock()
 					// Only allow indexed files
 					for _, v := range index.Files {
-						if path == v.File {
+						if indexRelPathSlash == v.File {
 							found = true
 							break
 						}
 					}
 					if found {
-						path = filepath.Join(filepath.Dir(indexPath), filepath.FromSlash(path))
+						destPath = filepath.FromSlash(urlPath)
 					}
 				}
 				defer refreshMutex.RUnlock()
 				if found {
-					f, err := os.Open(path)
+					f, err := os.Open(destPath)
 					if err != nil {
-						fmt.Printf("Error reading file \"%s\": %s\n", path, err)
+						fmt.Printf("Error reading file \"%s\": %s\n", destPath, err)
 						w.WriteHeader(404)
 						_, _ = w.Write([]byte("File not found"))
 						return
@@ -120,13 +130,13 @@ var serveCmd = &cobra.Command{
 						err = err2
 					}
 					if err != nil {
-						fmt.Printf("Error reading file \"%s\": %s\n", path, err)
+						fmt.Printf("Error reading file \"%s\": %s\n", destPath, err)
 						w.WriteHeader(500)
 						_, _ = w.Write([]byte("Failed to read file"))
 						return
 					}
 				} else {
-					fmt.Printf("File not found: %s\n", path)
+					fmt.Printf("File not found: %s\n", destPath)
 					w.WriteHeader(404)
 					_, _ = w.Write([]byte("File not found"))
 					return

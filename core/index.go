@@ -166,11 +166,7 @@ func (in *Index) updateFile(path string) error {
 }
 
 func (in Index) GetPackRoot() string {
-	packRoot := viper.GetString("pack-root")
-	if len(packRoot) == 0 {
-		packRoot = filepath.Dir(in.indexFile)
-	}
-	return packRoot
+	return filepath.Dir(in.indexFile)
 }
 
 // Refresh updates the hashes of all the files in the index, and adds new files to the index

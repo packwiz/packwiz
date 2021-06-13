@@ -80,4 +80,3 @@ For use on servers, add the `-g` flag to disable the GUI and `-s server` to down
     - `acceptable-game-versions` A list of additional Minecraft versions to accept when installing or updating mods
     - `no-internal-hashes` If this is set to true, packwiz will not generate hashes of local files, to prevent merge conflicts and inconsistent hashes when using git/etc.
         - `packwiz refresh --build` can be used in this mode to generate internal hashes for distributing the pack with packwiz-installer
-    - `pack-root` A custom directory, containing the modpack files and optional .packwizignore file (defaults to the index file location)
