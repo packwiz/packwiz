@@ -3,7 +3,6 @@ package curseforge
 import (
 	"archive/zip"
 	"bufio"
-	"encoding/json"
 	"fmt"
 	"github.com/comp500/packwiz/curseforge/packinterop"
 	"github.com/spf13/viper"
@@ -104,8 +103,6 @@ var exportCmd = &cobra.Command{
 		}
 
 		cfFileRefs := make([]packinterop.AddonFileReference, 0, len(mods))
-		jumploaderIncluded := false
-		jumploaderProjectID := 361988
 		for _, mod := range mods {
 			projectRaw, ok := mod.GetParsedUpdateData("curseforge")
 			// If the mod has curseforge metadata, add it to cfFileRefs
@@ -117,9 +114,6 @@ var exportCmd = &cobra.Command{
 					FileID:           p.FileID,
 					OptionalDisabled: mod.Option != nil && mod.Option.Optional && !mod.Option.Default,
 				})
-				if p.ProjectID == jumploaderProjectID {
-					jumploaderIncluded = true
-				}
 			} else {
 				// If the mod doesn't have the metadata, save it into the zip
 				path, err := filepath.Rel(filepath.Dir(indexPath), mod.GetDestFilePath())
@@ -143,82 +137,6 @@ var exportCmd = &cobra.Command{
 			}
 		}
 
-		fabricVersion, usingFabric := pack.Versions["fabric"]
-		dataUpdated := false
-
-		if usingFabric {
-			if len(fabricVersion) == 0 {
-				fmt.Println("Invalid version of Fabric found!")
-				os.Exit(1)
-			}
-
-			if len(exportData.JumploaderForgeVersion) == 0 {
-				dataUpdated = true
-
-				// TODO: this code is horrible, I hate it
-				_, latest, err := core.ModLoaders["forge"][0].VersionListGetter(pack.Versions["minecraft"])
-				if err != nil {
-					fmt.Printf("Failed to get the latest Forge version: %s\n", err)
-					os.Exit(1)
-				}
-				exportData.JumploaderForgeVersion = latest
-			}
-		}
-
-		if !jumploaderIncluded && usingFabric && !exportData.DisableJumploader {
-			fmt.Println("Fabric isn't natively supported by CurseForge, adding Jumploader...")
-
-			if exportData.JumploaderFileID == 0 {
-				dataUpdated = true
-				modInfoData, err := getModInfo(jumploaderProjectID)
-				if err != nil {
-					fmt.Printf("Failed to fetch Jumploader latest file: %s\n", err)
-					os.Exit(1)
-				}
-				var fileID int
-				for _, v := range modInfoData.LatestFiles {
-					// Choose "newest" version by largest ID
-					if v.ID > fileID {
-						fileID = v.ID
-					}
-				}
-				if fileID == 0 {
-					fmt.Printf("Failed to fetch Jumploader latest file: no file found")
-					os.Exit(1)
-				}
-				exportData.JumploaderFileID = fileID
-			}
-
-			cfFileRefs = append(cfFileRefs, packinterop.AddonFileReference{
-				ProjectID:        jumploaderProjectID,
-				FileID:           exportData.JumploaderFileID,
-				OptionalDisabled: false,
-			})
-
-			err = createJumploaderConfig(exp, fabricVersion)
-			if err != nil {
-				fmt.Printf("Error creating Jumploader config file: %s\n", err.Error())
-				os.Exit(1)
-			}
-		}
-
-		if dataUpdated {
-			newMap, err := exportData.ToMap()
-			if err != nil {
-				fmt.Printf("Failed to update metadata: %s\n", err)
-				os.Exit(1)
-			}
-			if pack.Export == nil {
-				pack.Export = make(map[string]map[string]interface{})
-			}
-			pack.Export["curseforge"] = newMap
-			err = pack.Write()
-			if err != nil {
-				fmt.Println(err)
-				return
-			}
-		}
-
 		manifestFile, err := exp.Create("manifest.json")
 		if err != nil {
 			_ = exp.Close()
@@ -227,7 +145,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		err = packinterop.WriteManifestFromPack(pack, cfFileRefs, exportData.ProjectID, exportData.JumploaderForgeVersion, manifestFile)
+		err = packinterop.WriteManifestFromPack(pack, cfFileRefs, exportData.ProjectID, manifestFile)
 		if err != nil {
 			_ = exp.Close()
 			_ = expFile.Close()
@@ -319,39 +237,6 @@ func createModlist(zw *zip.Writer, mods []core.Mod) error {
 		return err
 	}
 	return w.Flush()
-}
-
-type jumploaderConfig struct {
-	ConfigVersion          int         `json:"configVersion"`
-	Sources                []string    `json:"sources"`
-	GameVersion            string      `json:"gameVersion"`
-	GameSide               string      `json:"gameSide"`
-	DisableUI              bool        `json:"disableUI"`
-	LoadJarsFromFolder     interface{} `json:"loadJarsFromFolder"`
-	OverrideMainClass      interface{} `json:"overrideMainClass"`
-	PinFabricLoaderVersion string      `json:"pinFabricLoaderVersion"`
-}
-
-func createJumploaderConfig(zw *zip.Writer, loaderVersion string) error {
-	jumploaderConfigFile, err := zw.Create("overrides/config/jumploader.json")
-	if err != nil {
-		return err
-	}
-
-	j := jumploaderConfig{
-		ConfigVersion:          2,
-		Sources:                []string{"minecraft", "fabric"},
-		GameVersion:            "current",
-		GameSide:               "current",
-		DisableUI:              false,
-		LoadJarsFromFolder:     nil,
-		OverrideMainClass:      nil,
-		PinFabricLoaderVersion: loaderVersion,
-	}
-
-	w := json.NewEncoder(jumploaderConfigFile)
-	w.SetIndent("", "  ") // Match CF export
-	return w.Encode(j)
 }
 
 func loadMods(index core.Index) []core.Mod {

@@ -261,13 +261,8 @@ var importCmd = &cobra.Command{
 					successes++
 					continue
 				}
-				if v.Name() == "minecraftinstance.json" {
-					fmt.Println("Ignored file \"minecraftinstance.json\"")
-					successes++
-					continue
-				}
-				if v.Name() == "manifest.json" {
-					fmt.Println("Ignored file \"manifest.json\"")
+				if v.Name() == "manifest.json" || v.Name() == "minecraftinstance.json" || v.Name() == ".curseclient" {
+					fmt.Printf("Ignored file \"%s\"\n", v.Name())
 					successes++
 					continue
 				}

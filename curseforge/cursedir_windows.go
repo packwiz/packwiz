@@ -9,7 +9,7 @@ import (
 )
 
 func getCurseDir() (string, error) {
-	path, err := windows.KnownFolderPath(windows.FOLDERID_Documents, 0)
+	path, err := windows.KnownFolderPath(windows.FOLDERID_Profile, 0)
 	if err != nil {
 		return "", err
 	}

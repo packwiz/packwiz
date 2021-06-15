@@ -79,7 +79,7 @@ var installCmd = &cobra.Command{
 
 		if !done {
 			var cancelled bool
-			cancelled, modInfoData = searchCurseforgeInternal(args, mcVersion)
+			cancelled, modInfoData = searchCurseforgeInternal(args, mcVersion, getLoader(pack))
 			if cancelled {
 				return
 			}
@@ -106,7 +106,7 @@ var installCmd = &cobra.Command{
 		}
 
 		var fileInfoData modFileInfo
-		fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID)
+		fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID, getLoader(pack))
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -175,7 +175,7 @@ var installCmd = &cobra.Command{
 					depIDPendingQueue = depIDPendingQueue[:0]
 
 					for _, currData := range depInfoData {
-						depFileInfo, err := getLatestFile(currData, mcVersion, 0)
+						depFileInfo, err := getLatestFile(currData, mcVersion, 0, getLoader(pack))
 						if err != nil {
 							fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
 							continue
@@ -266,7 +266,7 @@ func (r modResultsList) Len() int {
 	return len(r)
 }
 
-func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
+func searchCurseforgeInternal(args []string, mcVersion string, packLoaderType int) (bool, modInfo) {
 	fmt.Println("Searching CurseForge...")
 	searchTerm := strings.Join(args, " ")
 
@@ -275,7 +275,7 @@ func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 	if len(viper.GetStringSlice("acceptable-game-versions")) > 0 {
 		filterGameVersion = ""
 	}
-	results, err := getSearch(searchTerm, filterGameVersion)
+	results, err := getSearch(searchTerm, filterGameVersion, packLoaderType)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -333,16 +333,7 @@ func searchCurseforgeInternal(args []string, mcVersion string) (bool, modInfo) {
 	}
 }
 
-func sliceContainsString(slice []string, elem string) bool {
-	for _, a := range slice {
-		if a == elem {
-			return true
-		}
-	}
-	return false
-}
-
-func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileInfo, error) {
+func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoaderType int) (modFileInfo, error) {
 	// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
 	if fileID == 0 {
 		var fileInfoData modFileInfo
@@ -350,7 +341,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 
 		for _, v := range modInfoData.LatestFiles {
 			// Choose "newest" version by largest ID
-			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID {
+			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaderType, v) {
 				fileID = v.ID
 				fileInfoData = v
 				fileInfoObtained = true
@@ -359,7 +350,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 		// TODO: change to timestamp-based comparison??
 		for _, v := range modInfoData.GameVersionLatestFiles {
 			// Choose "newest" version by largest ID
-			if matchGameVersion(mcVersion, v.GameVersion) && v.ID > fileID {
+			if matchGameVersion(mcVersion, v.GameVersion) && v.ID > fileID && matchLoaderType(packLoaderType, v.Modloader) {
 				fileID = v.ID
 				fileInfoObtained = false // Make sure we get the file info
 			}
@@ -370,7 +361,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int) (modFileIn
 	}
 
 	if fileID == 0 {
-		return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-game-versions option to accept more)")
+		return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-game-versions option to accept more) or loader")
 	}
 
 	fileInfoData, err := getFileInfo(modInfoData.ID, fileID)

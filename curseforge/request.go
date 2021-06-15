@@ -114,6 +114,16 @@ const (
 	dependencyTypeInclude
 )
 
+//noinspection GoUnusedConst
+const (
+	// modloaderTypeAny should not be passed to the API - it does not work
+	modloaderTypeAny int = iota
+	modloaderTypeForge
+	modloaderTypeCauldron
+	modloaderTypeLiteloader
+	modloaderTypeFabric
+)
+
 // modInfo is a subset of the deserialised JSON response from the Curse API for mods (addons)
 type modInfo struct {
 	Name                   string        `json:"name"`
@@ -128,7 +138,9 @@ type modInfo struct {
 		ID          int    `json:"projectFileId"`
 		Name        string `json:"projectFileName"`
 		FileType    int    `json:"fileType"`
+		Modloader   int    `json:"modLoader"`
 	} `json:"gameVersionLatestFiles"`
+	ModLoaders []string `json:"modLoaders"`
 }
 
 func getModInfo(modID int) (modInfo, error) {
@@ -267,19 +279,24 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	return infoRes, nil
 }
 
-func getSearch(searchText string, gameVersion string) ([]modInfo, error) {
+func getSearch(searchText string, gameVersion string, modloaderType int) ([]modInfo, error) {
 	var infoRes []modInfo
 	client := &http.Client{}
 
-	textEscaped := url.QueryEscape(searchText)
-	var reqURL string
+	reqURL, err := url.Parse("https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=10&categoryId=0&sectionId=6")
+	if err != nil {
+		return []modInfo{}, err
+	}
+	reqURL.Query().Set("searchFilter", searchText)
+
 	if len(gameVersion) > 0 {
-		reqURL = "https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=10&categoryId=0&sectionId=6&searchFilter=" + textEscaped + "&gameVersion=" + gameVersion
-	} else {
-		reqURL = "https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=10&categoryId=0&sectionId=6&searchFilter=" + textEscaped
+		reqURL.Query().Set("gameVersion", gameVersion)
+	}
+	if modloaderType != modloaderTypeAny {
+		reqURL.Query().Set("modLoaderType", strconv.Itoa(modloaderType))
 	}
 
-	req, err := http.NewRequest("GET", reqURL, nil)
+	req, err := http.NewRequest("GET", reqURL.String(), nil)
 	if err != nil {
 		return []modInfo{}, err
 	}

@@ -45,6 +45,14 @@ func (m twitchInstalledPackMeta) Versions() map[string]string {
 		}
 		// Remove the minecraft version prefix, if it exists
 		vers["forge"] = strings.TrimPrefix(vers["forge"], m.MCVersion+"-")
+	} else if strings.HasPrefix(m.Modloader.Name, "fabric") {
+		if len(m.Modloader.MavenVersionString) > 0 {
+			vers["fabric"] = strings.TrimPrefix(m.Modloader.MavenVersionString, "net.fabricmc:fabric-loader:")
+		} else {
+			vers["fabric"] = strings.TrimPrefix(m.Modloader.Name, "fabric-")
+		}
+		// Remove the minecraft version suffix, if it exists
+		vers["fabric"] = strings.TrimSuffix(vers["fabric"], m.MCVersion+"-")
 	}
 	return vers
 }

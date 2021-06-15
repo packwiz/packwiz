@@ -31,13 +31,8 @@ type cachedStateStore struct {
 	Version Version
 }
 
-func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.UpdateCheck, error) {
+func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack) ([]core.UpdateCheck, error) {
 	results := make([]core.UpdateCheck, len(mods))
-
-	pack, err := core.LoadPack()
-	if err != nil {
-		return results, err
-	}
 
 	for i, mod := range mods {
 		rawData, ok := mod.GetParsedUpdateData("modrinth")

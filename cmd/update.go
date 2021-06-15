@@ -72,7 +72,7 @@ var updateCmd = &cobra.Command{
 			updaterPointerMap := make(map[string][]*core.Mod)
 			updaterCachedStateMap := make(map[string][]interface{})
 			for k, v := range updaterMap {
-				checks, err := core.Updaters[k].CheckUpdate(v, mcVersion)
+				checks, err := core.Updaters[k].CheckUpdate(v, mcVersion, pack)
 				if err != nil {
 					// TODO: do we return err code 1?
 					fmt.Println(err.Error())
@@ -159,7 +159,7 @@ var updateCmd = &cobra.Command{
 				}
 				updaterFound = true
 
-				check, err := updater.CheckUpdate([]core.Mod{modData}, mcVersion)
+				check, err := updater.CheckUpdate([]core.Mod{modData}, mcVersion, pack)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)

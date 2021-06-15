@@ -202,6 +202,53 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) err
 	return index.RefreshFileWithHash(path, format, hash, true)
 }
 
+func getLoader(pack core.Pack) int {
+	dependencies := pack.Versions
+
+	_, hasFabric := dependencies["fabric"]
+	_, hasForge := dependencies["forge"]
+	if hasFabric && hasForge {
+		return modloaderTypeAny
+	} else if hasFabric {
+		return modloaderTypeFabric
+	} else if hasForge {
+		return modloaderTypeForge
+	} else {
+		return modloaderTypeAny
+	}
+}
+
+func matchLoaderType(packLoaderType int, modLoaderType int) bool {
+	if packLoaderType == modloaderTypeAny || modLoaderType == modloaderTypeAny {
+		return true
+	} else {
+		return packLoaderType == modLoaderType
+	}
+}
+
+func matchLoaderTypeFileInfo(packLoaderType int, fileInfoData modFileInfo) bool {
+	if packLoaderType == modloaderTypeAny {
+		return true
+	} else {
+		if packLoaderType == modloaderTypeFabric {
+			for _, v := range fileInfoData.GameVersions {
+				if v == "Fabric" {
+					return true
+				}
+			}
+		} else if packLoaderType == modloaderTypeForge {
+			for _, v := range fileInfoData.GameVersions {
+				if v == "Forge" {
+					return true
+				}
+			}
+		} else {
+			return true
+		}
+		return false
+	}
+}
+
 func matchGameVersion(mcVersion string, modMcVersion string) bool {
 	if getCurseforgeVersion(mcVersion) == modMcVersion {
 		return true
@@ -257,7 +304,7 @@ type cachedStateStore struct {
 	fileInfo    modFileInfo
 }
 
-func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.UpdateCheck, error) {
+func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack) ([]core.UpdateCheck, error) {
 	results := make([]core.UpdateCheck, len(mods))
 	modIDs := make([]int, len(mods))
 	modInfos := make([]modInfo, len(mods))
@@ -285,6 +332,8 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 		}
 	}
 
+	packLoaderType := getLoader(pack)
+
 	for i, v := range mods {
 		projectRaw, ok := v.GetParsedUpdateData("curseforge")
 		if !ok {
@@ -302,7 +351,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 		// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
 		for _, v := range modInfos[i].LatestFiles {
 			// Choose "newest" version by largest ID
-			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID {
+			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaderType, v) {
 				updateAvailable = true
 				fileID = v.ID
 				fileInfoData = v
@@ -315,7 +364,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string) ([]core.Update
 			// TODO: change to timestamp-based comparison??
 			// TODO: manage alpha/beta/release correctly, check update channel?
 			// Choose "newest" version by largest ID
-			if matchGameVersion(mcVersion, file.GameVersion) && file.ID > fileID {
+			if matchGameVersion(mcVersion, file.GameVersion) && file.ID > fileID && matchLoaderType(packLoaderType, file.Modloader) {
 				updateAvailable = true
 				fileID = file.ID
 				fileName = file.Name
@@ -379,10 +428,7 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 }
 
 type cfExportData struct {
-	ProjectID              int    `mapstructure:"project-id"`
-	DisableJumploader      bool   `mapstructure:"disable-jumploader"`
-	JumploaderForgeVersion string `mapstructure:"jumploader-forge-version"`
-	JumploaderFileID       int    `mapstructure:"jumploader-version-id"`
+	ProjectID int `mapstructure:"project-id"`
 }
 
 func (e cfExportData) ToMap() (map[string]interface{}, error) {
