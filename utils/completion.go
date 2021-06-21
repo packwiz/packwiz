@@ -90,7 +90,7 @@ Please note that the completions may be incomplete or broken, see https://github
 						fmt.Printf("Failed to open bashrc: %s\n", err)
 						os.Exit(1)
 					}
-					_, err = f.WriteString("\r\n" + command + "\r\n")
+					_, err = f.WriteString("\n" + command + "\n")
 					if err != nil {
 						fmt.Printf("Failed to write to bashrc: %s\n", err)
 						_ = f.Close()
