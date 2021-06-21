@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -41,10 +42,10 @@ Please note that the completions may be incomplete or broken, see https://github
 					os.Exit(1)
 				}
 
-				// Get the value of $HOME
-				home, err := os.UserHomeDir()
-				if err != nil {
-					fmt.Printf("Failed to get $HOME location: %s\n", err)
+				// Get the value of $HOME (changed from os.UserHomeDir() for Cygwin/MSYS2 support)
+				home := os.Getenv("HOME")
+				if home == "" {
+					fmt.Printf("Failed to get $HOME location")
 					os.Exit(1)
 				}
 				bashrc := filepath.Join(home, ".bashrc")
@@ -54,6 +55,22 @@ Please note that the completions may be incomplete or broken, see https://github
 					fmt.Printf("Failed to resolve path: %s\n", err)
 					os.Exit(1)
 				}
+
+				if runtime.GOOS == "windows" {
+					// On windows, use cygpath to convert to a POSIX-style path (Cygwin/MSYS2)
+					cmd := exec.Command("cygpath", absFile)
+					cmd.Stdin = strings.NewReader(absFile)
+					var out bytes.Buffer
+					cmd.Stdout = &out
+					err := cmd.Run()
+					if err != nil {
+						fmt.Printf("Failed to convert path to POSIX path: %s\n", err)
+						fmt.Println("Ensure you are running this command in the Cygwin/MSYS2 shell (and cygpath is on the PATH)")
+						os.Exit(1)
+					}
+					absFile = out.String()
+				}
+
 				command := ". " + absFile
 				commandFound := false
 				// Check for existing text in bashrc
@@ -84,8 +101,10 @@ Please note that the completions may be incomplete or broken, see https://github
 						fmt.Printf("Failed to write to bashrc: %s\n", err)
 						os.Exit(1)
 					}
+					fmt.Println("Completions installed! Restart your shell to load them.")
+				} else {
+					fmt.Println("Completions already installed!")
 				}
-				fmt.Println("Completions installed! Restart your shell to load them.")
 			}
 		} else if args[0] == "powershell" {
 			if viper.GetBool("utils.completion.source") {
