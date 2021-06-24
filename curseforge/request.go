@@ -287,14 +287,16 @@ func getSearch(searchText string, gameVersion string, modloaderType int) ([]modI
 	if err != nil {
 		return []modInfo{}, err
 	}
-	reqURL.Query().Set("searchFilter", searchText)
+	q := reqURL.Query()
+	q.Set("searchFilter", searchText)
 
 	if len(gameVersion) > 0 {
-		reqURL.Query().Set("gameVersion", gameVersion)
+		q.Set("gameVersion", gameVersion)
 	}
 	if modloaderType != modloaderTypeAny {
-		reqURL.Query().Set("modLoaderType", strconv.Itoa(modloaderType))
+		q.Set("modLoaderType", strconv.Itoa(modloaderType))
 	}
+	reqURL.RawQuery = q.Encode()
 
 	req, err := http.NewRequest("GET", reqURL.String(), nil)
 	if err != nil {
