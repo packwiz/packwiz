@@ -64,9 +64,17 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 			continue
 		}
 
+		newFilename := newVersion.Files[0].Filename
+		// Prefer the primary file
+		for _, v := range newVersion.Files {
+			if v.Primary {
+				newFilename = v.Filename
+			}
+		}
+
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,
-			UpdateString:    mod.FileName + " -> " + newVersion.Files[0].Filename,
+			UpdateString:    mod.FileName + " -> " + newFilename,
 			CachedState:     cachedStateStore{data.ModID, newVersion},
 		}
 	}
