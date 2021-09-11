@@ -1,5 +1,5 @@
 # packwiz
-A command line tool for creating minecraft modpacks. Join my Discord server if you need help [here](https://discord.gg/Csh8zbbhCt)!
+A command-line tool for creating Minecraft modpacks. Join my Discord server if you need help [here](https://discord.gg/Csh8zbbhCt)!
 
 ## Features
 - Git-friendly TOML-based metadata format
@@ -11,7 +11,7 @@ A command line tool for creating minecraft modpacks. Join my Discord server if y
 - Creation of remote file metadata from JAR files for CurseForge mods
 
 ## Installation
-Prebuilt binaries are available from [Github Actions](https://github.com/comp500/packwiz/actions) - the UI is a bit terrible, but essentially select the top build, then download the artifact zip for your system at the bottom of the page. To run the executable, add the folder where you downloaded it to your PATH environment variable ([see tutorial for Windows here](https://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/)) or move it to where you want to use it.
+Prebuilt binaries are available from [GitHub Actions](https://github.com/comp500/packwiz/actions) - the UI is a bit terrible, but essentially select the top build, then download the artifact ZIP for your system at the bottom of the page. To run the executable, add the folder where you downloaded it to your PATH environment variable ([see tutorial for Windows here](https://www.howtogeek.com/118594/how-to-edit-your-system-path-for-easy-command-line-access/)) or move it to where you want to use it.
 
 In future I will have a lot more installation options, but you can also compile from source:
 
@@ -35,7 +35,7 @@ In future I will have a lot more installation options, but you can also compile 
 ### packwiz-installer for pack installation
 [packwiz-installer](https://github.com/comp500/packwiz-installer) is a Java-based installer that allows for automatic installation and updates of packwiz packs! It can be used with MultiMC as a prelaunch task, or on servers as part of your start script, and supports side-only mods as well as optional mods with a fancy GUI.
 
-To distribute a packwiz modpack, you'll first want to set up a web hosting service (such as Netlify, Github Pages, GitLab Pages) so that your pack files are accessible from a HTTP/HTTPS link.
+To distribute a packwiz modpack, you'll first want to set up a web hosting service (such as Netlify, GitHub Pages, GitLab Pages) so that your pack files are accessible from a HTTP/HTTPS link.
 
 Then to distribute the modpack as a MultiMC instance, do the following:
 
@@ -60,7 +60,7 @@ For use on servers, add the `-g` flag to disable the GUI and `-s server` to down
 - See https://suspicious-joliot-f51f5c.netlify.app/index.html for some documentation
     - I am in the process of rewriting the format, so there may be information there that is outdated
 - See https://github.com/Fibercraft/Temporary-Modpack for an example of an existing modpack using packwiz
-    - This repository can be published to a service like Github Pages or Netlify and installed using packwiz-installer
+    - This repository can be published to a service like GitHub Pages or Netlify and installed using packwiz-installer
     - This repository also shows the use of `.gitattributes` and `.packwizignore` to disable line ending modification (so that the hashes are correct) and ignore git-specific files
 - https://modfest.net/fallfest/1.16/server/ is also a good example of a MultiMC instance that uses packwiz-installer
 
