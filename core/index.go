@@ -207,11 +207,8 @@ func (in *Index) Refresh() error {
 				return nil
 			}
 
-			rel, err := filepath.Rel(packRoot, path)
-			if err == nil {
-				if ignore.Ignore(filepath.ToSlash(rel)) {
-					return nil
-				}
+			if ignore.Ignore(absPath) {
+				return nil
 			}
 		}
 
