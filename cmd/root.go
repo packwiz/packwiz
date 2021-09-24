@@ -22,7 +22,6 @@ var rootCmd = &cobra.Command{
 // Execute starts the root command for packwiz
 func Execute() {
 	if err := rootCmd.Execute(); err != nil {
-		fmt.Println(err)
 		os.Exit(1)
 	}
 }
