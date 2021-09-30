@@ -104,9 +104,9 @@ type Version struct {
 	Downloads     int           `json:"downloads"`      //The number of downloads this specific version has
 	VersionType   string        `json:"version_type"`   //The type of the release - alpha, beta, or release
 	Files         []VersionFile `json:"files"`          //A list of files available for download for this version
-	Dependencies  []string      `json:"dependencies"`   //A list of specific versions of mods that this version depends on
-	GameVersions  []string      `json:"game_versions"`  //A list of versions of Minecraft that this version of the mod supports
-	Loaders       []string      `json:"loaders"`        //The mod loaders that this version supports
+	//Dependencies  []string      `json:"dependencies"`   //A list of specific versions of mods that this version depends on
+	GameVersions []string `json:"game_versions"` //A list of versions of Minecraft that this version of the mod supports
+	Loaders      []string `json:"loaders"`       //The mod loaders that this version supports
 }
 
 type VersionFile struct {
