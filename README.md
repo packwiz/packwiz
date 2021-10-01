@@ -15,9 +15,8 @@ Prebuilt binaries are available from [GitHub Actions](https://github.com/comp500
 
 In future I will have a lot more installation options, but you can also compile from source:
 
-1. Install Go (1.13 or newer) from https://golang.org/dl/
-2. Clone or download the repository (`git clone https://github.com/comp500/packwiz`), and open the folder in a terminal
-3. Run `go install .` to put it on your PATH, or `go build` to just make a binary. Be patient, it has to download and compile dependencies as well!
+1. Install Go (1.17 or newer) from https://golang.org/dl/
+2. Run `go install github.com/comp500/packwiz@latest`. Be patient, it has to download and compile dependencies as well!
 
 ## Getting Started
 - Run `packwiz init` to create a modpack in the current folder
