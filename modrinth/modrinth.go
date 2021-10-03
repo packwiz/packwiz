@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"github.com/comp500/packwiz/cmd"
@@ -207,9 +208,14 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 		return Version{}, err
 	}
 
-	var latestValidVersion Version
-	for _, v := range result {
-		var semverCompare = semver.Compare(v.VersionNumber, latestValidVersion.VersionNumber)
+	if len(result) == 0 {
+		return Version{}, errors.New("no valid versions found")
+	}
+
+	latestValidVersion := result[0]
+	for _, v := range result[1:] {
+		// For some reason, this library requires a "v" prefix for all version numbers
+		var semverCompare = semver.Compare("v"+strings.TrimPrefix(v.VersionNumber, "v"), "v"+strings.TrimPrefix(latestValidVersion.VersionNumber, "v"))
 		if semverCompare == 0 {
 			//Semver is equal, compare date instead
 			vDate, _ := time.Parse(time.RFC3339Nano, v.DatePublished)
