@@ -215,7 +215,14 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 	latestValidVersion := result[0]
 	for _, v := range result[1:] {
 		// For some reason, this library requires a "v" prefix for all version numbers
-		var semverCompare = semver.Compare("v"+strings.TrimPrefix(v.VersionNumber, "v"), "v"+strings.TrimPrefix(latestValidVersion.VersionNumber, "v"))
+		currVersion := "v" + strings.TrimPrefix(v.VersionNumber, "v")
+		latestVersion := "v" + strings.TrimPrefix(latestValidVersion.VersionNumber, "v")
+		var semverCompare = 0
+		// Only compare with semver if both are valid semver - otherwise compare by release date
+		if semver.IsValid(currVersion) && semver.IsValid(latestVersion) {
+			semverCompare = semver.Compare(currVersion, latestVersion)
+		}
+
 		if semverCompare == 0 {
 			//Semver is equal, compare date instead
 			vDate, _ := time.Parse(time.RFC3339Nano, v.DatePublished)
