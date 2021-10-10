@@ -169,8 +169,6 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) err
 	updateMap["curseforge"], err = cfUpdateData{
 		ProjectID: modInfo.ID,
 		FileID:    fileInfo.ID,
-		// TODO: determine update channel
-		ReleaseChannel: "beta",
 	}.ToMap()
 	if err != nil {
 		return err
@@ -280,9 +278,8 @@ func matchGameVersions(mcVersion string, modMcVersions []string) bool {
 }
 
 type cfUpdateData struct {
-	ProjectID      int    `mapstructure:"project-id"`
-	FileID         int    `mapstructure:"file-id"`
-	ReleaseChannel string `mapstructure:"release-channel"`
+	ProjectID int `mapstructure:"project-id"`
+	FileID    int `mapstructure:"file-id"`
 }
 
 func (u cfUpdateData) ToMap() (map[string]interface{}, error) {
