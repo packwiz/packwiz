@@ -23,8 +23,6 @@ type Pack struct {
 		Hash       string `toml:"hash,omitempty"`
 	} `toml:"index"`
 	Versions map[string]string                 `toml:"versions"`
-	Client   map[string]toml.Primitive         `toml:"client"`
-	Server   map[string]toml.Primitive         `toml:"server"`
 	Export   map[string]map[string]interface{} `toml:"export"`
 	Options  map[string]interface{}            `toml:"options"`
 }
