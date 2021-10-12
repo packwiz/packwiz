@@ -155,6 +155,8 @@ var importCmd = &cobra.Command{
 
 			pack = core.Pack{
 				Name: packImport.Name(),
+				// TODO: author, version?
+				PackFormat: core.CurrentPackFormat,
 				Index: struct {
 					File       string `toml:"file"`
 					HashFormat string `toml:"hash-format"`

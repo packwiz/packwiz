@@ -151,9 +151,10 @@ var initCmd = &cobra.Command{
 
 		// Create the pack
 		pack := core.Pack{
-			Name:    name,
-			Author:  author,
-			Version: version,
+			Name:       name,
+			Author:     author,
+			Version:    version,
+			PackFormat: core.CurrentPackFormat,
 			Index: struct {
 				File       string `toml:"file"`
 				HashFormat string `toml:"hash-format"`

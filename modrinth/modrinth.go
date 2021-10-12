@@ -7,13 +7,12 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 	"time"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/comp500/packwiz/cmd"
 	"github.com/comp500/packwiz/core"
 	"github.com/spf13/cobra"
-	"golang.org/x/mod/semver"
 )
 
 const modrinthApiUrl = "https://api.modrinth.com/api/v1/"
@@ -214,13 +213,12 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 
 	latestValidVersion := result[0]
 	for _, v := range result[1:] {
-		// For some reason, this library requires a "v" prefix for all version numbers
-		currVersion := "v" + strings.TrimPrefix(v.VersionNumber, "v")
-		latestVersion := "v" + strings.TrimPrefix(latestValidVersion.VersionNumber, "v")
+		currVersion, err1 := semver.NewVersion(v.VersionNumber)
+		latestVersion, err2 := semver.NewVersion(latestValidVersion.VersionNumber)
 		var semverCompare = 0
 		// Only compare with semver if both are valid semver - otherwise compare by release date
-		if semver.IsValid(currVersion) && semver.IsValid(latestVersion) {
-			semverCompare = semver.Compare(currVersion, latestVersion)
+		if err1 == nil && err2 == nil {
+			semverCompare = currVersion.Compare(latestVersion)
 		}
 
 		if semverCompare == 0 {

@@ -3,20 +3,24 @@ package core
 import (
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/BurntSushi/toml"
+	"github.com/Masterminds/semver/v3"
 	"github.com/spf13/viper"
 )
 
 // Pack stores the modpack metadata, usually in pack.toml
 type Pack struct {
-	Name    string `toml:"name"`
-	Author  string `toml:"author,omitempty"`
-	Version string `toml:"version,omitempty"`
-	Index   struct {
+	Name       string `toml:"name"`
+	Author     string `toml:"author,omitempty"`
+	Version    string `toml:"version,omitempty"`
+	PackFormat string `toml:"pack-format"`
+	Index      struct {
 		// Path is stored in forward slash format relative to pack.toml
 		File       string `toml:"file"`
 		HashFormat string `toml:"hash-format"`
@@ -27,12 +31,45 @@ type Pack struct {
 	Options  map[string]interface{}            `toml:"options"`
 }
 
+const CurrentPackFormat = "packwiz:1.0.0"
+
+var PackFormatConstraintAccepted = mustParseConstraint("~1")
+var PackFormatConstraintSuggestUpgrade = mustParseConstraint("~1.0")
+
+func mustParseConstraint(s string) *semver.Constraints {
+	c, err := semver.NewConstraint(s)
+	if err != nil {
+		panic(err)
+	}
+	return c
+}
+
 // LoadPack loads the modpack metadata to a Pack struct
 func LoadPack() (Pack, error) {
 	var modpack Pack
 	if _, err := toml.DecodeFile(viper.GetString("pack-file"), &modpack); err != nil {
 		return Pack{}, err
 	}
+
+	// Check pack-format
+	if len(modpack.PackFormat) == 0 {
+		fmt.Println("Modpack manifest has no pack-format field; assuming packwiz:1.0.0")
+		modpack.PackFormat = "packwiz:1.0.0"
+	}
+	if !strings.HasPrefix(modpack.PackFormat, "packwiz:") {
+		return Pack{}, errors.New("pack-format field does not indicate a valid packwiz pack")
+	}
+	ver, err := semver.StrictNewVersion(strings.TrimPrefix(modpack.PackFormat, "packwiz:"))
+	if err != nil {
+		return Pack{}, fmt.Errorf("pack-format field is not valid semver: %w", err)
+	}
+	if !PackFormatConstraintAccepted.Check(ver) {
+		return Pack{}, errors.New("the modpack is incompatible with this version of packwiz; please update")
+	}
+	if !PackFormatConstraintSuggestUpgrade.Check(ver) {
+		fmt.Println("Modpack has a newer feature number than is supported by this version of packwiz. Update to the latest version of packwiz for new features and bugfixes!")
+	}
+	// TODO: suggest migration if necessary (primarily for 2.0.0)
 
 	// Read options into viper
 	if modpack.Options != nil {
