@@ -166,6 +166,16 @@ var importCmd = &cobra.Command{
 				},
 				Versions: packImport.Versions(),
 			}
+		} else {
+			for component, version := range packImport.Versions() {
+				packVersion, ok := pack.Versions[component]
+				if !ok {
+					fmt.Println("Set " + core.ComponentToFriendlyName(component) + " version to " + version)
+				} else if packVersion != version {
+					fmt.Println("Set " + core.ComponentToFriendlyName(component) + " version to " + version + " (previously " + version + ")")
+				}
+				pack.Versions[component] = version
+			}
 		}
 		index, err := pack.LoadIndex()
 		if err != nil {

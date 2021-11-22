@@ -27,33 +27,22 @@ type ModLoaderComponent struct {
 	VersionListGetter func(mcVersion string) ([]string, string, error)
 }
 
-var ModLoaders = map[string][]ModLoaderComponent{
+var ModLoaders = map[string]ModLoaderComponent{
 	"fabric": {
-		{
-			Name:              "fabric",
-			FriendlyName:      "Fabric loader",
-			VersionListGetter: FetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml"),
-		},
 		// There's no need to specify yarn version - yarn isn't used outside a dev environment, and intermediary corresponds to game version anyway
-		//{
-		//	Name:              "yarn",
-		//	FriendlyName:      "Yarn (mappings)",
-		//	VersionListGetter: fetchMavenVersionPrefixedList("https://maven.fabricmc.net/net/fabricmc/yarn/maven-metadata.xml", "Yarn"),
-		//},
+		Name:              "fabric",
+		FriendlyName:      "Fabric loader",
+		VersionListGetter: FetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml"),
 	},
 	"forge": {
-		{
-			Name:              "forge",
-			FriendlyName:      "Forge",
-			VersionListGetter: FetchMavenVersionPrefixedListStrip("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
-		},
+		Name:              "forge",
+		FriendlyName:      "Forge",
+		VersionListGetter: FetchMavenVersionPrefixedListStrip("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
 	},
 	"liteloader": {
-		{
-			Name:              "liteloader",
-			FriendlyName:      "LiteLoader",
-			VersionListGetter: FetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
-		},
+		Name:              "liteloader",
+		FriendlyName:      "LiteLoader",
+		VersionListGetter: FetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
 	},
 }
 
@@ -136,4 +125,16 @@ func hasPrefixSplitDash(str string, prefix string) bool {
 		return true
 	}
 	return false
+}
+
+func ComponentToFriendlyName(component string) string {
+	if component == "minecraft" {
+		return "Minecraft"
+	}
+	loader, ok := ModLoaders[component]
+	if ok {
+		return loader.FriendlyName
+	} else {
+		return component
+	}
 }

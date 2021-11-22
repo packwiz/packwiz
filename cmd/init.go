@@ -87,36 +87,22 @@ var initCmd = &cobra.Command{
 		if len(modLoaderName) == 0 {
 			modLoaderName = strings.ToLower(initReadValue("Mod loader [fabric]: ", "fabric"))
 		}
-		_, ok := core.ModLoaders[modLoaderName]
-		if modLoaderName != "none" && !ok {
-			fmt.Println("Given mod loader is not supported! Use \"none\" to specify no modloader, or to configure one manually.")
-			fmt.Print("The following mod loaders are supported: ")
-			keys := make([]string, len(core.ModLoaders))
-			i := 0
-			for k := range core.ModLoaders {
-				keys[i] = k
-				i++
-			}
-			fmt.Println(strings.Join(keys, ", "))
-			os.Exit(1)
-		}
 
+		loader, ok := core.ModLoaders[modLoaderName]
 		modLoaderVersions := make(map[string]string)
 		if modLoaderName != "none" {
-			components := core.ModLoaders[modLoaderName]
-
-			for _, component := range components {
-				versions, latestVersion, err := component.VersionListGetter(mcVersion)
+			if ok {
+				versions, latestVersion, err := loader.VersionListGetter(mcVersion)
 				if err != nil {
 					fmt.Printf("Error loading versions: %s\n", err)
 					os.Exit(1)
 				}
-				componentVersion := viper.GetString("init." + component.Name + "-version")
+				componentVersion := viper.GetString("init." + loader.Name + "-version")
 				if len(componentVersion) == 0 {
-					if viper.GetBool("init." + component.Name + "-latest") {
+					if viper.GetBool("init." + loader.Name + "-latest") {
 						componentVersion = latestVersion
 					} else {
-						componentVersion = initReadValue(component.FriendlyName+" version ["+latestVersion+"]: ", latestVersion)
+						componentVersion = initReadValue(loader.FriendlyName+" version ["+latestVersion+"]: ", latestVersion)
 					}
 				}
 				found := false
@@ -127,10 +113,21 @@ var initCmd = &cobra.Command{
 					}
 				}
 				if !found {
-					fmt.Println("Given " + component.FriendlyName + " version cannot be found!")
+					fmt.Println("Given " + loader.FriendlyName + " version cannot be found!")
 					os.Exit(1)
 				}
-				modLoaderVersions[component.Name] = componentVersion
+				modLoaderVersions[loader.Name] = componentVersion
+			} else {
+				fmt.Println("Given mod loader is not supported! Use \"none\" to specify no modloader, or to configure one manually.")
+				fmt.Print("The following mod loaders are supported: ")
+				keys := make([]string, len(core.ModLoaders))
+				i := 0
+				for k := range core.ModLoaders {
+					keys[i] = k
+					i++
+				}
+				fmt.Println(strings.Join(keys, ", "))
+				os.Exit(1)
 			}
 		}
 
@@ -223,12 +220,10 @@ func init() {
 
 	// ok this is epic
 	for _, loader := range core.ModLoaders {
-		for _, component := range loader {
-			initCmd.Flags().String(component.Name+"-version", "", "The "+component.FriendlyName+" version to use (omit to define interactively)")
-			_ = viper.BindPFlag("init."+component.Name+"-version", initCmd.Flags().Lookup(component.Name+"-version"))
-			initCmd.Flags().Bool(component.Name+"-latest", false, "Automatically select the latest version of "+component.FriendlyName)
-			_ = viper.BindPFlag("init."+component.Name+"-latest", initCmd.Flags().Lookup(component.Name+"-latest"))
-		}
+		initCmd.Flags().String(loader.Name+"-version", "", "The "+loader.FriendlyName+" version to use (omit to define interactively)")
+		_ = viper.BindPFlag("init."+loader.Name+"-version", initCmd.Flags().Lookup(loader.Name+"-version"))
+		initCmd.Flags().Bool(loader.Name+"-latest", false, "Automatically select the latest version of "+loader.FriendlyName)
+		_ = viper.BindPFlag("init."+loader.Name+"-latest", initCmd.Flags().Lookup(loader.Name+"-latest"))
 	}
 }
 
