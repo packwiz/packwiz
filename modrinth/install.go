@@ -81,12 +81,15 @@ var installCmd = &cobra.Command{
 		} else {
 			//This wasn't a valid modid/slug, try to search for it instead:
 			//Don't bother to search if it looks like a url though
-			if !strings.Contains(args[0], "modrinth.com") {
+			if matches == nil {
 				err = installViaSearch(args[0], pack)
 				if err != nil {
 					fmt.Printf("Failed installing mod: %s\n", err)
 					os.Exit(1)
 				}
+			} else {
+				fmt.Printf("Failed installing mod: %s\n", err)
+				os.Exit(1)
 			}
 		}
 	},
