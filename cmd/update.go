@@ -75,14 +75,13 @@ var updateCmd = &cobra.Command{
 				checks, err := core.Updaters[k].CheckUpdate(v, mcVersion, pack)
 				if err != nil {
 					// TODO: do we return err code 1?
-					fmt.Println(err.Error())
+					fmt.Printf("Failed to check updates for %s: %s\n", k, err.Error())
 					continue
 				}
 				for i, check := range checks {
 					if check.Error != nil {
 						// TODO: do we return err code 1?
-						// TODO: better error message?
-						fmt.Println(check.Error.Error())
+						fmt.Printf("Failed to check updates for %s: %s\n", v[i].Name, check.Error.Error())
 						continue
 					}
 					if check.UpdateAvailable {
