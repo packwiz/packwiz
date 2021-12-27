@@ -64,12 +64,10 @@ var exportCmd = &cobra.Command{
 
 		mods := loadMods(index)
 		i := 0
-		// Filter mods by side/optional
+		// Filter mods by side
+		// TODO: opt-in optional disabled filtering?
 		for _, mod := range mods {
 			if len(mod.Side) == 0 || mod.Side == side || mod.Side == "both" || side == "both" {
-				if mod.Option != nil && mod.Option.Optional && !mod.Option.Default {
-					continue
-				}
 				mods[i] = mod
 				i++
 			}
