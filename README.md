@@ -1,5 +1,17 @@
 # packwiz
-A command-line tool for creating Minecraft modpacks. Join my Discord server if you need help [here](https://discord.gg/Csh8zbbhCt)!
+packwiz is a command line tool for creating Minecraft modpacks. Instead of managing JAR files directly, packwiz creates TOML metadata files which can be easily version-controlled and shared with git (see an example pack [here](https://github.com/packwiz/packwiz-example-pack)). You can then [export it to a CurseForge modpack](tutorials/hosting/curseforge.md), or [use packwiz-installer](tutorials/installing/packwiz-installer.md) for an auto-updating MultiMC instance.
+
+packwiz is great for...
+
+- Distributing private modpacks for servers
+- Creating modpacks for CurseForge (and soon Modrinth)
+
+packwiz is not so great for...
+
+- Managing downloaded mod files (use [Curse/GDLauncher or another CLI](https://gist.github.com/comp500/13ae6f058221196077fb19953ac608c7))
+- People who want a GUI (though there are some [third-party efforts](https://github.com/ExoPlant/packwiz-gui))
+
+Join my Discord server if you need help [here](https://discord.gg/Csh8zbbhCt)!
 
 ## Features
 - Git-friendly TOML-based metadata format
