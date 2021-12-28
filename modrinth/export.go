@@ -170,6 +170,10 @@ var exportCmd = &cobra.Command{
 			Dependencies:  dependencies,
 		}
 
+		if len(pack.Version) == 0 {
+			fmt.Println("Warning: pack.toml version field must not be empty to create a valid Modrinth pack")
+		}
+
 		w := json.NewEncoder(manifestFile)
 		w.SetIndent("", "    ") // Documentation uses 4 spaces
 		err = w.Encode(manifest)
