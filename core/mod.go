@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -90,7 +89,7 @@ func (m Mod) Write() (string, string, error) {
 		}
 	}
 
-	h, err := GetHashImpl("sha256")
+	h, stringer, err := GetHashImpl("sha256")
 	if err != nil {
 		_ = f.Close()
 		return "", "", err
@@ -101,7 +100,7 @@ func (m Mod) Write() (string, string, error) {
 	// Disable indentation
 	enc.Indent = ""
 	err = enc.Encode(m)
-	hashString := hex.EncodeToString(h.Sum(nil))
+	hashString := stringer.HashToString(h.Sum(nil))
 	if err != nil {
 		_ = f.Close()
 		return "sha256", hashString, err
@@ -135,7 +134,7 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 		_ = resp.Body.Close()
 		return errors.New("invalid status code " + strconv.Itoa(resp.StatusCode))
 	}
-	h, err := GetHashImpl(m.Download.HashFormat)
+	h, stringer, err := GetHashImpl(m.Download.HashFormat)
 	if err != nil {
 		return err
 	}
@@ -146,7 +145,7 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 		return err
 	}
 
-	calculatedHash := hex.EncodeToString(h.Sum(nil))
+	calculatedHash := stringer.HashToString(h.Sum(nil))
 
 	// Check if the hash of the downloaded file matches the expected hash.
 	if calculatedHash != m.Download.Hash {

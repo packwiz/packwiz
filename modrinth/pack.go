@@ -1,0 +1,22 @@
+package modrinth
+
+type Pack struct {
+	FormatVersion int    `json:"formatVersion"`
+	Game          string `json:"game"`
+	VersionID     string `json:"versionId"`
+	Name          string `json:"name"`
+	// TODO: implement Summary
+	// Summary       string `json:"summary"`
+	Files        []PackFile        `json:"files"`
+	Dependencies map[string]string `json:"dependencies"`
+}
+
+type PackFile struct {
+	Path   string            `json:"path"`
+	Hashes map[string]string `json:"hashes"`
+	Env    *struct {
+		Client string `json:"client"`
+		Server string `json:"server"`
+	} `json:"env"`
+	Downloads []string `json:"downloads"`
+}

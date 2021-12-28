@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/hex"
 	"errors"
 	"io"
 	"os"
@@ -133,7 +132,7 @@ func (in *Index) updateFile(path string) error {
 		// Hash usage strategy (may change):
 		// Just use SHA256, overwrite existing hash regardless of what it is
 		// May update later to continue using the same hash that was already being used
-		h, err := GetHashImpl("sha256")
+		h, stringer, err := GetHashImpl("sha256")
 		if err != nil {
 			_ = f.Close()
 			return err
@@ -146,7 +145,7 @@ func (in *Index) updateFile(path string) error {
 		if err != nil {
 			return err
 		}
-		hashString = hex.EncodeToString(h.Sum(nil))
+		hashString = stringer.HashToString(h.Sum(nil))
 	}
 
 	mod := false
@@ -348,7 +347,7 @@ func (in Index) SaveFile(f IndexFile, dest io.Writer) error {
 	if err != nil {
 		return err
 	}
-	h, err := GetHashImpl(hashFormat)
+	h, stringer, err := GetHashImpl(hashFormat)
 	if err != nil {
 		return err
 	}
@@ -359,7 +358,7 @@ func (in Index) SaveFile(f IndexFile, dest io.Writer) error {
 		return err
 	}
 
-	calculatedHash := hex.EncodeToString(h.Sum(nil))
+	calculatedHash := stringer.HashToString(h.Sum(nil))
 	if calculatedHash != f.Hash && !viper.GetBool("no-internal-hashes") {
 		return errors.New("hash of saved file is invalid")
 	}

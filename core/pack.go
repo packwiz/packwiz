@@ -1,7 +1,6 @@
 package core
 
 import (
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -116,7 +115,7 @@ func (pack *Pack) UpdateIndexHash() error {
 	// Hash usage strategy (may change):
 	// Just use SHA256, overwrite existing hash regardless of what it is
 	// May update later to continue using the same hash that was already being used
-	h, err := GetHashImpl("sha256")
+	h, stringer, err := GetHashImpl("sha256")
 	if err != nil {
 		_ = f.Close()
 		return err
@@ -125,7 +124,7 @@ func (pack *Pack) UpdateIndexHash() error {
 		_ = f.Close()
 		return err
 	}
-	hashString := hex.EncodeToString(h.Sum(nil))
+	hashString := stringer.HashToString(h.Sum(nil))
 
 	pack.Index.HashFormat = "sha256"
 	pack.Index.Hash = hashString
