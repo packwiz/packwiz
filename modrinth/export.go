@@ -165,6 +165,7 @@ var exportCmd = &cobra.Command{
 			Game:          "minecraft",
 			VersionID:     pack.Version,
 			Name:          pack.Name,
+			Summary:       pack.Description,
 			Files:         manifestFiles,
 			Dependencies:  dependencies,
 		}

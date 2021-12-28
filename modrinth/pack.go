@@ -1,14 +1,13 @@
 package modrinth
 
 type Pack struct {
-	FormatVersion int    `json:"formatVersion"`
-	Game          string `json:"game"`
-	VersionID     string `json:"versionId"`
-	Name          string `json:"name"`
-	// TODO: implement Summary
-	// Summary       string `json:"summary"`
-	Files        []PackFile        `json:"files"`
-	Dependencies map[string]string `json:"dependencies"`
+	FormatVersion int               `json:"formatVersion"`
+	Game          string            `json:"game"`
+	VersionID     string            `json:"versionId"`
+	Name          string            `json:"name"`
+	Summary       string            `json:"summary,omitempty"`
+	Files         []PackFile        `json:"files"`
+	Dependencies  map[string]string `json:"dependencies"`
 }
 
 type PackFile struct {
