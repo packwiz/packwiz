@@ -3,8 +3,8 @@ package modrinth
 import (
 	"errors"
 
-	"github.com/comp500/packwiz/core"
 	"github.com/mitchellh/mapstructure"
+	"github.com/packwiz/packwiz/core"
 )
 
 type mrUpdateData struct {

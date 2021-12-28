@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/comp500/packwiz/core"
+	"github.com/packwiz/packwiz/core"
 	"io"
 	"io/ioutil"
 	"os"

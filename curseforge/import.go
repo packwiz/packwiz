@@ -6,7 +6,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/comp500/packwiz/curseforge/packinterop"
+	"github.com/packwiz/packwiz/curseforge/packinterop"
 	"io"
 	"io/ioutil"
 	"os"
@@ -14,7 +14,7 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/comp500/packwiz/core"
+	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

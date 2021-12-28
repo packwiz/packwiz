@@ -5,7 +5,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/comp500/packwiz/core"
+	"github.com/packwiz/packwiz/core"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
 )

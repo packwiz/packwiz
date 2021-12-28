@@ -1,7 +1,7 @@
 package utils
 
 import (
-	"github.com/comp500/packwiz/cmd"
+	"github.com/packwiz/packwiz/cmd"
 	"github.com/spf13/cobra"
 )
 

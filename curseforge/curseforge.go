@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/comp500/packwiz/cmd"
-	"github.com/comp500/packwiz/core"
 	"github.com/mitchellh/mapstructure"
+	"github.com/packwiz/packwiz/cmd"
+	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 )
 

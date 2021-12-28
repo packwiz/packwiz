@@ -10,8 +10,8 @@ import (
 	"time"
 
 	"github.com/Masterminds/semver/v3"
-	"github.com/comp500/packwiz/cmd"
-	"github.com/comp500/packwiz/core"
+	"github.com/packwiz/packwiz/cmd"
+	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 )
 

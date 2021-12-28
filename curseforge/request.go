@@ -70,7 +70,7 @@ func modIDFromSlug(slug string) (int, error) {
 	}
 
 	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 
@@ -155,7 +155,7 @@ func getModInfo(modID int) (modInfo, error) {
 	}
 
 	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := client.Do(req)
@@ -190,7 +190,7 @@ func getModInfoMultiple(modIDs []int) ([]modInfo, error) {
 	}
 
 	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 
@@ -259,7 +259,7 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	}
 
 	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := client.Do(req)
@@ -304,7 +304,7 @@ func getSearch(searchText string, gameVersion string, modloaderType int) ([]modI
 	}
 
 	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
 	req.Header.Set("Accept", "application/json")
 
 	resp, err := client.Do(req)
@@ -349,7 +349,7 @@ func getFingerprintInfo(hashes []int) (addonFingerprintResponse, error) {
 	}
 
 	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "comp500/packwiz client")
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 

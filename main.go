@@ -2,10 +2,10 @@ package main
 
 import (
 	// Modules of packwiz
-	"github.com/comp500/packwiz/cmd"
-	_ "github.com/comp500/packwiz/curseforge"
-	_ "github.com/comp500/packwiz/modrinth"
-	_ "github.com/comp500/packwiz/utils"
+	"github.com/packwiz/packwiz/cmd"
+	_ "github.com/packwiz/packwiz/curseforge"
+	_ "github.com/packwiz/packwiz/modrinth"
+	_ "github.com/packwiz/packwiz/utils"
 )
 
 func main() {

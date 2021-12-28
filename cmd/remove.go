@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/comp500/packwiz/core"
+	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 )
 
