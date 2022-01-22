@@ -5,9 +5,7 @@ require (
 	github.com/Masterminds/semver/v3 v3.1.1
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/aviddiviner/go-murmur v0.0.0-20150519214947-b9740d71e571
-	github.com/danwakefield/fnmatch v0.0.0-20160403171240-cbb64ac3d964 // indirect
 	github.com/daviddengcn/go-colortext v1.0.0 // indirect
-	github.com/denormal/go-gitignore v0.0.0-20180930084346-ae8ad1d07817
 	github.com/fatih/camelcase v1.0.0
 	github.com/igorsobreira/titlecase v0.0.0-20140109233139-4156b5b858ac
 	github.com/kylelemons/godebug v1.1.0 // indirect
@@ -26,6 +24,8 @@ require (
 	gopkg.in/dixonwille/wlog.v2 v2.0.0 // indirect
 	gopkg.in/dixonwille/wmenu.v4 v4.0.2
 )
+
+require github.com/sabhiram/go-gitignore v0.0.0-20210923224102-525f6e181f06
 
 require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect

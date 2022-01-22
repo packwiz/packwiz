@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/denormal/go-gitignore"
+	gitignore "github.com/sabhiram/go-gitignore"
 	"github.com/spf13/viper"
 	"github.com/vbauerster/mpb/v4"
 	"github.com/vbauerster/mpb/v4/decor"
@@ -180,7 +180,7 @@ func (in *Index) Refresh() error {
 	packRoot := in.GetPackRoot()
 	ignoreExists := true
 	pathIgnore, _ := filepath.Abs(filepath.Join(packRoot, ".packwizignore"))
-	ignore, err := gitignore.NewFromFile(filepath.Join(packRoot, ".packwizignore"))
+	ignore, err := gitignore.CompileIgnoreFile(filepath.Join(packRoot, ".packwizignore"))
 	if err != nil {
 		ignoreExists = false
 	}
@@ -206,7 +206,7 @@ func (in *Index) Refresh() error {
 				return nil
 			}
 
-			if ignore.Ignore(absPath) {
+			if ignore.MatchesPath(path) {
 				return nil
 			}
 		}
