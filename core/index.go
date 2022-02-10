@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -168,6 +169,35 @@ func (in Index) GetPackRoot() string {
 	return filepath.Dir(in.indexFile)
 }
 
+var ignoreDefaults = []string{
+	// Defaults (can be overridden with a negating pattern preceded with !)
+
+	// Exclude Git metadata
+	".git/**",
+	".gitattributes",
+	".gitignore",
+
+	// Exclude exported CurseForge zip files
+	"/*.zip",
+
+	// Exclude exported Modrinth packs
+	"*.mrpack",
+}
+
+func readGitignore(path string) (*gitignore.GitIgnore, bool) {
+	data, err := ioutil.ReadFile(path)
+	if err != nil {
+		// TODO: check for read errors (and present them)
+		return gitignore.CompileIgnoreLines(ignoreDefaults...), false
+	}
+
+	s := strings.Split(string(data), "\n")
+	var lines []string
+	lines = append(lines, ignoreDefaults...)
+	lines = append(lines, s...)
+	return gitignore.CompileIgnoreLines(lines...), true
+}
+
 // Refresh updates the hashes of all the files in the index, and adds new files to the index
 func (in *Index) Refresh() error {
 	// TODO: If needed, multithreaded hashing
@@ -180,13 +210,10 @@ func (in *Index) Refresh() error {
 	packRoot := in.GetPackRoot()
 	ignoreExists := true
 	pathIgnore, _ := filepath.Abs(filepath.Join(packRoot, ".packwizignore"))
-	ignore, err := gitignore.CompileIgnoreFile(filepath.Join(packRoot, ".packwizignore"))
-	if err != nil {
-		ignoreExists = false
-	}
+	ignore, ignoreExists := readGitignore(filepath.Join(packRoot, ".packwizignore"))
 
 	var fileList []string
-	err = filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
 			// TODO: Handle errors on individual files properly
 			return err
@@ -205,10 +232,9 @@ func (in *Index) Refresh() error {
 			if absPath == pathIgnore {
 				return nil
 			}
-
-			if ignore.MatchesPath(path) {
-				return nil
-			}
+		}
+		if ignore.MatchesPath(path) {
+			return nil
 		}
 
 		fileList = append(fileList, path)
