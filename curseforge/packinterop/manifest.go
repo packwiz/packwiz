@@ -31,6 +31,14 @@ func (c cursePackMeta) Name() string {
 	return c.NameInternal
 }
 
+func (c cursePackMeta) PackVersion() string {
+	return c.Version
+}
+
+func (c cursePackMeta) PackAuthor() string {
+	return c.Author
+}
+
 func (c cursePackMeta) Versions() map[string]string {
 	vers := make(map[string]string)
 	vers["minecraft"] = c.Minecraft.Version

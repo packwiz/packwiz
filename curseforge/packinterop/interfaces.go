@@ -9,6 +9,8 @@ type ImportPackFile interface {
 
 type ImportPackMetadata interface {
 	Name() string
+	PackAuthor() string
+	PackVersion() string
 	Versions() map[string]string
 	Mods() []AddonFileReference
 	GetFiles() ([]ImportPackFile, error)

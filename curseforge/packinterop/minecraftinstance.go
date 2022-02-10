@@ -34,6 +34,14 @@ func (m twitchInstalledPackMeta) Name() string {
 	return m.NameInternal
 }
 
+func (m twitchInstalledPackMeta) PackAuthor() string {
+	return ""
+}
+
+func (m twitchInstalledPackMeta) PackVersion() string {
+	return ""
+}
+
 func (m twitchInstalledPackMeta) Versions() map[string]string {
 	vers := make(map[string]string)
 	vers["minecraft"] = m.MCVersion

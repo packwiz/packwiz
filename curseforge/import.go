@@ -154,8 +154,9 @@ var importCmd = &cobra.Command{
 			}
 
 			pack = core.Pack{
-				Name: packImport.Name(),
-				// TODO: author, version?
+				Name:       packImport.Name(),
+				Author:     packImport.PackAuthor(),
+				Version:    packImport.PackVersion(),
 				PackFormat: core.CurrentPackFormat,
 				Index: struct {
 					File       string `toml:"file"`
