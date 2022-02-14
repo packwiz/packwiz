@@ -205,12 +205,16 @@ var importCmd = &cobra.Command{
 
 		// TODO: multithreading????
 
+		modFileInfosMap := make(map[int]modFileInfo)
 		referencedModPaths := make([]string, 0, len(modsList))
 		successes := 0
+		remainingFileIDs := make([]int, 0, len(modsList))
+
+		// 1st pass: query mod metadata for every CurseForge file
 		for _, v := range modsList {
 			modInfoValue, ok := modInfosMap[v.ProjectID]
 			if !ok {
-				fmt.Printf("Failed to obtain mod information for ID %d\n", v.ProjectID)
+				fmt.Printf("Failed to obtain mod information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
 				continue
 			}
 
@@ -222,15 +226,43 @@ var importCmd = &cobra.Command{
 					break
 				}
 			}
-			if !found {
-				fileInfo, err = getFileInfo(v.ProjectID, v.FileID)
-				if err != nil {
-					fmt.Printf("Failed to obtain file information for Mod / File %d / %d: %s\n", v.ProjectID, v.FileID, err)
-					continue
-				}
+			if found {
+				modFileInfosMap[v.FileID] = fileInfo
+			} else {
+				remainingFileIDs = append(remainingFileIDs, v.FileID)
+			}
+		}
+
+		// 2nd pass: query files that weren't in the previous results
+		fmt.Println("Querying Curse API for file info...")
+
+		modFileInfos, err := getFileInfoMultiple(remainingFileIDs)
+		if err != nil {
+			fmt.Printf("Failed to obtain mod file information: %s\n", err)
+			os.Exit(1)
+		}
+
+		for _, v := range modFileInfos {
+			for _, file := range v {
+				modFileInfosMap[file.ID] = file
+			}
+		}
+
+		// 3rd pass: create mod files for every file
+		for _, v := range modsList {
+			modInfoValue, ok := modInfosMap[v.ProjectID]
+			if !ok {
+				fmt.Printf("Failed to obtain mod information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
+				continue
 			}
 
-			err = createModFile(modInfoValue, fileInfo, &index)
+			modFileInfoValue, ok := modFileInfosMap[v.FileID]
+			if !ok {
+				fmt.Printf("Failed to obtain mod file information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
+				continue
+			}
+
+			err = createModFile(modInfoValue, modFileInfoValue, &index)
 			if err != nil {
 				fmt.Printf("Failed to save mod \"%s\": %s\n", modInfoValue.Name, err)
 				os.Exit(1)
@@ -238,7 +270,7 @@ var importCmd = &cobra.Command{
 
 			// TODO: just use mods-folder directly? does texture pack importing affect this?
 			modFilePath := core.ResolveMod(modInfoValue.Slug, index)
-			ref, err := filepath.Abs(filepath.Join(filepath.Dir(modFilePath), fileInfo.FileName))
+			ref, err := filepath.Abs(filepath.Join(filepath.Dir(modFilePath), modFileInfoValue.FileName))
 			if err == nil {
 				referencedModPaths = append(referencedModPaths, ref)
 			}

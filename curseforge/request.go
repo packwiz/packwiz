@@ -316,6 +316,38 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	return infoRes, nil
 }
 
+func getFileInfoMultiple(fileIDs []int) (map[string][]modFileInfo, error) {
+	var infoRes map[string][]modFileInfo
+	client := &http.Client{}
+
+	modIDsData, err := json.Marshal(fileIDs)
+	if err != nil {
+		return make(map[string][]modFileInfo), err
+	}
+
+	req, err := http.NewRequest("POST", "https://addons-ecs.forgesvc.net/api/v2/addon/files", bytes.NewBuffer(modIDsData))
+	if err != nil {
+		return make(map[string][]modFileInfo), err
+	}
+
+	// TODO: make this configurable application-wide
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := client.Do(req)
+	if err != nil {
+		return make(map[string][]modFileInfo), err
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&infoRes)
+	if err != nil && err != io.EOF {
+		return make(map[string][]modFileInfo), err
+	}
+
+	return infoRes, nil
+}
+
 func getSearch(searchText string, gameVersion string, modloaderType int) ([]modInfo, error) {
 	var infoRes []modInfo
 	client := &http.Client{}
