@@ -182,6 +182,10 @@ var ignoreDefaults = []string{
 
 	// Exclude exported Modrinth packs
 	"*.mrpack",
+
+	// Exclude packwiz binaries, if the user puts them in their pack folder
+	"packwiz.exe",
+	"packwiz", // Note: also excludes packwiz/ as a directory - you can negate this pattern if you want a directory called packwiz
 }
 
 func readGitignore(path string) (*gitignore.GitIgnore, bool) {
