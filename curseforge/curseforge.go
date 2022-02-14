@@ -179,16 +179,16 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) err
 		return err
 	}
 
+	hash, hashFormat := fileInfo.getBestHash()
+
 	modMeta := core.Mod{
 		Name:     modInfo.Name,
 		FileName: fileInfo.FileName,
 		Side:     core.UniversalSide,
 		Download: core.ModDownload{
-			URL: u,
-			// TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
-			// TODO: check if the hash is invalid (e.g. 0)
-			HashFormat: "murmur2",
-			Hash:       strconv.Itoa(fileInfo.Fingerprint),
+			URL:        u,
+			HashFormat: hashFormat,
+			Hash:       hash,
 		},
 		Update: updateMap,
 	}
@@ -421,12 +421,11 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 
 		v.FileName = fileInfoData.FileName
 		v.Name = modState.Name
+		hash, hashFormat := fileInfoData.getBestHash()
 		v.Download = core.ModDownload{
-			URL: u,
-			// TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
-			// TODO: check if the hash is invalid (e.g. 0)
-			HashFormat: "murmur2",
-			Hash:       strconv.Itoa(fileInfoData.Fingerprint),
+			URL:        u,
+			HashFormat: hashFormat,
+			Hash:       hash,
 		}
 
 		v.Update["curseforge"]["project-id"] = modState.ID

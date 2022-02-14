@@ -124,6 +124,12 @@ const (
 	modloaderTypeFabric
 )
 
+//noinspection GoUnusedConst
+const (
+	hashAlgoSHA1 int = iota + 1
+	hashAlgoMD5
+)
+
 // modInfo is a subset of the deserialised JSON response from the Curse API for mods (addons)
 type modInfo struct {
 	Name                   string        `json:"name"`
@@ -244,6 +250,37 @@ type modFileInfo struct {
 		ModID int `json:"addonId"`
 		Type  int `json:"type"`
 	} `json:"dependencies"`
+
+	Hashes []struct {
+		Value     string `json:"value"`
+		Algorithm int    `json:"algorithm"`
+	} `json:"hashes"`
+}
+
+func (i modFileInfo) getBestHash() (hash string, hashFormat string) {
+	// TODO: check if the hash is invalid (e.g. 0)
+	hash = strconv.Itoa(i.Fingerprint)
+	hashFormat = "murmur2"
+	hashPreferred := 0
+
+	// Prefer SHA1, then MD5 if found:
+	if i.Hashes != nil {
+		for _, v := range i.Hashes {
+			if v.Algorithm == hashAlgoMD5 && hashPreferred < 1 {
+				hashPreferred = 1
+
+				hash = v.Value
+				hashFormat = "md5"
+			} else if v.Algorithm == hashAlgoSHA1 && hashPreferred < 2 {
+				hashPreferred = 2
+
+				hash = v.Value
+				hashFormat = "sha1"
+			}
+		}
+	}
+
+	return
 }
 
 func getFileInfo(modID int, fileID int) (modFileInfo, error) {
