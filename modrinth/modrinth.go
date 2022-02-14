@@ -317,17 +317,17 @@ func shouldDownloadOnSide(side string) bool {
 
 func (v VersionFile) getBestHash() (string, string) {
 	//try preferred hashes first
-	val, exists := v.Hashes["sha256"]
+	val, exists := v.Hashes["sha512"]
+	if exists {
+		return "sha512", val
+	}
+	val, exists = v.Hashes["sha256"]
 	if exists {
 		return "sha256", val
 	}
 	val, exists = v.Hashes["murmur2"]
 	if exists {
 		return "murmur2", val
-	}
-	val, exists = v.Hashes["sha512"]
-	if exists {
-		return "sha512", val
 	}
 
 	//none of the preferred hashes are present, just get the first one
