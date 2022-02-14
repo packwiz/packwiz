@@ -174,12 +174,17 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) err
 		return err
 	}
 
+	u, err := core.ReencodeURL(fileInfo.DownloadURL)
+	if err != nil {
+		return err
+	}
+
 	modMeta := core.Mod{
 		Name:     modInfo.Name,
 		FileName: fileInfo.FileName,
 		Side:     core.UniversalSide,
 		Download: core.ModDownload{
-			URL: fileInfo.DownloadURL,
+			URL: u,
 			// TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
 			// TODO: check if the hash is invalid (e.g. 0)
 			HashFormat: "murmur2",
@@ -409,10 +414,15 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 			}
 		}
 
+		u, err := core.ReencodeURL(fileInfoData.DownloadURL)
+		if err != nil {
+			return err
+		}
+
 		v.FileName = fileInfoData.FileName
 		v.Name = modState.Name
 		v.Download = core.ModDownload{
-			URL: fileInfoData.DownloadURL,
+			URL: u,
 			// TODO: murmur2 hashing may be unstable in curse api, calculate the hash manually?
 			// TODO: check if the hash is invalid (e.g. 0)
 			HashFormat: "murmur2",

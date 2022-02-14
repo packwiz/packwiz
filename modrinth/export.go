@@ -135,6 +135,13 @@ var exportCmd = &cobra.Command{
 				serverEnv = envInstalled
 			}
 
+			// Modrinth URLs must be RFC3986
+			u, err := core.ReencodeURL(mod.Download.URL)
+			if err != nil {
+				fmt.Printf("Error re-encoding mod URL: %s\n", err.Error())
+				u = mod.Download.URL
+			}
+
 			manifestFiles[i] = PackFile{
 				Path:   path,
 				Hashes: hashes,
@@ -142,7 +149,7 @@ var exportCmd = &cobra.Command{
 					Client string `json:"client"`
 					Server string `json:"server"`
 				}{Client: clientEnv, Server: serverEnv},
-				Downloads: []string{mod.Download.URL},
+				Downloads: []string{u},
 			}
 		}
 
