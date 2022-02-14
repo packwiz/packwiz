@@ -227,7 +227,6 @@ var exportCmd = &cobra.Command{
 		}
 
 		fmt.Println("Modpack exported to " + fileName)
-		fmt.Println("Make sure you remove this file before running packwiz refresh, or add it to .packwizignore")
 	},
 }
 
