@@ -316,8 +316,12 @@ func shouldDownloadOnSide(side string) bool {
 }
 
 func (v VersionFile) getBestHash() (string, string) {
-	//try preferred hashes first
-	val, exists := v.Hashes["sha512"]
+	// Try preferred hashes first; SHA1 is first as it is required for Modrinth pack exporting
+	val, exists := v.Hashes["sha1"]
+	if exists {
+		return "sha1", val
+	}
+	val, exists = v.Hashes["sha512"]
 	if exists {
 		return "sha512", val
 	}
@@ -325,7 +329,7 @@ func (v VersionFile) getBestHash() (string, string) {
 	if exists {
 		return "sha256", val
 	}
-	val, exists = v.Hashes["murmur2"]
+	val, exists = v.Hashes["murmur2"] // (not defined in Modrinth pack spec, use with caution)
 	if exists {
 		return "murmur2", val
 	}
