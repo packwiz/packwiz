@@ -173,7 +173,7 @@ var importCmd = &cobra.Command{
 				if !ok {
 					fmt.Println("Set " + core.ComponentToFriendlyName(component) + " version to " + version)
 				} else if packVersion != version {
-					fmt.Println("Set " + core.ComponentToFriendlyName(component) + " version to " + version + " (previously " + version + ")")
+					fmt.Println("Set " + core.ComponentToFriendlyName(component) + " version to " + version + " (previously " + packVersion + ")")
 				}
 				pack.Versions[component] = version
 			}
