@@ -84,7 +84,10 @@ var exportCmd = &cobra.Command{
 			}
 		}
 
-		var fileName = pack.GetPackName() + ".zip"
+		fileName := viper.GetString("curseforge.export.output")
+		if fileName == "" {
+			fileName = pack.GetPackName() + ".zip"
+		}
 
 		expFile, err := os.Create(fileName)
 		if err != nil {
@@ -260,4 +263,6 @@ func init() {
 
 	exportCmd.Flags().StringP("side", "s", "client", "The side to export mods with")
 	_ = viper.BindPFlag("curseforge.export.side", exportCmd.Flags().Lookup("side"))
+	exportCmd.Flags().StringP("output", "o", "", "The file to export the modpack to")
+	_ = viper.BindPFlag("curseforge.export.output", exportCmd.Flags().Lookup("output"))
 }

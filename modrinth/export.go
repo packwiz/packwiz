@@ -56,7 +56,10 @@ var exportCmd = &cobra.Command{
 
 		mods := loadMods(index)
 
-		var fileName = pack.GetPackName() + ".mrpack"
+		fileName := viper.GetString("modrinth.export.output")
+		if fileName == "" {
+			fileName = pack.GetPackName() + ".mrpack"
+		}
 		expFile, err := os.Create(fileName)
 		if err != nil {
 			fmt.Printf("Failed to create zip: %s\n", err.Error())
@@ -251,4 +254,6 @@ func loadMods(index core.Index) []core.Mod {
 
 func init() {
 	modrinthCmd.AddCommand(exportCmd)
+	exportCmd.Flags().StringP("output", "o", "", "The file to export the modpack to")
+	_ = viper.BindPFlag("modrinth.export.output", exportCmd.Flags().Lookup("output"))
 }
