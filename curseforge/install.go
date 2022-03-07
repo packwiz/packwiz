@@ -215,7 +215,7 @@ var installCmd = &cobra.Command{
 					ansNormal := strings.ToLower(strings.TrimSpace(answer))
 					if !(len(ansNormal) > 0 && ansNormal[0] == 'n') {
 						for _, v := range depsInstallable {
-							err = createModFile(v.modInfo, v.fileInfo, &index)
+							err = createModFile(v.modInfo, v.fileInfo, &index, false)
 							if err != nil {
 								fmt.Println(err)
 								os.Exit(1)
@@ -229,7 +229,7 @@ var installCmd = &cobra.Command{
 			}
 		}
 
-		err = createModFile(modInfoData, fileInfoData, &index)
+		err = createModFile(modInfoData, fileInfoData, &index, false)
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)

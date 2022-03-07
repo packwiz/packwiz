@@ -23,11 +23,7 @@ type Mod struct {
 	Update     map[string]map[string]interface{} `toml:"update"`
 	updateData map[string]interface{}
 
-	Option *struct {
-		Optional    bool   `toml:"optional"`
-		Description string `toml:"description,omitempty"`
-		Default     bool   `toml:"default,omitempty"`
-	} `toml:"option,omitempty"`
+	Option *ModOption `toml:"option,omitempty"`
 }
 
 // ModDownload specifies how to download the mod file
@@ -35,6 +31,13 @@ type ModDownload struct {
 	URL        string `toml:"url"`
 	HashFormat string `toml:"hash-format"`
 	Hash       string `toml:"hash"`
+}
+
+// ModOption specifies optional metadata for this mod file
+type ModOption struct {
+	Optional    bool   `toml:"optional"`
+	Description string `toml:"description,omitempty"`
+	Default     bool   `toml:"default,omitempty"`
 }
 
 // The three possible values of Side (the side that the mod is on) are "server", "client", and "both".

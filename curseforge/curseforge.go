@@ -162,7 +162,7 @@ func getModIDFromString(mod string) (bool, int, error) {
 	return false, 0, nil
 }
 
-func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) error {
+func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, optionalDisabled bool) error {
 	updateMap := make(map[string]map[string]interface{})
 	var err error
 
@@ -181,6 +181,14 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) err
 
 	hash, hashFormat := fileInfo.getBestHash()
 
+	var optional *core.ModOption
+	if optionalDisabled {
+		optional = &core.ModOption{
+			Optional: true,
+			Default:  false,
+		}
+	}
+
 	modMeta := core.Mod{
 		Name:     modInfo.Name,
 		FileName: fileInfo.FileName,
@@ -190,6 +198,7 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index) err
 			HashFormat: hashFormat,
 			Hash:       hash,
 		},
+		Option: optional,
 		Update: updateMap,
 	}
 	path := modMeta.SetMetaName(modInfo.Slug, *index)
