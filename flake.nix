@@ -10,7 +10,7 @@
     flake = false;
   };
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, ... }:
     let
 
       # Generate a user-friendly version number.
