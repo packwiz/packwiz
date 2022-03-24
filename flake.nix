@@ -1,5 +1,5 @@
 {
-  description = "A simple Go package";
+  description = "A command line tool for editing and distributing Minecraft modpacks, using a git-friendly TOML format. Supports CurseForge and Modrinth mods with automated updates!";
 
   # Nixpkgs / NixOS version to use.
   inputs.nixpkgs.url = "nixpkgs/nixpkgs-unstable";
