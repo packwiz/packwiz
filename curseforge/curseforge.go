@@ -55,7 +55,9 @@ func getCurseforgeVersion(mcVersion string) string {
 		return mcVersion
 	}
 
-	if year == 21 && week >= 37 || year >= 22 {
+	if year >= 22 && week >= 11 {
+		return "1.19-Snapshot"
+	} else if year == 21 && week >= 37 || year >= 22 {
 		return "1.18-Snapshot"
 	} else if year == 20 && week >= 45 || year == 21 && week <= 20 {
 		return "1.17-Snapshot"
