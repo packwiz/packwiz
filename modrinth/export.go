@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/spf13/viper"
+	"net/url"
 	"os"
 	"path/filepath"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 )
 
 // exportCmd represents the export command
@@ -54,7 +56,7 @@ var exportCmd = &cobra.Command{
 		// TODO: should index just expose indexPath itself, through a function?
 		indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
 
-		mods := loadMods(index)
+		mods, unwhitelistedMods := loadMods(index)
 
 		fileName := viper.GetString("modrinth.export.output")
 		if fileName == "" {
@@ -218,6 +220,40 @@ var exportCmd = &cobra.Command{
 			}
 		}
 
+		if len(unwhitelistedMods) > 0 {
+			fmt.Println("Downloading unwhitelisted mods...")
+		}
+		for _, v := range unwhitelistedMods {
+			pathRel, err := filepath.Rel(filepath.Dir(indexPath), v.GetDestFilePath())
+			if err != nil {
+				fmt.Printf("Error resolving mod file: %s\n", err.Error())
+				// TODO: exit(1)?
+				continue
+			}
+			var path string
+			if v.Side == core.ClientSide {
+				path = filepath.ToSlash(filepath.Join("client-overrides", pathRel))
+			} else if v.Side == core.ServerSide {
+				path = filepath.ToSlash(filepath.Join("server-overrides", pathRel))
+			} else {
+				path = filepath.ToSlash(filepath.Join("overrides", pathRel))
+			}
+
+			file, err := exp.Create(path)
+			if err != nil {
+				fmt.Printf("Error creating file: %s\n", err.Error())
+				// TODO: exit(1)?
+				continue
+			}
+			err = v.DownloadFile(file)
+			if err != nil {
+				fmt.Printf("Error downloading file: %s\n", err.Error())
+				// TODO: exit(1)?
+				continue
+			}
+			fmt.Printf("Downloaded %v successfully\n", path)
+		}
+
 		err = exp.Close()
 		if err != nil {
 			fmt.Println("Error writing export file: " + err.Error())
@@ -233,10 +269,17 @@ var exportCmd = &cobra.Command{
 	},
 }
 
-func loadMods(index core.Index) []core.Mod {
+var whitelistedHosts = []string{
+	"cdn.modrinth.com",
+	"edge.forgecdn.net",
+	"github.com",
+	"raw.githubusercontent.com",
+}
+
+func loadMods(index core.Index) ([]core.Mod, []core.Mod) {
 	modPaths := index.GetAllMods()
-	mods := make([]core.Mod, len(modPaths))
-	i := 0
+	mods := make([]core.Mod, 0, len(modPaths))
+	unwhitelistedMods := make([]core.Mod, 0)
 	fmt.Println("Reading mod files...")
 	for _, v := range modPaths {
 		modData, err := core.LoadMod(v)
@@ -246,10 +289,19 @@ func loadMods(index core.Index) []core.Mod {
 			continue
 		}
 
-		mods[i] = modData
-		i++
+		modUrl, err := url.Parse(modData.Download.URL)
+		if err == nil {
+			if slices.Contains(whitelistedHosts, modUrl.Host) {
+				mods = append(mods, modData)
+			} else {
+				unwhitelistedMods = append(unwhitelistedMods, modData)
+			}
+		} else {
+			fmt.Printf("Failed to parse mod URL: %v\n", modUrl)
+			mods = append(mods, modData)
+		}
 	}
-	return mods[:i]
+	return mods, unwhitelistedMods
 }
 
 func init() {

@@ -7,10 +7,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
 
-    - name: Set up Go 1.16
+    - name: Set up Go 1.18
       uses: actions/setup-go@v1
       with:
-        go-version: 1.16
+        go-version: 1.18
       id: go
 
     - name: Check out code into the Go module directory
@@ -39,6 +39,12 @@ jobs:
     - name: Upload assets
       uses: actions/upload-artifact@v2
       with:
+        name: Windows 64-bit ARM
+        path: dist/packwiz_windows_arm64/
+
+    - name: Upload assets
+      uses: actions/upload-artifact@v2
+      with:
         name: Linux 64-bit x86
         path: dist/packwiz_linux_amd64/
 
@@ -57,5 +63,11 @@ jobs:
     - name: Upload assets
       uses: actions/upload-artifact@v2
       with:
-        name: macOS 64-bit
+        name: macOS 64-bit x86
         path: dist/packwiz_darwin_amd64/
+
+    - name: Upload assets
+      uses: actions/upload-artifact@v2
+      with:
+        name: macOS 64-bit ARM
+        path: dist/packwiz_darwin_arm64/
