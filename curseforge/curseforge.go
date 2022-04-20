@@ -222,10 +222,11 @@ func getLoader(pack core.Pack) int {
 	dependencies := pack.Versions
 
 	_, hasFabric := dependencies["fabric"]
+	_, hasQuilt := dependencies["quilt"]
 	_, hasForge := dependencies["forge"]
-	if hasFabric && hasForge {
+	if (hasFabric || hasQuilt) && hasForge {
 		return modloaderTypeAny
-	} else if hasFabric {
+	} else if hasFabric || hasQuilt { // Backwards-compatible; for now (could be configurable later)
 		return modloaderTypeFabric
 	} else if hasForge {
 		return modloaderTypeForge

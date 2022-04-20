@@ -171,7 +171,10 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 		return Version{}, err
 	}
 
-	loader := getLoader(pack)
+	loadersEncoded, err := json.Marshal(getLoaders(pack))
+	if err != nil {
+		return Version{}, err
+	}
 
 	baseUrl := *modrinthApiUrlParsed
 	baseUrl.Path += "mod/"
@@ -180,9 +183,7 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 
 	params := url.Values{}
 	params.Add("game_versions", string(gameVersionsEncoded))
-	if loader != "any" {
-		params.Add("loaders", "[\""+loader+"\"]")
-	}
+	params.Add("loaders", string(loadersEncoded))
 
 	baseUrl.RawQuery = params.Encode()
 
@@ -343,18 +344,20 @@ func (v VersionFile) getBestHash() (string, string) {
 	return "", ""
 }
 
-func getLoader(pack core.Pack) string {
+func getLoaders(pack core.Pack) []string {
 	dependencies := pack.Versions
 
-	_, hasFabric := dependencies["fabric"]
-	_, hasForge := dependencies["forge"]
-	if hasFabric && hasForge {
-		return "any"
-	} else if hasFabric {
-		return "fabric"
-	} else if hasForge {
-		return "forge"
-	} else {
-		return "any"
+	var list []string
+
+	if _, hasQuilt := dependencies["quilt"]; hasQuilt {
+		list = append(list, "quilt")
+		list = append(list, "fabric") // Backwards-compatible; for now (could be configurable later)
+	} else if _, hasFabric := dependencies["fabric"]; hasFabric {
+		list = append(list, "fabric")
 	}
+	if _, hasForge := dependencies["forge"]; hasForge {
+		list = append(list, "forge")
+	}
+
+	return list
 }

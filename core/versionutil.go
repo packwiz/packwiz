@@ -44,6 +44,11 @@ var ModLoaders = map[string]ModLoaderComponent{
 		FriendlyName:      "LiteLoader",
 		VersionListGetter: FetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
 	},
+	"quilt": {
+		Name:              "quilt",
+		FriendlyName:      "Quilt loader",
+		VersionListGetter: FetchMavenVersionList("https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml"),
+	},
 }
 
 func FetchMavenVersionList(url string) func(mcVersion string) ([]string, string, error) {

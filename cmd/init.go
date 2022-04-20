@@ -85,7 +85,7 @@ var initCmd = &cobra.Command{
 
 		modLoaderName := strings.ToLower(viper.GetString("init.modloader"))
 		if len(modLoaderName) == 0 {
-			modLoaderName = strings.ToLower(initReadValue("Mod loader [fabric]: ", "fabric"))
+			modLoaderName = strings.ToLower(initReadValue("Mod loader [quilt]: ", "quilt"))
 		}
 
 		loader, ok := core.ModLoaders[modLoaderName]
