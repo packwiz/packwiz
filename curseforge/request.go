@@ -168,6 +168,9 @@ func getModInfo(modID int) (modInfo, error) {
 	if err != nil {
 		return modInfo{}, err
 	}
+	if resp.StatusCode != 200 {
+		return modInfo{}, fmt.Errorf("failed to request addon ID %d: %s", modID, resp.Status)
+	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
@@ -175,7 +178,7 @@ func getModInfo(modID int) (modInfo, error) {
 	}
 
 	if infoRes.ID != modID {
-		return modInfo{}, fmt.Errorf("unexpected addon ID in CurseForge response: %d/%d", modID, infoRes.ID)
+		return modInfo{}, fmt.Errorf("unexpected addon ID in CurseForge response: %d (expected %d)", infoRes.ID, modID)
 	}
 
 	return infoRes, nil
@@ -303,6 +306,9 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	if err != nil {
 		return modFileInfo{}, err
 	}
+	if resp.StatusCode != 200 {
+		return modFileInfo{}, fmt.Errorf("failed to request file ID %d for addon %d: %s", fileID, modID, resp.Status)
+	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
@@ -310,7 +316,7 @@ func getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	}
 
 	if infoRes.ID != fileID {
-		return modFileInfo{}, fmt.Errorf("unexpected file ID in CurseForge response: %d/%d", modID, infoRes.ID)
+		return modFileInfo{}, fmt.Errorf("unexpected file ID for addon %d in CurseForge response: %d (expected %d)", modID, infoRes.ID, fileID)
 	}
 
 	return infoRes, nil

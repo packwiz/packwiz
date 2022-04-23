@@ -334,12 +334,14 @@ func searchCurseforgeInternal(args []string, mcVersion string, packLoaderType in
 }
 
 func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoaderType int) (modFileInfo, error) {
+	anyFileObtained := false
 	// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
 	if fileID == 0 {
 		var fileInfoData modFileInfo
 		fileInfoObtained := false
 
 		for _, v := range modInfoData.LatestFiles {
+			anyFileObtained = true
 			// Choose "newest" version by largest ID
 			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaderType, v) {
 				fileID = v.ID
@@ -349,6 +351,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 		}
 		// TODO: change to timestamp-based comparison??
 		for _, v := range modInfoData.GameVersionLatestFiles {
+			anyFileObtained = true
 			// Choose "newest" version by largest ID
 			if matchGameVersion(mcVersion, v.GameVersion) && v.ID > fileID && matchLoaderType(packLoaderType, v.Modloader) {
 				fileID = v.ID
@@ -358,6 +361,10 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 		if fileInfoObtained {
 			return fileInfoData, nil
 		}
+	}
+
+	if !anyFileObtained {
+		return modFileInfo{}, fmt.Errorf("addon %d has no files", modInfoData.ID)
 	}
 
 	if fileID == 0 {
