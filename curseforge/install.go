@@ -366,7 +366,11 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 		if !anyFileObtained {
 			return modFileInfo{}, fmt.Errorf("addon %d has no files", modInfoData.ID)
 		}
-		return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-game-versions option to accept more) or loader")
+
+		// Possible to reach this point without obtaining file info; particularly from GameVersionLatestFiles
+		if fileID == 0 {
+			return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-game-versions option to accept more) or loader")
+		}
 	}
 
 	fileInfoData, err := getFileInfo(modInfoData.ID, fileID)
