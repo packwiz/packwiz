@@ -30,11 +30,11 @@ jobs:
         name: Windows 64-bit
         path: dist/packwiz_windows_amd64_v1/
 
-    - name: Upload assets
-      uses: actions/upload-artifact@v2
-      with:
-        name: Windows 32-bit
-        path: dist/packwiz_windows_386/
+#    - name: Upload assets
+#      uses: actions/upload-artifact@v2
+#      with:
+#        name: Windows 32-bit
+#        path: dist/packwiz_windows_386/
 
     - name: Upload assets
       uses: actions/upload-artifact@v2
@@ -48,11 +48,11 @@ jobs:
         name: Linux 64-bit x86
         path: dist/packwiz_linux_amd64_v1/
 
-    - name: Upload assets
-      uses: actions/upload-artifact@v2
-      with:
-        name: Linux 32-bit x86
-        path: dist/packwiz_linux_386/
+#    - name: Upload assets
+#      uses: actions/upload-artifact@v2
+#      with:
+#        name: Linux 32-bit x86
+#        path: dist/packwiz_linux_386/
 
     - name: Upload assets
       uses: actions/upload-artifact@v2
