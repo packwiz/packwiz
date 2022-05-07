@@ -176,11 +176,6 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 		return err
 	}
 
-	u, err := core.ReencodeURL(fileInfo.DownloadURL)
-	if err != nil {
-		return err
-	}
-
 	hash, hashFormat := fileInfo.getBestHash()
 
 	var optional *core.ModOption
@@ -196,7 +191,6 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 		FileName: fileInfo.FileName,
 		Side:     core.UniversalSide,
 		Download: core.ModDownload{
-			URL:        u,
 			HashFormat: hashFormat,
 			Hash:       hash,
 		},
@@ -335,7 +329,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 		modIDs[i] = project.ProjectID
 	}
 
-	modInfosUnsorted, err := getModInfoMultiple(modIDs)
+	modInfosUnsorted, err := cfDefaultClient.getModInfoMultiple(modIDs)
 	if err != nil {
 		return nil, err
 	}
@@ -420,22 +414,16 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 		fileInfoData := modState.fileInfo
 		if !modState.hasFileInfo {
 			var err error
-			fileInfoData, err = getFileInfo(modState.ID, modState.fileID)
+			fileInfoData, err = cfDefaultClient.getFileInfo(modState.ID, modState.fileID)
 			if err != nil {
 				return err
 			}
-		}
-
-		u, err := core.ReencodeURL(fileInfoData.DownloadURL)
-		if err != nil {
-			return err
 		}
 
 		v.FileName = fileInfoData.FileName
 		v.Name = modState.Name
 		hash, hashFormat := fileInfoData.getBestHash()
 		v.Download = core.ModDownload{
-			URL:        u,
 			HashFormat: hashFormat,
 			Hash:       hash,
 		}

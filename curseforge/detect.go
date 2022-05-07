@@ -61,7 +61,7 @@ var detectCmd = &cobra.Command{
 		}
 		fmt.Printf("Found %d files, submitting...\n", len(hashes))
 
-		res, err := getFingerprintInfo(hashes)
+		res, err := cfDefaultClient.getFingerprintInfo(hashes)
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -82,7 +82,7 @@ var detectCmd = &cobra.Command{
 		}
 		fmt.Println("Installing...")
 		for _, v := range res.ExactMatches {
-			modInfoData, err := getModInfo(v.ID)
+			modInfoData, err := cfDefaultClient.getModInfo(v.ID)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)

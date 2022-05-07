@@ -2,6 +2,7 @@ package curseforge
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -9,9 +10,83 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
-	"strings"
 	"time"
 )
+
+// TODO: update everything for no URL and download mode "metadata:curseforge"
+
+const cfApiServer = "api.curseforge.com"
+
+// If you fork/derive from packwiz, I request that you obtain your own API key.
+const cfApiKeyDefault = "JDJhJDEwJHNBWVhqblU1N0EzSmpzcmJYM3JVdk92UWk2NHBLS3BnQ2VpbGc1TUM1UGNKL0RYTmlGWWxh"
+
+// Exists so you can provide it as a build parameter: -ldflags="-X 'github.com/packwiz/packwiz/curseforge.cfApiKey=key'"
+var cfApiKey = ""
+
+func decodeDefaultKey() string {
+	k, err := base64.StdEncoding.DecodeString(cfApiKeyDefault)
+	if err != nil {
+		panic("failed to read API key!")
+	}
+	return string(k)
+}
+
+type cfApiClient struct {
+	httpClient *http.Client
+}
+
+var cfDefaultClient = cfApiClient{&http.Client{}}
+
+func (c *cfApiClient) makeGet(endpoint string) (*http.Response, error) {
+	req, err := http.NewRequest("GET", "https://"+cfApiServer+endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: make this configurable application-wide
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
+	req.Header.Set("Accept", "application/json")
+	if cfApiKey == "" {
+		cfApiKey = decodeDefaultKey()
+	}
+	req.Header.Set("X-API-Key", cfApiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("invalid response status: %v", resp.Status)
+	}
+	return resp, nil
+}
+
+func (c *cfApiClient) makePost(endpoint string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest("POST", "https://"+cfApiServer+endpoint, body)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO: make this configurable application-wide
+	req.Header.Set("User-Agent", "packwiz/packwiz client")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+	if cfApiKey == "" {
+		cfApiKey = decodeDefaultKey()
+	}
+	req.Header.Set("X-API-Key", cfApiKey)
+
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode != 200 {
+		return nil, fmt.Errorf("invalid response status: %v", resp.Status)
+	}
+	return resp, nil
+}
 
 // addonSlugRequest is sent to the CurseProxy GraphQL api to get the id from a slug
 type addonSlugRequest struct {
@@ -64,6 +139,7 @@ func modIDFromSlug(slug string) (int, error) {
 		return 0, err
 	}
 
+	// TODO: move to new slug API
 	req, err := http.NewRequest("POST", "https://curse.nikky.moe/graphql", bytes.NewBuffer(requestBytes))
 	if err != nil {
 		return 0, err
@@ -134,129 +210,91 @@ const (
 type modInfo struct {
 	Name                   string        `json:"name"`
 	Slug                   string        `json:"slug"`
-	WebsiteURL             string        `json:"websiteUrl"`
 	ID                     int           `json:"id"`
 	LatestFiles            []modFileInfo `json:"latestFiles"`
 	GameVersionLatestFiles []struct {
 		// TODO: check how twitch launcher chooses which one to use, when you are on beta/alpha channel?!
 		// or does it not have the concept of release channels?!
 		GameVersion string `json:"gameVersion"`
-		ID          int    `json:"projectFileId"`
-		Name        string `json:"projectFileName"`
-		FileType    int    `json:"fileType"`
+		ID          int    `json:"fileId"`
+		Name        string `json:"filename"`
+		FileType    int    `json:"releaseType"`
 		Modloader   int    `json:"modLoader"`
-	} `json:"gameVersionLatestFiles"`
+	} `json:"latestFilesIndexes"`
 	ModLoaders []string `json:"modLoaders"`
 }
 
-func getModInfo(modID int) (modInfo, error) {
-	var infoRes modInfo
-	client := &http.Client{}
+func (c *cfApiClient) getModInfo(modID int) (modInfo, error) {
+	var infoRes struct {
+		Data modInfo `json:"data"`
+	}
 
 	idStr := strconv.Itoa(modID)
-
-	req, err := http.NewRequest("GET", "https://addons-ecs.forgesvc.net/api/v2/addon/"+idStr, nil)
+	resp, err := c.makeGet("/v1/mods/" + idStr)
 	if err != nil {
-		return modInfo{}, err
-	}
-
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return modInfo{}, err
-	}
-	if resp.StatusCode != 200 {
-		return modInfo{}, fmt.Errorf("failed to request addon ID %d: %s", modID, resp.Status)
+		return modInfo{}, fmt.Errorf("failed to request addon data for ID %d: %w", modID, err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
-		return modInfo{}, err
+		return modInfo{}, fmt.Errorf("failed to request addon data for ID %d: %w", modID, err)
 	}
 
-	if infoRes.ID != modID {
-		return modInfo{}, fmt.Errorf("unexpected addon ID in CurseForge response: %d (expected %d)", infoRes.ID, modID)
+	if infoRes.Data.ID != modID {
+		return modInfo{}, fmt.Errorf("unexpected addon ID in CurseForge response: %d (expected %d)", infoRes.Data.ID, modID)
 	}
 
-	return infoRes, nil
+	return infoRes.Data, nil
 }
 
-func getModInfoMultiple(modIDs []int) ([]modInfo, error) {
-	var infoRes []modInfo
-	client := &http.Client{}
+func (c *cfApiClient) getModInfoMultiple(modIDs []int) ([]modInfo, error) {
+	var infoRes struct {
+		Data []modInfo `json:"data"`
+	}
 
-	modIDsData, err := json.Marshal(modIDs)
+	modIDsData, err := json.Marshal(struct {
+		ModIDs []int `json:"modIds"`
+	}{
+		ModIDs: modIDs,
+	})
 	if err != nil {
 		return []modInfo{}, err
 	}
 
-	req, err := http.NewRequest("POST", "https://addons-ecs.forgesvc.net/api/v2/addon/", bytes.NewBuffer(modIDsData))
+	resp, err := c.makePost("/v1/mods", bytes.NewBuffer(modIDsData))
 	if err != nil {
-		return []modInfo{}, err
-	}
-
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return []modInfo{}, err
+		return []modInfo{}, fmt.Errorf("failed to request addon data: %w", err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
-		return []modInfo{}, err
+		return []modInfo{}, fmt.Errorf("failed to request addon data: %w", err)
 	}
 
-	return infoRes, nil
-}
-
-const cfDateFormatString = "2006-01-02T15:04:05.999"
-
-type cfDateFormat struct {
-	time.Time
-}
-
-// Curse switched to proper RFC3339, but previously downloaded metadata still uses the old format :(
-func (f *cfDateFormat) UnmarshalJSON(input []byte) error {
-	trimmed := strings.Trim(string(input), `"`)
-	timeValue, err := time.Parse(time.RFC3339Nano, trimmed)
-	if err != nil {
-		timeValue, err = time.Parse(cfDateFormatString, trimmed)
-		if err != nil {
-			return err
-		}
-	}
-
-	f.Time = timeValue
-	return nil
+	return infoRes.Data, nil
 }
 
 // modFileInfo is a subset of the deserialised JSON response from the Curse API for mod files
 type modFileInfo struct {
-	ID           int          `json:"id"`
-	FileName     string       `json:"fileName"`
-	FriendlyName string       `json:"displayName"`
-	Date         cfDateFormat `json:"fileDate"`
-	Length       int          `json:"fileLength"`
-	FileType     int          `json:"releaseType"`
+	ID           int       `json:"id"`
+	FileName     string    `json:"fileName"`
+	FriendlyName string    `json:"displayName"`
+	Date         time.Time `json:"fileDate"`
+	Length       int       `json:"fileLength"`
+	FileType     int       `json:"releaseType"`
 	// fileStatus? means latest/preferred?
+	// According to the CurseForge API T&Cs, this must not be saved or cached
 	DownloadURL  string   `json:"downloadUrl"`
-	GameVersions []string `json:"gameVersion"`
-	Fingerprint  int      `json:"packageFingerprint"`
+	GameVersions []string `json:"gameVersions"`
+	Fingerprint  int      `json:"fileFingerprint"`
 	Dependencies []struct {
-		ModID int `json:"addonId"`
-		Type  int `json:"type"`
+		ModID int `json:"modId"`
+		Type  int `json:"relationType"`
 	} `json:"dependencies"`
 
 	Hashes []struct {
 		Value     string `json:"value"`
-		Algorithm int    `json:"algorithm"`
+		Algorithm int    `json:"algo"`
 	} `json:"hashes"`
 }
 
@@ -286,105 +324,78 @@ func (i modFileInfo) getBestHash() (hash string, hashFormat string) {
 	return
 }
 
-func getFileInfo(modID int, fileID int) (modFileInfo, error) {
-	var infoRes modFileInfo
-	client := &http.Client{}
+func (c *cfApiClient) getFileInfo(modID int, fileID int) (modFileInfo, error) {
+	var infoRes struct {
+		Data modFileInfo `json:"data"`
+	}
 
 	modIDStr := strconv.Itoa(modID)
 	fileIDStr := strconv.Itoa(fileID)
 
-	req, err := http.NewRequest("GET", "https://addons-ecs.forgesvc.net/api/v2/addon/"+modIDStr+"/file/"+fileIDStr, nil)
+	resp, err := c.makeGet("/v1/mods/" + modIDStr + "/files/" + fileIDStr)
 	if err != nil {
-		return modFileInfo{}, err
-	}
-
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return modFileInfo{}, err
-	}
-	if resp.StatusCode != 200 {
-		return modFileInfo{}, fmt.Errorf("failed to request file ID %d for addon %d: %s", fileID, modID, resp.Status)
+		return modFileInfo{}, fmt.Errorf("failed to request file data for addon ID %d, file ID %d: %w", modID, fileID, err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
-		return modFileInfo{}, err
+		return modFileInfo{}, fmt.Errorf("failed to request file data for addon ID %d, file ID %d: %w", modID, fileID, err)
 	}
 
-	if infoRes.ID != fileID {
-		return modFileInfo{}, fmt.Errorf("unexpected file ID for addon %d in CurseForge response: %d (expected %d)", modID, infoRes.ID, fileID)
+	if infoRes.Data.ID != fileID {
+		return modFileInfo{}, fmt.Errorf("unexpected file ID for addon %d in CurseForge response: %d (expected %d)", modID, infoRes.Data.ID, fileID)
 	}
 
-	return infoRes, nil
+	return infoRes.Data, nil
 }
 
-func getFileInfoMultiple(fileIDs []int) (map[string][]modFileInfo, error) {
-	var infoRes map[string][]modFileInfo
-	client := &http.Client{}
-
-	modIDsData, err := json.Marshal(fileIDs)
-	if err != nil {
-		return make(map[string][]modFileInfo), err
+func (c *cfApiClient) getFileInfoMultiple(fileIDs []int) ([]modFileInfo, error) {
+	var infoRes struct {
+		Data []modFileInfo `json:"data"`
 	}
 
-	req, err := http.NewRequest("POST", "https://addons-ecs.forgesvc.net/api/v2/addon/files", bytes.NewBuffer(modIDsData))
+	fileIDsData, err := json.Marshal(struct {
+		FileIDs []int `json:"fileIds"`
+	}{
+		FileIDs: fileIDs,
+	})
 	if err != nil {
-		return make(map[string][]modFileInfo), err
+		return []modFileInfo{}, err
 	}
 
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
+	resp, err := c.makePost("/v1/mods/files", bytes.NewBuffer(fileIDsData))
 	if err != nil {
-		return make(map[string][]modFileInfo), err
+		return []modFileInfo{}, fmt.Errorf("failed to request file data: %w", err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
-		return make(map[string][]modFileInfo), err
+		return []modFileInfo{}, fmt.Errorf("failed to request file data: %w", err)
 	}
 
-	return infoRes, nil
+	return infoRes.Data, nil
 }
 
-func getSearch(searchText string, gameVersion string, modloaderType int) ([]modInfo, error) {
-	var infoRes []modInfo
-	client := &http.Client{}
-
-	reqURL, err := url.Parse("https://addons-ecs.forgesvc.net/api/v2/addon/search?gameId=432&pageSize=10&categoryId=0&sectionId=6")
-	if err != nil {
-		return []modInfo{}, err
+func (c *cfApiClient) getSearch(searchText string, gameVersion string, modloaderType int) ([]modInfo, error) {
+	var infoRes struct {
+		Data []modInfo `json:"data"`
 	}
-	q := reqURL.Query()
+
+	q := url.Values{}
+	q.Set("gameId", "432") // Minecraft
+	q.Set("pageSize", "10")
+	q.Set("classId", "6") // Mods
 	q.Set("searchFilter", searchText)
-
 	if len(gameVersion) > 0 {
 		q.Set("gameVersion", gameVersion)
 	}
 	if modloaderType != modloaderTypeAny {
 		q.Set("modLoaderType", strconv.Itoa(modloaderType))
 	}
-	reqURL.RawQuery = q.Encode()
 
-	req, err := http.NewRequest("GET", reqURL.String(), nil)
+	resp, err := c.makeGet("/v1/mods/search?" + q.Encode())
 	if err != nil {
-		return []modInfo{}, err
-	}
-
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return []modInfo{}, err
+		return []modInfo{}, fmt.Errorf("failed to retrieve search results: %w", err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
@@ -392,7 +403,7 @@ func getSearch(searchText string, gameVersion string, modloaderType int) ([]modI
 		return []modInfo{}, err
 	}
 
-	return infoRes, nil
+	return infoRes.Data, nil
 }
 
 type addonFingerprintResponse struct {
@@ -409,28 +420,23 @@ type addonFingerprintResponse struct {
 	UnmatchedFingerprints    []int    `json:"unmatchedFingerprints"`
 }
 
-func getFingerprintInfo(hashes []int) (addonFingerprintResponse, error) {
-	var infoRes addonFingerprintResponse
-	client := &http.Client{}
+func (c *cfApiClient) getFingerprintInfo(hashes []int) (addonFingerprintResponse, error) {
+	var infoRes struct {
+		Data addonFingerprintResponse `json:"data"`
+	}
 
-	hashesData, err := json.Marshal(hashes)
+	hashesData, err := json.Marshal(struct {
+		Fingerprints []int `json:"fingerprints"`
+	}{
+		Fingerprints: hashes,
+	})
 	if err != nil {
 		return addonFingerprintResponse{}, err
 	}
 
-	req, err := http.NewRequest("POST", "https://addons-ecs.forgesvc.net/api/v2/fingerprint", bytes.NewBuffer(hashesData))
+	resp, err := c.makePost("/v1/fingerprints", bytes.NewBuffer(hashesData))
 	if err != nil {
-		return addonFingerprintResponse{}, err
-	}
-
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return addonFingerprintResponse{}, err
+		return addonFingerprintResponse{}, fmt.Errorf("failed to retrieve fingerprint results: %w", err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
@@ -438,5 +444,5 @@ func getFingerprintInfo(hashes []int) (addonFingerprintResponse, error) {
 		return addonFingerprintResponse{}, err
 	}
 
-	return infoRes, nil
+	return infoRes.Data, nil
 }

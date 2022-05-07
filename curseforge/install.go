@@ -99,7 +99,7 @@ var installCmd = &cobra.Command{
 		}
 
 		if !modInfoObtained {
-			modInfoData, err = getModInfo(modID)
+			modInfoData, err = cfDefaultClient.getModInfo(modID)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -169,7 +169,7 @@ var installCmd = &cobra.Command{
 					}
 					depIDPendingQueue = depIDPendingQueue[:i]
 
-					depInfoData, err := getModInfoMultiple(depIDPendingQueue)
+					depInfoData, err := cfDefaultClient.getModInfoMultiple(depIDPendingQueue)
 					if err != nil {
 						fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
 					}
@@ -276,7 +276,7 @@ func searchCurseforgeInternal(args []string, mcVersion string, packLoaderType in
 	if len(viper.GetStringSlice("acceptable-game-versions")) > 0 {
 		filterGameVersion = ""
 	}
-	results, err := getSearch(searchTerm, filterGameVersion, packLoaderType)
+	results, err := cfDefaultClient.getSearch(searchTerm, filterGameVersion, packLoaderType)
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
@@ -373,7 +373,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 		}
 	}
 
-	fileInfoData, err := getFileInfo(modInfoData.ID, fileID)
+	fileInfoData, err := cfDefaultClient.getFileInfo(modInfoData.ID, fileID)
 	if err != nil {
 		return modFileInfo{}, err
 	}

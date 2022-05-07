@@ -192,7 +192,7 @@ var importCmd = &cobra.Command{
 
 		fmt.Println("Querying Curse API for mod info...")
 
-		modInfos, err := getModInfoMultiple(modIDs)
+		modInfos, err := cfDefaultClient.getModInfoMultiple(modIDs)
 		if err != nil {
 			fmt.Printf("Failed to obtain mod information: %s\n", err)
 			os.Exit(1)
@@ -236,16 +236,14 @@ var importCmd = &cobra.Command{
 		// 2nd pass: query files that weren't in the previous results
 		fmt.Println("Querying Curse API for file info...")
 
-		modFileInfos, err := getFileInfoMultiple(remainingFileIDs)
+		modFileInfos, err := cfDefaultClient.getFileInfoMultiple(remainingFileIDs)
 		if err != nil {
 			fmt.Printf("Failed to obtain mod file information: %s\n", err)
 			os.Exit(1)
 		}
 
 		for _, v := range modFileInfos {
-			for _, file := range v {
-				modFileInfosMap[file.ID] = file
-			}
+			modFileInfosMap[v.ID] = v
 		}
 
 		// 3rd pass: create mod files for every file
