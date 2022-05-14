@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"github.com/packwiz/packwiz/core"
 	"os"
 	"path/filepath"
 
@@ -40,12 +41,12 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&modsFolder, "mods-folder", "mods", "The default folder to store mod metadata files in")
 	_ = viper.BindPFlag("mods-folder", rootCmd.PersistentFlags().Lookup("mods-folder"))
 
-	file, err := os.UserConfigDir()
+	file, err := core.GetPackwizLocalStore()
 	if err != nil {
 		fmt.Println(err)
 		os.Exit(1)
 	}
-	file = filepath.Join(file, "packwiz", ".packwiz.toml")
+	file = filepath.Join(file, ".packwiz.toml")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "The config file to use (default \""+file+"\")")
 }
 
@@ -55,13 +56,13 @@ func initConfig() {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
 	} else {
-		dir, err := os.UserConfigDir()
+		dir, err := core.GetPackwizLocalStore()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 
-		viper.AddConfigPath(filepath.Join(dir, "packwiz"))
+		viper.AddConfigPath(dir)
 		viper.SetConfigName(".packwiz")
 	}
 
