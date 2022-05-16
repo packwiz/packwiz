@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"io"
 	"net/http"
 	"os"
@@ -92,7 +93,7 @@ func (m Mod) Write() (string, string, error) {
 		}
 	}
 
-	h, stringer, err := GetHashImpl("sha256")
+	h, err := GetHashImpl("sha256")
 	if err != nil {
 		_ = f.Close()
 		return "", "", err
@@ -103,7 +104,7 @@ func (m Mod) Write() (string, string, error) {
 	// Disable indentation
 	enc.Indent = ""
 	err = enc.Encode(m)
-	hashString := stringer.HashToString(h.Sum(nil))
+	hashString := h.HashToString(h.Sum(nil))
 	if err != nil {
 		_ = f.Close()
 		return "sha256", hashString, err
@@ -130,6 +131,7 @@ func (m Mod) GetDestFilePath() string {
 // DownloadFile attempts to resolve and download the file
 func (m Mod) DownloadFile(dest io.Writer) error {
 	resp, err := http.Get(m.Download.URL)
+	// TODO: content type, user-agent?
 	if err != nil {
 		return err
 	}
@@ -137,9 +139,9 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 		_ = resp.Body.Close()
 		return errors.New("invalid status code " + strconv.Itoa(resp.StatusCode))
 	}
-	h, stringer, err := GetHashImpl(m.Download.HashFormat)
+	h, err := GetHashImpl(m.Download.HashFormat)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get hash format %s to download file: %w", m.Download.HashFormat, err)
 	}
 
 	w := io.MultiWriter(h, dest)
@@ -148,7 +150,7 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 		return err
 	}
 
-	calculatedHash := stringer.HashToString(h.Sum(nil))
+	calculatedHash := h.HashToString(h.Sum(nil))
 
 	// Check if the hash of the downloaded file matches the expected hash.
 	if calculatedHash != m.Download.Hash {
@@ -156,4 +158,73 @@ func (m Mod) DownloadFile(dest io.Writer) error {
 	}
 
 	return nil
+}
+
+// GetHashes attempts to retrieve the values of all hashes passed to it, downloading if necessary
+func (m Mod) GetHashes(hashes []string) (map[string]string, error) {
+	out := make(map[string]string)
+
+	// Get the hash already stored TODO: store multiple (requires breaking pack change)
+	if m.Download.Hash != "" {
+		idx := slices.Index(hashes, m.Download.HashFormat)
+		if idx > -1 {
+			out[m.Download.HashFormat] = m.Download.Hash
+			// Remove hash from list to retrieve
+			hashes = slices.Delete(hashes, idx, idx+1)
+		}
+	}
+
+	// Retrieve the remaining hashes
+	if len(hashes) > 0 {
+		resp, err := http.Get(m.Download.URL)
+		// TODO: content type, user-agent?
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != 200 {
+			_ = resp.Body.Close()
+			return nil, errors.New("invalid status code " + strconv.Itoa(resp.StatusCode))
+		}
+
+		// Special fast-path for file length only
+		if len(hashes) == 1 && hashes[0] == "length-bytes" && resp.ContentLength > 0 {
+			out["length-bytes"] = strconv.FormatInt(resp.ContentLength, 10)
+			_ = resp.Body.Close()
+			return out, nil
+		}
+
+		mainHasher, err := GetHashImpl(m.Download.HashFormat)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get hash format %s to download file: %w", m.Download.HashFormat, err)
+		}
+
+		hashers := make([]HashStringer, len(hashes))
+		allHashers := make([]io.Writer, len(hashers))
+		for i, v := range hashes {
+			hashers[i], err = GetHashImpl(v)
+			if err != nil {
+				return nil, fmt.Errorf("failed to get hash format %s for file: %w", v, err)
+			}
+			allHashers[i] = hashers[i]
+		}
+		allHashers = append(allHashers, mainHasher)
+
+		w := io.MultiWriter(allHashers...)
+		_, err = io.Copy(w, resp.Body)
+		if err != nil {
+			return nil, fmt.Errorf("failed to download file: %w", err)
+		}
+
+		calculatedHash := mainHasher.HashToString(mainHasher.Sum(nil))
+
+		// Check if the hash of the downloaded file matches the expected hash
+		if calculatedHash != m.Download.Hash {
+			return nil, fmt.Errorf("Hash of downloaded file does not match with expected hash!\n download hash: %s\n expected hash: %s\n", calculatedHash, m.Download.Hash)
+		}
+
+		for i, v := range hashers {
+			out[hashes[i]] = v.HashToString(v.Sum(nil))
+		}
+	}
+	return out, nil
 }
