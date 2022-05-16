@@ -150,16 +150,9 @@ func (in *Index) updateFile(path string) error {
 	}
 
 	mod := false
-	// If the file has an extension of toml and is in the mods folder, set mod to true
-	absFileDir, err := filepath.Abs(filepath.Dir(path))
-	if err == nil {
-		modsDir := filepath.Join(in.GetPackRoot(), viper.GetString("mods-folder"))
-		absModsDir, err := filepath.Abs(modsDir)
-		if err == nil {
-			if absFileDir == absModsDir && strings.HasSuffix(filepath.Base(path), ".toml") {
-				mod = true
-			}
-		}
+	// If the file has an extension of pw.toml, set mod to true
+	if strings.HasSuffix(filepath.Base(path), MetaExtension) {
+		mod = true
 	}
 
 	return in.updateFileHashGiven(path, "sha256", hashString, mod)
@@ -341,7 +334,7 @@ func (in Index) FindMod(modName string) (string, bool) {
 	for _, v := range in.Files {
 		if v.MetaFile {
 			_, file := filepath.Split(v.File)
-			fileTrimmed := strings.TrimSuffix(file, ModExtension)
+			fileTrimmed := strings.TrimSuffix(file, MetaExtension)
 			if fileTrimmed == modName {
 				return filepath.Join(filepath.Dir(in.indexFile), filepath.FromSlash(v.File)), true
 			}

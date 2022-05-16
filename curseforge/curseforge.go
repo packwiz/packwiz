@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
+	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
@@ -136,14 +137,28 @@ func parseSlugOrUrl(url string) (game string, category string, slug string, file
 	return
 }
 
-// TODO: put projects into folders based on these
-var defaultFolders = map[int]map[int]string{
+var defaultFolders = map[uint32]map[uint32]string{
 	432: { // Minecraft
 		5:  "plugins", // Bukkit Plugins
 		12: "resourcepacks",
 		6:  "mods",
 		17: "saves",
 	},
+}
+
+func getPathForFile(gameID uint32, classID uint32, categoryID uint32, slug string) string {
+	metaFolder := viper.GetString("meta-folder")
+	if metaFolder == "" {
+		if m, ok := defaultFolders[gameID]; ok {
+			if folder, ok := m[classID]; ok {
+				return filepath.Join(viper.GetString("meta-folder-base"), folder, slug+core.MetaExtension)
+			} else if folder, ok := m[categoryID]; ok {
+				return filepath.Join(viper.GetString("meta-folder-base"), folder, slug+core.MetaExtension)
+			}
+		}
+		metaFolder = "."
+	}
+	return filepath.Join(viper.GetString("meta-folder-base"), metaFolder, slug+core.MetaExtension)
 }
 
 func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, optionalDisabled bool) error {
@@ -179,7 +194,7 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 		Option: optional,
 		Update: updateMap,
 	}
-	path := modMeta.SetMetaName(modInfo.Slug, *index)
+	path := modMeta.SetMetaPath(getPathForFile(modInfo.GameID, modInfo.ClassID, modInfo.PrimaryCategoryID, modInfo.Slug))
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?

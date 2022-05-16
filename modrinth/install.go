@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/spf13/viper"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -207,10 +208,14 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 		Update: updateMap,
 	}
 	var path string
+	folder := viper.GetString("meta-folder")
+	if folder == "" {
+		folder = "mods"
+	}
 	if mod.Slug != "" {
-		path = modMeta.SetMetaName(mod.Slug, index)
+		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, mod.Slug+core.MetaExtension))
 	} else {
-		path = modMeta.SetMetaName(mod.Title, index)
+		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, mod.Title+core.MetaExtension))
 	}
 
 	// If the file already exists, this will overwrite it!!!

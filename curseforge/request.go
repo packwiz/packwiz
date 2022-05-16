@@ -134,6 +134,9 @@ type modInfo struct {
 	Summary                string        `json:"summary"`
 	Slug                   string        `json:"slug"`
 	ID                     int           `json:"id"`
+	GameID                 uint32        `json:"gameId"`
+	PrimaryCategoryID      uint32        `json:"primaryCategoryId"`
+	ClassID                uint32        `json:"classId"`
 	LatestFiles            []modFileInfo `json:"latestFiles"`
 	GameVersionLatestFiles []struct {
 		// TODO: check how twitch launcher chooses which one to use, when you are on beta/alpha channel?!

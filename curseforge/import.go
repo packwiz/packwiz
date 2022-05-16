@@ -266,8 +266,7 @@ var importCmd = &cobra.Command{
 				os.Exit(1)
 			}
 
-			// TODO: just use mods-folder directly? does texture pack importing affect this?
-			modFilePath := core.ResolveMod(modInfoValue.Slug, index)
+			modFilePath := getPathForFile(modInfoValue.GameID, modInfoValue.ClassID, modInfoValue.PrimaryCategoryID, modInfoValue.Slug)
 			ref, err := filepath.Abs(filepath.Join(filepath.Dir(modFilePath), modFileInfoValue.FileName))
 			if err == nil {
 				referencedModPaths = append(referencedModPaths, ref)
