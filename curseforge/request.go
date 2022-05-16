@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -88,91 +87,6 @@ func (c *cfApiClient) makePost(endpoint string, body io.Reader) (*http.Response,
 	return resp, nil
 }
 
-// addonSlugRequest is sent to the CurseProxy GraphQL api to get the id from a slug
-type addonSlugRequest struct {
-	Query     string `json:"query"`
-	Variables struct {
-		Slug string `json:"slug"`
-	} `json:"variables"`
-	OperationName string `json:"operationName"`
-}
-
-// addonSlugResponse is received from the CurseProxy GraphQL api to get the id from a slug
-type addonSlugResponse struct {
-	Data struct {
-		Addons []struct {
-			ID              int `json:"id"`
-			CategorySection struct {
-				ID int `json:"id"`
-			} `json:"categorySection"`
-		} `json:"addons"`
-	} `json:"data"`
-	Exception  string   `json:"exception"`
-	Message    string   `json:"message"`
-	Stacktrace []string `json:"stacktrace"`
-}
-
-// Most of this is shamelessly copied from my previous attempt at modpack management:
-// https://github.com/comp500/modpack-editor/blob/master/query.go
-func modIDFromSlug(slug string) (int, error) {
-	request := addonSlugRequest{
-		Query: `
-		query getIDFromSlug($slug: String) {
-			addons(slug: $slug) {
-				id
-				categorySection {
-					id
-				}
-			}
-		}
-		`,
-		OperationName: "getIDFromSlug",
-	}
-	request.Variables.Slug = slug
-
-	// Uses the curse.nikky.moe GraphQL api
-	var response addonSlugResponse
-	client := &http.Client{}
-
-	requestBytes, err := json.Marshal(request)
-	if err != nil {
-		return 0, err
-	}
-
-	// TODO: move to new slug API
-	req, err := http.NewRequest("POST", "https://curse.nikky.moe/graphql", bytes.NewBuffer(requestBytes))
-	if err != nil {
-		return 0, err
-	}
-
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
-	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := client.Do(req)
-	if err != nil {
-		return 0, err
-	}
-
-	err = json.NewDecoder(resp.Body).Decode(&response)
-	if err != nil && err != io.EOF {
-		return 0, err
-	}
-
-	if len(response.Exception) > 0 || len(response.Message) > 0 {
-		return 0, fmt.Errorf("error requesting id for slug: %s", response.Message)
-	}
-
-	for _, addonData := range response.Data.Addons {
-		// Only use mods, not resource packs/modpacks
-		if addonData.CategorySection.ID == 8 {
-			return addonData.ID, nil
-		}
-	}
-	return 0, errors.New("addon not found")
-}
-
 //noinspection GoUnusedConst
 const (
 	fileTypeRelease int = iota + 1
@@ -200,6 +114,14 @@ const (
 	modloaderTypeFabric
 )
 
+var modloaderNames = [...]string{
+	"",
+	"Forge",
+	"Cauldron",
+	"Liteloader",
+	"Fabric",
+}
+
 //noinspection GoUnusedConst
 const (
 	hashAlgoSHA1 int = iota + 1
@@ -209,6 +131,7 @@ const (
 // modInfo is a subset of the deserialised JSON response from the Curse API for mods (addons)
 type modInfo struct {
 	Name                   string        `json:"name"`
+	Summary                string        `json:"summary"`
 	Slug                   string        `json:"slug"`
 	ID                     int           `json:"id"`
 	LatestFiles            []modFileInfo `json:"latestFiles"`
@@ -376,21 +299,34 @@ func (c *cfApiClient) getFileInfoMultiple(fileIDs []int) ([]modFileInfo, error) 
 	return infoRes.Data, nil
 }
 
-func (c *cfApiClient) getSearch(searchText string, gameVersion string, modloaderType int) ([]modInfo, error) {
+func (c *cfApiClient) getSearch(searchTerm string, slug string, gameID int, classID int, categoryID int, gameVersion string, modloaderType int) ([]modInfo, error) {
 	var infoRes struct {
 		Data []modInfo `json:"data"`
 	}
 
 	q := url.Values{}
-	q.Set("gameId", "432") // Minecraft
+	q.Set("gameId", strconv.Itoa(gameID))
 	q.Set("pageSize", "10")
-	q.Set("classId", "6") // Mods
-	q.Set("searchFilter", searchText)
-	if len(gameVersion) > 0 {
-		q.Set("gameVersion", gameVersion)
+	if classID != 0 {
+		q.Set("classId", strconv.Itoa(classID))
 	}
-	if modloaderType != modloaderTypeAny {
-		q.Set("modLoaderType", strconv.Itoa(modloaderType))
+	if slug != "" {
+		q.Set("slug", slug)
+	}
+	// If classID and slug are provided, don't bother filtering by anything else (should be unique)
+	if classID == 0 && slug == "" {
+		if categoryID != 0 {
+			q.Set("categoryId", strconv.Itoa(categoryID))
+		}
+		if searchTerm != "" {
+			q.Set("searchFilter", searchTerm)
+		}
+		if gameVersion != "" {
+			q.Set("gameVersion", gameVersion)
+		}
+		if modloaderType != modloaderTypeAny {
+			q.Set("modLoaderType", strconv.Itoa(modloaderType))
+		}
 	}
 
 	resp, err := c.makeGet("/v1/mods/search?" + q.Encode())
@@ -400,7 +336,74 @@ func (c *cfApiClient) getSearch(searchText string, gameVersion string, modloader
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
-		return []modInfo{}, err
+		return []modInfo{}, fmt.Errorf("failed to parse search results: %w", err)
+	}
+
+	return infoRes.Data, nil
+}
+
+//noinspection GoUnusedConst
+const (
+	gameStatusDraft int = iota + 1
+	gameStatusTest
+	gameStatusPendingReview
+	gameStatusRejected
+	gameStatusApproved
+	gameStatusLive
+)
+
+//noinspection GoUnusedConst
+const (
+	gameApiStatusPrivate int = iota + 1
+	gameApiStatusPublic
+)
+
+type cfGame struct {
+	ID        uint32 `json:"id"`
+	Name      string `json:"name"`
+	Slug      string `json:"slug"`
+	Status    int    `json:"status"`
+	APIStatus int    `json:"apiStatus"`
+}
+
+func (c *cfApiClient) getGames() ([]cfGame, error) {
+	var infoRes struct {
+		Data []cfGame `json:"data"`
+	}
+
+	resp, err := c.makeGet("/v1/games")
+	if err != nil {
+		return []cfGame{}, fmt.Errorf("failed to retrieve game list: %w", err)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&infoRes)
+	if err != nil && err != io.EOF {
+		return []cfGame{}, fmt.Errorf("failed to parse game list: %w", err)
+	}
+
+	return infoRes.Data, nil
+}
+
+type cfCategory struct {
+	ID      int    `json:"id"`
+	Slug    string `json:"slug"`
+	IsClass bool   `json:"isClass"`
+	ClassID int    `json:"classId"`
+}
+
+func (c *cfApiClient) getCategories(gameID int) ([]cfCategory, error) {
+	var infoRes struct {
+		Data []cfCategory `json:"data"`
+	}
+
+	resp, err := c.makeGet("/v1/categories?gameId=" + strconv.Itoa(gameID))
+	if err != nil {
+		return []cfCategory{}, fmt.Errorf("failed to retrieve category list for game %v: %w", gameID, err)
+	}
+
+	err = json.NewDecoder(resp.Body).Decode(&infoRes)
+	if err != nil && err != io.EOF {
+		return []cfCategory{}, fmt.Errorf("failed to parse category list for game %v: %w", gameID, err)
 	}
 
 	return infoRes.Data, nil

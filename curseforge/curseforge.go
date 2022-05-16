@@ -3,6 +3,7 @@ package curseforge
 import (
 	"errors"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"regexp"
 	"strconv"
 	"strings"
@@ -22,12 +23,6 @@ var curseforgeCmd = &cobra.Command{
 func init() {
 	cmd.Add(curseforgeCmd)
 	core.Updaters["curseforge"] = cfUpdater{}
-}
-
-var fileIDRegexes = [...]*regexp.Regexp{
-	regexp.MustCompile("^https?://minecraft\\.curseforge\\.com/projects/(.+)/files/(\\d+)"),
-	regexp.MustCompile("^https?://(?:www\\.)?curseforge\\.com/minecraft/mc-mods/(.+)/files/(\\d+)"),
-	regexp.MustCompile("^https?://(?:www\\.)?curseforge\\.com/minecraft/mc-mods/(.+)/download/(\\d+)"),
 }
 
 var snapshotVersionRegex = regexp.MustCompile("(?:Snapshot )?(\\d+)w0?(0|[1-9]\\d*)([a-z])")
@@ -111,57 +106,44 @@ func getCurseforgeVersion(mcVersion string) string {
 	return mcVersion
 }
 
-func getFileIDsFromString(mod string) (bool, int, int, error) {
-	for _, v := range fileIDRegexes {
-		matches := v.FindStringSubmatch(mod)
-		if matches != nil && len(matches) == 3 {
-			modID, err := modIDFromSlug(matches[1])
-			if err != nil {
-				return true, 0, 0, err
-			}
-			fileID, err := strconv.Atoi(matches[2])
-			if err != nil {
-				return true, 0, 0, err
-			}
-			return true, modID, fileID, nil
-		}
-	}
-	return false, 0, 0, nil
+var urlRegexes = [...]*regexp.Regexp{
+	regexp.MustCompile("^https?://(?P<game>minecraft)\\.curseforge\\.com/projects/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
+	regexp.MustCompile("^https?://(?:www\\.)?curseforge\\.com/(?P<game>[^/]+)/(?P<category>[^/]+)/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
+	regexp.MustCompile("^(?P<slug>[a-z][\\da-z\\-_]{0,127})$"),
 }
 
-var modSlugRegexes = [...]*regexp.Regexp{
-	regexp.MustCompile("^https?://minecraft\\.curseforge\\.com/projects/([^/]+)"),
-	regexp.MustCompile("^https?://(?:www\\.)?curseforge\\.com/minecraft/mc-mods/([^/]+)"),
-	// Exact slug matcher
-	regexp.MustCompile("^[a-z][\\da-z\\-_]{0,127}$"),
-}
-
-func getModIDFromString(mod string) (bool, int, error) {
-	// Check if it's just a number first
-	modID, err := strconv.Atoi(mod)
-	if err == nil && modID > 0 {
-		return true, modID, nil
-	}
-
-	for _, v := range modSlugRegexes {
-		matches := v.FindStringSubmatch(mod)
+func parseSlugOrUrl(url string) (game string, category string, slug string, fileID int, err error) {
+	for _, r := range urlRegexes {
+		matches := r.FindStringSubmatch(url)
 		if matches != nil {
-			var slug string
-			if len(matches) == 2 {
-				slug = matches[1]
-			} else if len(matches) == 1 {
-				slug = matches[0]
-			} else {
-				continue
+			if i := r.SubexpIndex("game"); i >= 0 {
+				game = matches[i]
 			}
-			modID, err := modIDFromSlug(slug)
-			if err != nil {
-				return true, 0, err
+			if i := r.SubexpIndex("category"); i >= 0 {
+				category = matches[i]
 			}
-			return true, modID, nil
+			if i := r.SubexpIndex("slug"); i >= 0 {
+				slug = matches[i]
+			}
+			if i := r.SubexpIndex("fileID"); i >= 0 {
+				if matches[i] != "" {
+					fileID, err = strconv.Atoi(matches[i])
+				}
+			}
+			return
 		}
 	}
-	return false, 0, nil
+	return
+}
+
+// TODO: put projects into folders based on these
+var defaultFolders = map[int]map[int]string{
+	432: { // Minecraft
+		5:  "plugins", // Bukkit Plugins
+		12: "resourcepacks",
+		6:  "mods",
+		17: "saves",
+	},
 }
 
 func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, optionalDisabled bool) error {
@@ -241,22 +223,17 @@ func matchLoaderTypeFileInfo(packLoaderType int, fileInfoData modFileInfo) bool 
 	if packLoaderType == modloaderTypeAny {
 		return true
 	} else {
-		if packLoaderType == modloaderTypeFabric {
-			for _, v := range fileInfoData.GameVersions {
-				if v == "Fabric" {
+		containsLoader := false
+		for i, name := range modloaderNames {
+			if slices.Contains(fileInfoData.GameVersions, name) {
+				containsLoader = true
+				if i == packLoaderType {
 					return true
 				}
 			}
-		} else if packLoaderType == modloaderTypeForge {
-			for _, v := range fileInfoData.GameVersions {
-				if v == "Forge" {
-					return true
-				}
-			}
-		} else {
-			return true
 		}
-		return false
+		// If a file doesn't contain any loaders, it matches all!
+		return !containsLoader
 	}
 }
 

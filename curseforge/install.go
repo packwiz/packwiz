@@ -23,8 +23,8 @@ type installableDep struct {
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
-	Use:     "install [mod]",
-	Short:   "Install a mod from a curseforge URL, slug, ID or search",
+	Use:     "install [URL|slug|search]",
+	Short:   "Install a project from a CurseForge URL, slug, ID or search",
 	Aliases: []string{"add", "get"},
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -44,64 +44,71 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		var done bool
+		game := gameFlag
+		category := categoryFlag
 		var modID, fileID int
+		var slug string
+
 		// If mod/file IDs are provided in command line, use those
 		if fileIDFlag != 0 {
 			fileID = fileIDFlag
 		}
 		if addonIDFlag != 0 {
 			modID = addonIDFlag
-			done = true
 		}
-		if (len(args) == 0 || len(args[0]) == 0) && !done {
-			fmt.Println("You must specify a mod.")
+		if (len(args) == 0 || len(args[0]) == 0) && modID == 0 {
+			fmt.Println("You must specify a project; with the ID flags, or by passing a URL, slug or search term directly.")
 			os.Exit(1)
 		}
 		// If there are more than 1 argument, go straight to searching - URLs/Slugs should not have spaces!
-		if !done && len(args) == 1 {
-			done, modID, fileID, err = getFileIDsFromString(args[0])
+		if modID == 0 && len(args) == 1 {
+			parsedGame, parsedCategory, parsedSlug, parsedFileID, err := parseSlugOrUrl(args[0])
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("Failed to parse URL: %v\n", err)
 				os.Exit(1)
 			}
 
-			if !done {
-				done, modID, err = getModIDFromString(args[0])
-				// Ignore error, go to search instead (e.g. lowercase to search instead of as a slug)
-				if err != nil {
-					done = false
-				}
+			if parsedGame != "" {
+				game = parsedGame
+			}
+			if parsedCategory != "" {
+				category = parsedCategory
+			}
+			if parsedSlug != "" {
+				slug = parsedSlug
+			}
+			if parsedFileID != 0 {
+				fileID = parsedFileID
 			}
 		}
 
 		modInfoObtained := false
 		var modInfoData modInfo
 
-		if !done {
+		if modID == 0 {
 			var cancelled bool
-			cancelled, modInfoData = searchCurseforgeInternal(args, mcVersion, getLoader(pack))
+			if slug == "" {
+				searchTerm := strings.Join(args, " ")
+				cancelled, modInfoData = searchCurseforgeInternal(searchTerm, false, game, category, mcVersion, getLoader(pack))
+			} else {
+				cancelled, modInfoData = searchCurseforgeInternal(slug, true, game, category, mcVersion, getLoader(pack))
+			}
 			if cancelled {
 				return
 			}
-			done = true
 			modID = modInfoData.ID
 			modInfoObtained = true
 		}
 
-		if !done {
-			if err == nil {
-				fmt.Println("No mods found!")
-				os.Exit(1)
-			}
-			fmt.Println(err)
+		if modID == 0 {
+			fmt.Println("No projects found!")
 			os.Exit(1)
 		}
 
 		if !modInfoObtained {
 			modInfoData, err = cfDefaultClient.getModInfo(modID)
 			if err != nil {
-				fmt.Println(err)
+				fmt.Printf("Failed to get project info: %v\n", err)
 				os.Exit(1)
 			}
 		}
@@ -109,7 +116,7 @@ var installCmd = &cobra.Command{
 		var fileInfoData modFileInfo
 		fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID, getLoader(pack))
 		if err != nil {
-			fmt.Println(err)
+			fmt.Printf("Failed to get file for project: %v\n", err)
 			os.Exit(1)
 		}
 
@@ -169,6 +176,10 @@ var installCmd = &cobra.Command{
 					}
 					depIDPendingQueue = depIDPendingQueue[:i]
 
+					if len(depIDPendingQueue) == 0 {
+						break
+					}
+
 					depInfoData, err := cfDefaultClient.getModInfoMultiple(depIDPendingQueue)
 					if err != nil {
 						fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
@@ -221,11 +232,11 @@ var installCmd = &cobra.Command{
 								fmt.Println(err)
 								os.Exit(1)
 							}
-							fmt.Printf("Dependency \"%s\" successfully installed! (%s)\n", v.modInfo.Name, v.fileInfo.FileName)
+							fmt.Printf("Dependency \"%s\" successfully added! (%s)\n", v.modInfo.Name, v.fileInfo.FileName)
 						}
 					}
 				} else {
-					fmt.Println("All dependencies are already installed!")
+					fmt.Println("All dependencies are already added!")
 				}
 			}
 		}
@@ -252,7 +263,7 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Printf("Mod \"%s\" successfully installed! (%s)\n", modInfoData.Name, fileInfoData.FileName)
+		fmt.Printf("Project \"%s\" successfully added! (%s)\n", modInfoData.Name, fileInfoData.FileName)
 	},
 }
 
@@ -267,22 +278,86 @@ func (r modResultsList) Len() int {
 	return len(r)
 }
 
-func searchCurseforgeInternal(args []string, mcVersion string, packLoaderType int) (bool, modInfo) {
-	fmt.Println("Searching CurseForge...")
-	searchTerm := strings.Join(args, " ")
+func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersion string, packLoaderType int) (bool, modInfo) {
+	if isSlug {
+		fmt.Println("Looking up CurseForge slug...")
+	} else {
+		fmt.Println("Searching CurseForge...")
+	}
+
+	var gameID, categoryID, classID int
+	if game == "minecraft" {
+		gameID = 432
+	}
+	if category == "mc-mods" {
+		classID = 6
+	}
+	if gameID == 0 {
+		games, err := cfDefaultClient.getGames()
+		if err != nil {
+			fmt.Printf("Failed to lookup game %s: %v\n", game, err)
+			os.Exit(1)
+		}
+		for _, v := range games {
+			if v.Slug == game {
+				if v.Status != gameStatusLive {
+					fmt.Printf("Failed to lookup game %s: selected game is not live!\n", game)
+					os.Exit(1)
+				}
+				if v.APIStatus != gameApiStatusPublic {
+					fmt.Printf("Failed to lookup game %s: selected game does not have a public API!\n", game)
+					os.Exit(1)
+				}
+				gameID = int(v.ID)
+				break
+			}
+		}
+		if gameID == 0 {
+			fmt.Printf("Failed to lookup: game %s could not be found!\n", game)
+			os.Exit(1)
+		}
+	}
+	if categoryID == 0 && classID == 0 && category != "" {
+		categories, err := cfDefaultClient.getCategories(gameID)
+		if err != nil {
+			fmt.Printf("Failed to lookup categories: %v\n", err)
+			os.Exit(1)
+		}
+		for _, v := range categories {
+			if v.Slug == category {
+				if v.IsClass {
+					classID = v.ID
+				} else {
+					classID = v.ClassID
+					categoryID = v.ID
+				}
+				break
+			}
+		}
+		if categoryID == 0 && classID == 0 {
+			fmt.Printf("Failed to lookup: category %s could not be found!\n", category)
+			os.Exit(1)
+		}
+	}
 
 	// If there are more than one acceptable version, we shouldn't filter by game version at all (as we can't filter by multiple)
 	filterGameVersion := getCurseforgeVersion(mcVersion)
 	if len(viper.GetStringSlice("acceptable-game-versions")) > 0 {
 		filterGameVersion = ""
 	}
-	results, err := cfDefaultClient.getSearch(searchTerm, filterGameVersion, packLoaderType)
+	var search, slug string
+	if isSlug {
+		slug = searchTerm
+	} else {
+		search = searchTerm
+	}
+	results, err := cfDefaultClient.getSearch(search, slug, gameID, classID, categoryID, filterGameVersion, packLoaderType)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("Failed to search for project: %v\n", err)
 		os.Exit(1)
 	}
 	if len(results) == 0 {
-		fmt.Println("No mods found!")
+		fmt.Println("No projects found!")
 		os.Exit(1)
 		return false, modInfo{}
 	} else if len(results) == 1 {
@@ -296,11 +371,11 @@ func searchCurseforgeInternal(args []string, mcVersion string, packLoaderType in
 		menu.Option("Cancel", nil, false, nil)
 		if len(fuzzySearchResults) == 0 {
 			for i, v := range results {
-				menu.Option(v.Name, v, i == 0, nil)
+				menu.Option(v.Name+" ("+v.Summary+")", v, i == 0, nil)
 			}
 		} else {
 			for i, v := range fuzzySearchResults {
-				menu.Option(results[v.Index].Name, results[v.Index], i == 0, nil)
+				menu.Option(results[v.Index].Name+" ("+results[v.Index].Summary+")", results[v.Index], i == 0, nil)
 			}
 		}
 
@@ -383,9 +458,14 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 var addonIDFlag int
 var fileIDFlag int
 
+var gameFlag string
+var categoryFlag string
+
 func init() {
 	curseforgeCmd.AddCommand(installCmd)
 
-	installCmd.Flags().IntVar(&addonIDFlag, "addon-id", 0, "The curseforge addon ID to use")
-	installCmd.Flags().IntVar(&fileIDFlag, "file-id", 0, "The curseforge file ID to use")
+	installCmd.Flags().IntVar(&addonIDFlag, "addon-id", 0, "The CurseForge project ID to use")
+	installCmd.Flags().IntVar(&fileIDFlag, "file-id", 0, "The CurseForge file ID to use")
+	installCmd.Flags().StringVar(&gameFlag, "game", "minecraft", "The game to add files from (slug, as stored in URLs); the game in the URL takes precedence")
+	installCmd.Flags().StringVar(&categoryFlag, "category", "", "The category to add files from (slug, as stored in URLs); the category in the URL takes precedence")
 }
