@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strconv"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
@@ -77,26 +78,15 @@ var exportCmd = &cobra.Command{
 		}
 
 		// TODO: cache these (ideally with changes to pack format)
-		fmt.Println("Retrieving SHA1 hashes for external mods...")
-		sha1Hashes := make([]string, len(mods))
+		fmt.Println("Retrieving hashes for external mods...")
+		modsHashes := make([]map[string]string, len(mods))
 		for i, mod := range mods {
-			if mod.Download.HashFormat == "sha1" {
-				sha1Hashes[i] = mod.Download.Hash
-			} else {
-				// Hash format for this mod isn't SHA1 - and the Modrinth pack format requires it; so get it by downloading the file
-				h, stringer, err := core.GetHashImpl("sha1")
-				if err != nil {
-					panic("Failed to get sha1 hash implementation")
-				}
-				err = mod.DownloadFile(h)
-				if err != nil {
-					fmt.Printf("Error downloading mod file %s: %s\n", mod.Download.URL, err.Error())
-					// TODO: exit(1)?
-					continue
-				}
-				sha1Hashes[i] = stringer.HashToString(h.Sum(nil))
-				fmt.Printf("Retrieved SHA1 hash for %s successfully\n", mod.Download.URL)
+			modsHashes[i], err = mod.GetHashes([]string{"sha1", "sha512", "length-bytes"})
+			if err != nil {
+				fmt.Printf("Error downloading mod file %s: %s\n", mod.Download.URL, err.Error())
+				continue
 			}
+			fmt.Printf("Retrieved hashes for %s successfully\n", mod.Download.URL)
 		}
 
 		manifestFile, err := exp.Create("modrinth.index.json")
@@ -119,7 +109,12 @@ var exportCmd = &cobra.Command{
 			path := filepath.ToSlash(pathForward)
 
 			hashes := make(map[string]string)
-			hashes["sha1"] = sha1Hashes[i]
+			hashes["sha1"] = modsHashes[i]["sha1"]
+			hashes["sha512"] = modsHashes[i]["sha512"]
+			fileSize, err := strconv.ParseUint(modsHashes[i]["length-bytes"], 10, 64)
+			if err != nil {
+				panic(err)
+			}
 
 			// Create env options based on configured optional/side
 			var envInstalled string
@@ -155,6 +150,7 @@ var exportCmd = &cobra.Command{
 					Server string `json:"server"`
 				}{Client: clientEnv, Server: serverEnv},
 				Downloads: []string{u},
+				FileSize:  uint32(fileSize),
 			}
 		}
 
