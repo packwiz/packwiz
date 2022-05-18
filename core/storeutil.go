@@ -44,3 +44,11 @@ func GetPackwizInstallBinFile() (string, error) {
 	}
 	return filepath.Join(binPath, exeName), nil
 }
+
+func GetPackwizCache() (string, error) {
+	localStore, err := GetPackwizLocalStore()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(localStore, "cache"), nil
+}

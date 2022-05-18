@@ -27,11 +27,18 @@ type Mod struct {
 	Option *ModOption `toml:"option,omitempty"`
 }
 
+const (
+	modeURL string = "url"
+	modeCF  string = "metadata:curseforge"
+)
+
 // ModDownload specifies how to download the mod file
 type ModDownload struct {
-	URL        string `toml:"url"`
+	URL        string `toml:"url,omitempty"`
 	HashFormat string `toml:"hash-format"`
 	Hash       string `toml:"hash"`
+	// Mode defaults to modeURL (i.e. use URL)
+	Mode string `toml:"mode"`
 }
 
 // ModOption specifies optional metadata for this mod file
@@ -130,6 +137,7 @@ func (m Mod) GetDestFilePath() string {
 
 // DownloadFile attempts to resolve and download the file
 func (m Mod) DownloadFile(dest io.Writer) error {
+	// TODO: check mode
 	resp, err := http.Get(m.Download.URL)
 	// TODO: content type, user-agent?
 	if err != nil {
@@ -176,6 +184,7 @@ func (m Mod) GetHashes(hashes []string) (map[string]string, error) {
 
 	// Retrieve the remaining hashes
 	if len(hashes) > 0 {
+		// TODO: check mode
 		resp, err := http.Get(m.Download.URL)
 		// TODO: content type, user-agent?
 		if err != nil {

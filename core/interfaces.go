@@ -1,5 +1,7 @@
 package core
 
+import "io"
+
 // Updaters stores all the updaters that packwiz can use. Add your own update systems to this map, keyed by the configuration name.
 var Updaters = make(map[string]Updater)
 
@@ -29,4 +31,26 @@ type UpdateCheck struct {
 	// Errors can also be returned from CheckUpdate directly, if the whole operation failed completely (so only 1 error is printed)
 	// If an error is returned for a mod, or from CheckUpdate, DoUpdate is not called on that mod / at all
 	Error error
+}
+
+// MetaDownloaders stores all the metadata-based installers that packwiz can use. Add your own downloaders to this map, keyed by the source name.
+var MetaDownloaders = make(map[string]MetaDownloader)
+
+// MetaDownloader specifies a downloader for a Mod using a "metadata:source" mode
+// The calling code should handle caching and hash validation.
+type MetaDownloader interface {
+	GetFilesMetadata([]*Mod) ([]MetaDownloaderData, error)
+}
+
+// MetaDownloaderData specifies the per-Mod metadata retrieved for downloading
+type MetaDownloaderData interface {
+	GetManualDownload() (bool, ManualDownload)
+	DownloadFile(io.Writer) error
+}
+
+type ManualDownload struct {
+	Name     string
+	FileName string
+	DestPath string
+	URL      string
 }

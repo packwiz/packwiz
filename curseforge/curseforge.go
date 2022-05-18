@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
+	"io"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -24,6 +25,7 @@ var curseforgeCmd = &cobra.Command{
 func init() {
 	cmd.Add(curseforgeCmd)
 	core.Updaters["curseforge"] = cfUpdater{}
+	core.MetaDownloaders["curseforge"] = cfDownloader{}
 }
 
 var snapshotVersionRegex = regexp.MustCompile("(?:Snapshot )?(\\d+)w0?(0|[1-9]\\d*)([a-z])")
@@ -441,4 +443,25 @@ func parseExportData(from map[string]interface{}) (cfExportData, error) {
 	var exportData cfExportData
 	err := mapstructure.Decode(from, &exportData)
 	return exportData, err
+}
+
+type cfDownloader struct{}
+
+func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderData, error) {
+	// TODO implement me
+	panic("implement me")
+}
+
+type cfDownloadMetadata struct {
+	url                string
+	allowsDistribution bool
+}
+
+func (m *cfDownloadMetadata) RequiresManualDownload() bool {
+	return !m.allowsDistribution
+}
+
+func (m *cfDownloadMetadata) DownloadFile(writer io.Writer) error {
+	// TODO implement me
+	panic("implement me")
 }
