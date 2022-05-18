@@ -147,7 +147,11 @@ type modInfo struct {
 		FileType    int    `json:"releaseType"`
 		Modloader   int    `json:"modLoader"`
 	} `json:"latestFilesIndexes"`
-	ModLoaders []string `json:"modLoaders"`
+	ModLoaders           []string `json:"modLoaders"`
+	AllowModDistribution bool     `json:"allowModDistribution"`
+	Links                struct {
+		WebsiteURL string `json:"websiteUrl"`
+	} `json:"links"`
 }
 
 func (c *cfApiClient) getModInfo(modID int) (modInfo, error) {
@@ -203,6 +207,7 @@ func (c *cfApiClient) getModInfoMultiple(modIDs []int) ([]modInfo, error) {
 // modFileInfo is a subset of the deserialised JSON response from the Curse API for mod files
 type modFileInfo struct {
 	ID           int       `json:"id"`
+	ModID        int       `json:"modId"`
 	FileName     string    `json:"fileName"`
 	FriendlyName string    `json:"displayName"`
 	Date         time.Time `json:"fileDate"`

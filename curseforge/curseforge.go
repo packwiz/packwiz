@@ -2,9 +2,11 @@ package curseforge
 
 import (
 	"errors"
+	"fmt"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"io"
+	"net/http"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -448,20 +450,116 @@ func parseExportData(from map[string]interface{}) (cfExportData, error) {
 type cfDownloader struct{}
 
 func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderData, error) {
-	// TODO implement me
-	panic("implement me")
+	if len(mods) == 0 {
+		return []core.MetaDownloaderData{}, nil
+	}
+
+	downloaderData := make([]core.MetaDownloaderData, len(mods))
+	indexMap := make(map[int]int)
+	projectMetadata := make([]cfUpdateData, len(mods))
+	modIDs := make([]int, len(mods))
+	for i, v := range mods {
+		updateData, ok := v.GetParsedUpdateData("curseforge")
+		if !ok {
+			return nil, fmt.Errorf("failed to read CurseForge update metadata from %s", v.Name)
+		}
+		project := updateData.(cfUpdateData)
+		indexMap[project.ProjectID] = i
+		projectMetadata[i] = project
+		modIDs[i] = project.ProjectID
+	}
+
+	modData, err := cfDefaultClient.getModInfoMultiple(modIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get CurseForge mod metadata: %w", err)
+	}
+
+	handleFileInfo := func(modID int, fileInfo modFileInfo) {
+		// If metadata already exists (i.e. opted-out) update it with more metadata
+		if meta, ok := downloaderData[indexMap[modID]].(*cfDownloadMetadata); ok {
+			if meta.noDistribution {
+				meta.websiteUrl = meta.websiteUrl + "/files/" + strconv.Itoa(fileInfo.ID)
+				meta.fileName = fileInfo.FileName
+			}
+		}
+		downloaderData[indexMap[modID]] = &cfDownloadMetadata{
+			url: fileInfo.DownloadURL,
+		}
+	}
+
+	fileIDsToLookup := make([]int, 0)
+	for _, mod := range modData {
+		if _, ok := indexMap[mod.ID]; !ok {
+			return nil, fmt.Errorf("unknown mod ID in response: %v (for %v)", mod.ID, mod.Name)
+		}
+		if !mod.AllowModDistribution {
+			downloaderData[indexMap[mod.ID]] = &cfDownloadMetadata{
+				noDistribution: true, // Inverted so the default value is not this (probably doesn't matter)
+				name:           mod.Name,
+				websiteUrl:     mod.Links.WebsiteURL,
+			}
+		}
+
+		fileID := projectMetadata[indexMap[mod.ID]].FileID
+		fileInfoFound := false
+		// First look in latest files
+		for _, fileInfo := range mod.LatestFiles {
+			if fileInfo.ID == fileID {
+				fileInfoFound = true
+				handleFileInfo(mod.ID, fileInfo)
+				break
+			}
+		}
+
+		if !fileInfoFound {
+			fileIDsToLookup = append(fileIDsToLookup, fileID)
+		}
+	}
+
+	if len(fileIDsToLookup) > 0 {
+		fileData, err := cfDefaultClient.getFileInfoMultiple(fileIDsToLookup)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get CurseForge file metadata: %w", err)
+		}
+		for _, fileInfo := range fileData {
+			if _, ok := indexMap[fileInfo.ModID]; !ok {
+				return nil, fmt.Errorf("unknown mod ID in response: %v from file %v (for %v)", fileInfo.ModID, fileInfo.ID, fileInfo.FileName)
+			}
+			handleFileInfo(fileInfo.ModID, fileInfo)
+		}
+	}
+
+	return downloaderData, nil
 }
 
 type cfDownloadMetadata struct {
-	url                string
-	allowsDistribution bool
+	url            string
+	noDistribution bool
+	name           string
+	fileName       string
+	websiteUrl     string
 }
 
-func (m *cfDownloadMetadata) RequiresManualDownload() bool {
-	return !m.allowsDistribution
+func (m *cfDownloadMetadata) GetManualDownload() (bool, core.ManualDownload) {
+	if !m.noDistribution {
+		return false, core.ManualDownload{}
+	}
+	return true, core.ManualDownload{
+		Name:     m.name,
+		FileName: m.fileName,
+		URL:      m.websiteUrl,
+	}
 }
 
-func (m *cfDownloadMetadata) DownloadFile(writer io.Writer) error {
-	// TODO implement me
-	panic("implement me")
+func (m *cfDownloadMetadata) DownloadFile() (io.ReadCloser, error) {
+	resp, err := http.Get(m.url)
+	// TODO: content type, user-agent?
+	if err != nil {
+		return nil, fmt.Errorf("failed to download %s: %w", m.url, err)
+	}
+	if resp.StatusCode != 200 {
+		_ = resp.Body.Close()
+		return nil, fmt.Errorf("failed to download %s: invalid status code %v", m.url, resp.StatusCode)
+	}
+	return resp.Body, nil
 }

@@ -45,7 +45,7 @@ type MetaDownloader interface {
 // MetaDownloaderData specifies the per-Mod metadata retrieved for downloading
 type MetaDownloaderData interface {
 	GetManualDownload() (bool, ManualDownload)
-	DownloadFile(io.Writer) error
+	DownloadFile() (io.ReadCloser, error)
 }
 
 type ManualDownload struct {

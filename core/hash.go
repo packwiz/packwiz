@@ -33,6 +33,14 @@ func GetHashImpl(hashType string) (HashStringer, error) {
 	return nil, fmt.Errorf("hash implementation %s not found", hashType)
 }
 
+var preferredHashList = []string{
+	"murmur2",
+	"md5",
+	"sha1",
+	"sha256",
+	"sha512",
+}
+
 type HashStringer interface {
 	hash.Hash
 	HashToString([]byte) string
