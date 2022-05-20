@@ -51,6 +51,5 @@ type MetaDownloaderData interface {
 type ManualDownload struct {
 	Name     string
 	FileName string
-	DestPath string
 	URL      string
 }

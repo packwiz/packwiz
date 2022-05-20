@@ -5,14 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/spf13/viper"
-	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
 )
 
 // exportCmd represents the export command
@@ -57,7 +55,12 @@ var exportCmd = &cobra.Command{
 		// TODO: should index just expose indexPath itself, through a function?
 		indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
 
-		mods, unwhitelistedMods := loadMods(index)
+		fmt.Println("Reading external files...")
+		mods, err := index.LoadAllMods()
+		if err != nil {
+			fmt.Printf("Error reading file: %v\n", err)
+			os.Exit(1)
+		}
 
 		fileName := viper.GetString("modrinth.export.output")
 		if fileName == "" {
@@ -77,8 +80,11 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// TODO: cache these (ideally with changes to pack format)
-		fmt.Println("Retrieving hashes for external mods...")
+		// TODO: finish updating to use download session
+		fmt.Println("Retrieving external mods...")
+		session, err := core.CreateDownloadSession(mods, []string{"sha1", "sha512", "length-bytes"})
+		_ = session
+
 		modsHashes := make([]map[string]string, len(mods))
 		for i, mod := range mods {
 			modsHashes[i], err = mod.GetHashes([]string{"sha1", "sha512", "length-bytes"})
@@ -218,6 +224,8 @@ var exportCmd = &cobra.Command{
 			}
 		}
 
+		// TODO: get rid of this, do whitelist checks elsewhere
+
 		if len(unwhitelistedMods) > 0 {
 			fmt.Println("Downloading unwhitelisted mods...")
 		}
@@ -267,6 +275,7 @@ var exportCmd = &cobra.Command{
 	},
 }
 
+// TODO: update whitelist
 var whitelistedHosts = []string{
 	"cdn.modrinth.com",
 	"edge.forgecdn.net",
@@ -274,33 +283,14 @@ var whitelistedHosts = []string{
 	"raw.githubusercontent.com",
 }
 
-func loadMods(index core.Index) ([]core.Mod, []core.Mod) {
-	modPaths := index.GetAllMods()
-	mods := make([]core.Mod, 0, len(modPaths))
-	unwhitelistedMods := make([]core.Mod, 0)
-	fmt.Println("Reading mod files...")
-	for _, v := range modPaths {
-		modData, err := core.LoadMod(v)
-		if err != nil {
-			fmt.Printf("Error reading mod file %s: %s\n", v, err.Error())
-			// TODO: exit(1)?
-			continue
-		}
-
-		modUrl, err := url.Parse(modData.Download.URL)
-		if err == nil {
-			if slices.Contains(whitelistedHosts, modUrl.Host) {
-				mods = append(mods, modData)
-			} else {
-				unwhitelistedMods = append(unwhitelistedMods, modData)
-			}
-		} else {
-			fmt.Printf("Failed to parse mod URL: %v\n", modUrl)
-			mods = append(mods, modData)
-		}
-	}
-	return mods, unwhitelistedMods
-}
+//modUrl, err := url.Parse(modData.Download.URL)
+//if err == nil {
+//if slices.Contains(whitelistedHosts, modUrl.Host) {
+//mods = append(mods, modData)
+//} else {
+//unwhitelistedMods = append(unwhitelistedMods, modData)
+//}
+//}
 
 func init() {
 	modrinthCmd.AddCommand(exportCmd)

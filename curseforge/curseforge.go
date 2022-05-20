@@ -194,6 +194,7 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 		Download: core.ModDownload{
 			HashFormat: hashFormat,
 			Hash:       hash,
+			Mode:       "metadata:curseforge",
 		},
 		Option: optional,
 		Update: updateMap,
@@ -422,6 +423,7 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 		v.Download = core.ModDownload{
 			HashFormat: hashFormat,
 			Hash:       hash,
+			Mode:       "metadata:curseforge",
 		}
 
 		v.Update["curseforge"]["project-id"] = modState.ID
@@ -481,9 +483,10 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 				meta.websiteUrl = meta.websiteUrl + "/files/" + strconv.Itoa(fileInfo.ID)
 				meta.fileName = fileInfo.FileName
 			}
-		}
-		downloaderData[indexMap[modID]] = &cfDownloadMetadata{
-			url: fileInfo.DownloadURL,
+		} else {
+			downloaderData[indexMap[modID]] = &cfDownloadMetadata{
+				url: fileInfo.DownloadURL,
+			}
 		}
 	}
 

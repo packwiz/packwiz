@@ -2,6 +2,7 @@ package core
 
 import (
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"os"
@@ -353,6 +354,20 @@ func (in Index) GetAllMods() []string {
 		}
 	}
 	return list
+}
+
+// LoadAllMods reads all metadata files into Mod structs
+func (in Index) LoadAllMods() ([]*Mod, error) {
+	modPaths := in.GetAllMods()
+	mods := make([]*Mod, len(modPaths))
+	for i, v := range modPaths {
+		modData, err := LoadMod(v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to read metadata file %s: %w", v, err)
+		}
+		mods[i] = &modData
+	}
+	return mods, nil
 }
 
 // GetFilePath attempts to get the path of the destination index file as it is stored on disk

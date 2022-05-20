@@ -4,14 +4,15 @@ import (
 	"archive/zip"
 	"bufio"
 	"fmt"
+	"github.com/packwiz/packwiz/cmdshared"
+	"github.com/packwiz/packwiz/core"
 	"github.com/packwiz/packwiz/curseforge/packinterop"
+	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
-
-	"github.com/packwiz/packwiz/core"
-	"github.com/spf13/cobra"
 )
 
 // exportCmd represents the export command
@@ -41,28 +42,33 @@ var exportCmd = &cobra.Command{
 		err = index.Refresh()
 		if err != nil {
 			fmt.Println(err)
-			return
+			os.Exit(1)
 		}
 		err = index.Write()
 		if err != nil {
 			fmt.Println(err)
-			return
+			os.Exit(1)
 		}
 		err = pack.UpdateIndexHash()
 		if err != nil {
 			fmt.Println(err)
-			return
+			os.Exit(1)
 		}
 		err = pack.Write()
 		if err != nil {
 			fmt.Println(err)
-			return
+			os.Exit(1)
 		}
 
 		// TODO: should index just expose indexPath itself, through a function?
 		indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
 
-		mods := loadMods(index)
+		fmt.Println("Reading external files...")
+		mods, err := index.LoadAllMods()
+		if err != nil {
+			fmt.Printf("Error reading file: %v\n", err)
+			os.Exit(1)
+		}
 		i := 0
 		// Filter mods by side
 		// TODO: opt-in optional disabled filtering?
@@ -104,11 +110,13 @@ var exportCmd = &cobra.Command{
 		}
 
 		cfFileRefs := make([]packinterop.AddonFileReference, 0, len(mods))
+		nonCfMods := make([]*core.Mod, 0)
 		for _, mod := range mods {
 			projectRaw, ok := mod.GetParsedUpdateData("curseforge")
 			// If the mod has curseforge metadata, add it to cfFileRefs
-			// TODO: how to handle files with CF metadata, but with different download path?
-			if ok {
+			// TODO: change back to use ok
+			_ = ok
+			if false {
 				p := projectRaw.(cfUpdateData)
 				cfFileRefs = append(cfFileRefs, packinterop.AddonFileReference{
 					ProjectID:        p.ProjectID,
@@ -116,25 +124,58 @@ var exportCmd = &cobra.Command{
 					OptionalDisabled: mod.Option != nil && mod.Option.Optional && !mod.Option.Default,
 				})
 			} else {
-				// If the mod doesn't have the metadata, save it into the zip
-				path, err := filepath.Rel(filepath.Dir(indexPath), mod.GetDestFilePath())
+				nonCfMods = append(nonCfMods, mod)
+			}
+		}
+
+		// Download external files and save directly into the zip
+		if len(nonCfMods) > 0 {
+			fmt.Printf("Retrieving %v external files to store in the modpack zip...\n", len(nonCfMods))
+			fmt.Println("Disclaimer: you are responsible for ensuring you comply with ALL the licenses, or obtain appropriate permissions, for the files listed below")
+			fmt.Println("Note that mods bundled within a CurseForge pack must be in the Approved Non-CurseForge Mods list")
+			fmt.Println("packwiz is currently unable to match metadata between mod sites - if any of these are available from CurseForge you should change them to use CurseForge metadata (e.g. by reinstalling them using the cf commands)")
+			fmt.Println()
+
+			session, err := core.CreateDownloadSession(nonCfMods, []string{})
+			if err != nil {
+				fmt.Printf("Error retrieving external files: %v\n", err)
+				os.Exit(1)
+			}
+
+			cmdshared.ListManualDownloads(session)
+
+			for dl := range session.StartDownloads() {
+				if dl.Error != nil {
+					// TODO: ensure name is populated
+					fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
+					continue
+				}
+				for warning := range dl.Warnings {
+					// TODO: get name
+					fmt.Printf("Download warning: %v\n", warning)
+				}
+
+				path, err := filepath.Rel(filepath.Dir(indexPath), dl.Mod.GetDestFilePath())
 				if err != nil {
-					fmt.Printf("Error resolving mod file: %s\n", err.Error())
-					// TODO: exit(1)?
+					fmt.Printf("Error resolving mod file: %v\n", err)
 					continue
 				}
 				modFile, err := exp.Create(filepath.ToSlash(filepath.Join("overrides", path)))
 				if err != nil {
-					fmt.Printf("Error creating mod file %s: %s\n", path, err.Error())
-					// TODO: exit(1)?
+					fmt.Printf("Error creating mod file %s: %v\n", path, err)
 					continue
 				}
-				err = mod.DownloadFile(modFile)
+				_, err = io.Copy(modFile, dl.File)
 				if err != nil {
-					fmt.Printf("Error downloading mod file %s: %s\n", path, err.Error())
-					// TODO: exit(1)?
+					fmt.Printf("Error copying file %s: %v\n", path, err)
 					continue
 				}
+			}
+
+			err = session.SaveIndex()
+			if err != nil {
+				fmt.Printf("Error saving cache index: %v\n", err)
+				os.Exit(1)
 			}
 		}
 
@@ -203,7 +244,7 @@ var exportCmd = &cobra.Command{
 	},
 }
 
-func createModlist(zw *zip.Writer, mods []core.Mod) error {
+func createModlist(zw *zip.Writer, mods []*core.Mod) error {
 	modlistFile, err := zw.Create("modlist.html")
 	if err != nil {
 		return err
@@ -237,25 +278,6 @@ func createModlist(zw *zip.Writer, mods []core.Mod) error {
 		return err
 	}
 	return w.Flush()
-}
-
-func loadMods(index core.Index) []core.Mod {
-	modPaths := index.GetAllMods()
-	mods := make([]core.Mod, len(modPaths))
-	i := 0
-	fmt.Println("Reading mod files...")
-	for _, v := range modPaths {
-		modData, err := core.LoadMod(v)
-		if err != nil {
-			fmt.Printf("Error reading mod file %s: %s\n", v, err.Error())
-			// TODO: exit(1)?
-			continue
-		}
-
-		mods[i] = modData
-		i++
-	}
-	return mods[:i]
 }
 
 func init() {

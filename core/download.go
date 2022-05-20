@@ -13,6 +13,8 @@ import (
 	"strings"
 )
 
+const DownloadCacheInFolder = "in"
+
 type DownloadSession interface {
 	GetManualDownloads() []ManualDownload
 	StartDownloads() chan CompletedDownload
@@ -20,9 +22,9 @@ type DownloadSession interface {
 }
 
 type CompletedDownload struct {
-	File         *os.File
-	DestFilePath string
-	Hashes       map[string]string
+	File   *os.File
+	Mod    *Mod
+	Hashes map[string]string
 	// Error indicates if/why downloading this file failed
 	Error error
 	// Warnings indicates messages to show to the user regarding this file (download was successful, but had a problem)
@@ -39,7 +41,7 @@ type downloadSessionInternal struct {
 
 type downloadTask struct {
 	metaDownloaderData MetaDownloaderData
-	destFilePath       string
+	mod                *Mod
 	url                string
 	hashFormat         string
 	hash               string
@@ -52,11 +54,23 @@ func (d *downloadSessionInternal) GetManualDownloads() []ManualDownload {
 
 func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 	downloads := make(chan CompletedDownload)
-	for _, task := range d.downloadTasks {
-		// Get handle for mod
-		cacheHandle := d.cacheIndex.GetHandleFromHash(task.hashFormat, task.hash)
-		if cacheHandle != nil {
-			download, err := reuseExistingFile(cacheHandle, d.hashesToObtain, task.destFilePath)
+	go func() {
+		for _, task := range d.downloadTasks {
+			// Get handle for mod
+			cacheHandle := d.cacheIndex.GetHandleFromHash(task.hashFormat, task.hash)
+			if cacheHandle != nil {
+				download, err := reuseExistingFile(cacheHandle, d.hashesToObtain, task.mod)
+				if err != nil {
+					downloads <- CompletedDownload{
+						Error: err,
+					}
+				} else {
+					downloads <- download
+				}
+				continue
+			}
+
+			download, err := downloadNewFile(&task, d.cacheFolder, d.hashesToObtain, &d.cacheIndex)
 			if err != nil {
 				downloads <- CompletedDownload{
 					Error: err,
@@ -64,18 +78,9 @@ func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 			} else {
 				downloads <- download
 			}
-			continue
 		}
-
-		download, err := downloadNewFile(&task, d.cacheFolder, d.hashesToObtain, &d.cacheIndex)
-		if err != nil {
-			downloads <- CompletedDownload{
-				Error: err,
-			}
-		} else {
-			downloads <- download
-		}
-	}
+		close(downloads)
+	}()
 	return downloads
 }
 
@@ -91,7 +96,7 @@ func (d *downloadSessionInternal) SaveIndex() error {
 	return nil
 }
 
-func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, destFilePath string) (CompletedDownload, error) {
+func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, mod *Mod) (CompletedDownload, error) {
 	// Already stored; try using it!
 	file, err := cacheHandle.Open()
 	if err == nil {
@@ -111,9 +116,9 @@ func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, d
 		}
 
 		return CompletedDownload{
-			File:         file,
-			DestFilePath: destFilePath,
-			Hashes:       cacheHandle.Hashes,
+			File:   file,
+			Mod:    mod,
+			Hashes: cacheHandle.Hashes,
 		}, nil
 	} else {
 		return CompletedDownload{}, fmt.Errorf("failed to read file %s from cache: %w", cacheHandle.Path(), err)
@@ -151,7 +156,7 @@ func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []st
 		err = teeHashes(hashesToObtain, hashes, tempFile, data)
 		_ = data.Close()
 		if err != nil {
-			return CompletedDownload{}, fmt.Errorf("failed to download file for %s: %w", task.destFilePath, err)
+			return CompletedDownload{}, fmt.Errorf("failed to download file for %s: %w", task.mod.Name, err)
 		}
 	}
 
@@ -180,14 +185,14 @@ func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []st
 	}
 
 	return CompletedDownload{
-		File:         file,
-		DestFilePath: task.destFilePath,
-		Hashes:       hashes,
-		Warnings:     warnings,
+		File:     file,
+		Mod:      task.mod,
+		Hashes:   hashes,
+		Warnings: warnings,
 	}, nil
 }
 
-func selectPreferredHash(hashes map[string]string) (currHash string, currHashFormat string) {
+func selectPreferredHash(hashes map[string]string) (currHashFormat string, currHash string) {
 	for _, hashFormat := range preferredHashList {
 		if hash, ok := hashes[hashFormat]; ok {
 			currHashFormat = hashFormat
@@ -226,7 +231,7 @@ func teeHashes(hashesToObtain []string, hashes map[string]string,
 		return fmt.Errorf("failed to get hash format %s", validateHashFormat)
 	}
 	hashers := make(map[string]HashStringer, len(hashesToObtain))
-	allWriters := make([]io.Writer, len(hashers))
+	allWriters := make([]io.Writer, len(hashesToObtain))
 	for i, v := range hashesToObtain {
 		hashers[v], err = GetHashImpl(v)
 		if err != nil {
@@ -340,11 +345,11 @@ func (h *CacheIndexHandle) CreateFromTemp(temp *os.File) (*os.File, error) {
 	if err != nil {
 		return nil, err
 	}
-	err = os.Rename(temp.Name(), h.Path())
+	err = temp.Close()
 	if err != nil {
 		return nil, err
 	}
-	err = temp.Close()
+	err = os.Rename(temp.Name(), h.Path())
 	if err != nil {
 		return nil, err
 	}
@@ -425,12 +430,12 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 
 	// Get necessary metadata for all files
 	for _, mod := range mods {
-		if mod.Download.Mode == "url" {
+		if mod.Download.Mode == "url" || mod.Download.Mode == "" {
 			downloadSession.downloadTasks = append(downloadSession.downloadTasks, downloadTask{
-				destFilePath: mod.GetDestFilePath(),
-				url:          mod.Download.URL,
-				hashFormat:   mod.Download.HashFormat,
-				hash:         mod.Download.Hash,
+				mod:        mod,
+				url:        mod.Download.URL,
+				hashFormat: mod.Download.HashFormat,
+				hash:       mod.Download.Hash,
 			})
 		} else if strings.HasPrefix(mod.Download.Mode, "metadata:") {
 			dlID := strings.TrimPrefix(mod.Download.Mode, "metadata:")
@@ -452,10 +457,11 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 		for i, v := range mods {
 			isManual, manualDownload := meta[i].GetManualDownload()
 			if isManual {
+				// TODO: lookup in index!
 				downloadSession.manualDownloads = append(downloadSession.manualDownloads, manualDownload)
 			} else {
 				downloadSession.downloadTasks = append(downloadSession.downloadTasks, downloadTask{
-					destFilePath:       v.GetDestFilePath(),
+					mod:                v,
 					metaDownloaderData: meta[i],
 					hashFormat:         v.Download.HashFormat,
 					hash:               v.Download.Hash,
