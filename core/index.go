@@ -335,7 +335,7 @@ func (in Index) FindMod(modName string) (string, bool) {
 	for _, v := range in.Files {
 		if v.MetaFile {
 			_, file := filepath.Split(v.File)
-			fileTrimmed := strings.TrimSuffix(file, MetaExtension)
+			fileTrimmed := strings.TrimSuffix(strings.TrimSuffix(file, MetaExtension), MetaExtensionOld)
 			if fileTrimmed == modName {
 				return filepath.Join(filepath.Dir(in.indexFile), filepath.FromSlash(v.File)), true
 			}
