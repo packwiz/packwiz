@@ -22,6 +22,14 @@ func GetPackwizLocalStore() (string, error) {
 	return filepath.Join(userConfigDir, "packwiz"), nil
 }
 
+func GetPackwizLocalCache() (string, error) {
+	userCacheDir, err := os.UserCacheDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(userCacheDir, "packwiz"), nil
+}
+
 func GetPackwizInstallBinPath() (string, error) {
 	localStore, err := GetPackwizLocalStore()
 	if err != nil {
@@ -46,7 +54,7 @@ func GetPackwizInstallBinFile() (string, error) {
 }
 
 func GetPackwizCache() (string, error) {
-	localStore, err := GetPackwizLocalStore()
+	localStore, err := GetPackwizLocalCache()
 	if err != nil {
 		return "", err
 	}

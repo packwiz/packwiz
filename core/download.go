@@ -13,7 +13,7 @@ import (
 	"strings"
 )
 
-const DownloadCacheInFolder = "in"
+const DownloadCacheImportFolder = "import"
 
 type DownloadSession interface {
 	GetManualDownloads() []ManualDownload
@@ -22,8 +22,10 @@ type DownloadSession interface {
 }
 
 type CompletedDownload struct {
-	File   *os.File
-	Mod    *Mod
+	// File is only populated when the download is successful; points to the opened cache file
+	File *os.File
+	Mod  *Mod
+	// Hashes is only populated when the download is successful; contains all stored hashes of the file
 	Hashes map[string]string
 	// Error indicates if/why downloading this file failed
 	Error error
@@ -32,11 +34,12 @@ type CompletedDownload struct {
 }
 
 type downloadSessionInternal struct {
-	cacheIndex      CacheIndex
-	cacheFolder     string
-	hashesToObtain  []string
-	manualDownloads []ManualDownload
-	downloadTasks   []downloadTask
+	cacheIndex           CacheIndex
+	cacheFolder          string
+	hashesToObtain       []string
+	manualDownloads      []ManualDownload
+	downloadTasks        []downloadTask
+	foundManualDownloads []CompletedDownload
 }
 
 type downloadTask struct {
@@ -48,13 +51,15 @@ type downloadTask struct {
 }
 
 func (d *downloadSessionInternal) GetManualDownloads() []ManualDownload {
-	// TODO: set destpaths
 	return d.manualDownloads
 }
 
 func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 	downloads := make(chan CompletedDownload)
 	go func() {
+		for _, found := range d.foundManualDownloads {
+			downloads <- found
+		}
 		for _, task := range d.downloadTasks {
 			// Get handle for mod
 			cacheHandle := d.cacheIndex.GetHandleFromHash(task.hashFormat, task.hash)
@@ -63,6 +68,7 @@ func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 				if err != nil {
 					downloads <- CompletedDownload{
 						Error: err,
+						Mod:   task.mod,
 					}
 				} else {
 					downloads <- download
@@ -74,6 +80,7 @@ func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 			if err != nil {
 				downloads <- CompletedDownload{
 					Error: err,
+					Mod:   task.mod,
 				}
 			} else {
 				downloads <- download
@@ -156,7 +163,7 @@ func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []st
 		err = teeHashes(hashesToObtain, hashes, tempFile, data)
 		_ = data.Close()
 		if err != nil {
-			return CompletedDownload{}, fmt.Errorf("failed to download file for %s: %w", task.mod.Name, err)
+			return CompletedDownload{}, fmt.Errorf("failed to download: %w", err)
 		}
 	}
 
@@ -279,25 +286,111 @@ type CacheIndexHandle struct {
 	Hashes  map[string]string
 }
 
+func (c *CacheIndex) getHashesMap(i int) map[string]string {
+	hashes := make(map[string]string)
+	for curHashFormat, hashList := range c.Hashes {
+		if i < len(hashList) && hashList[i] != "" {
+			hashes[curHashFormat] = hashList[i]
+		}
+	}
+	return hashes
+}
+
 func (c *CacheIndex) GetHandleFromHash(hashFormat string, hash string) *CacheIndexHandle {
 	storedHashFmtList, hasStoredHashFmt := c.Hashes[hashFormat]
 	if hasStoredHashFmt {
 		hashIdx := slices.Index(storedHashFmtList, hash)
 		if hashIdx > -1 {
-			hashes := make(map[string]string)
-			for curHashFormat, hashList := range c.Hashes {
-				if hashIdx < len(hashList) && hashList[hashIdx] != "" {
-					hashes[curHashFormat] = hashList[hashIdx]
-				}
-			}
 			return &CacheIndexHandle{
 				index:   c,
 				hashIdx: hashIdx,
-				Hashes:  hashes,
+				Hashes:  c.getHashesMap(hashIdx),
 			}
 		}
 	}
 	return nil
+}
+
+// GetHandleFromHashForce looks up the given hash in the index; but will rehash any file without this hash format to
+// obtain the necessary hash. Only use this for manually downloaded files, as it can rehash every file in the cache, which
+// can be more time-consuming than just redownloading the file and noticing it is already in the index!
+func (c *CacheIndex) GetHandleFromHashForce(hashFormat string, hash string) (*CacheIndexHandle, error) {
+	storedHashFmtList, hasStoredHashFmt := c.Hashes[hashFormat]
+	if hasStoredHashFmt {
+		// Ensure hash list is extended to the length of the cache hash format list
+		storedHashFmtList = append(storedHashFmtList, make([]string, len(c.Hashes[cacheHashFormat])-len(storedHashFmtList))...)
+		c.Hashes[hashFormat] = storedHashFmtList
+		// Rehash every file that doesn't have this hash with this hash
+		for hashIdx, curHash := range storedHashFmtList {
+			if curHash == hash {
+				return &CacheIndexHandle{
+					index:   c,
+					hashIdx: hashIdx,
+					Hashes:  c.getHashesMap(hashIdx),
+				}, nil
+			} else if curHash == "" {
+				var err error
+				storedHashFmtList[hashIdx], err = c.rehashFile(c.Hashes[cacheHashFormat][hashIdx], hashFormat)
+				if err != nil {
+					return nil, fmt.Errorf("failed to rehash %s: %w", c.Hashes[cacheHashFormat][hashIdx], err)
+				}
+				if storedHashFmtList[hashIdx] == hash {
+					return &CacheIndexHandle{
+						index:   c,
+						hashIdx: hashIdx,
+						Hashes:  c.getHashesMap(hashIdx),
+					}, nil
+				}
+			}
+		}
+	} else {
+		// Rehash every file with this hash
+		storedHashFmtList = make([]string, len(c.Hashes[cacheHashFormat]))
+		c.Hashes[hashFormat] = storedHashFmtList
+		for hashIdx, cacheHash := range c.Hashes[cacheHashFormat] {
+			var err error
+			storedHashFmtList[hashIdx], err = c.rehashFile(cacheHash, hashFormat)
+			if err != nil {
+				return nil, fmt.Errorf("failed to rehash %s: %w", cacheHash, err)
+			}
+			if storedHashFmtList[hashIdx] == hash {
+				return &CacheIndexHandle{
+					index:   c,
+					hashIdx: hashIdx,
+					Hashes:  c.getHashesMap(hashIdx),
+				}, nil
+			}
+		}
+	}
+	return nil, nil
+}
+
+func (c *CacheIndex) rehashFile(cacheHash string, hashFormat string) (string, error) {
+	file, err := os.Open(filepath.Join(c.cachePath, cacheHash[:2], cacheHash[2:]))
+	if err != nil {
+		return "", err
+	}
+	validateHasher, err := GetHashImpl(cacheHashFormat)
+	if err != nil {
+		return "", fmt.Errorf("failed to get hasher for rehash: %w", err)
+	}
+	rehashHasher, err := GetHashImpl(hashFormat)
+	if err != nil {
+		return "", fmt.Errorf("failed to get hasher for rehash: %w", err)
+	}
+	writer := io.MultiWriter(validateHasher, rehashHasher)
+	_, err = io.Copy(writer, file)
+	if err != nil {
+		return "", err
+	}
+
+	validateHash := validateHasher.HashToString(validateHasher.Sum(nil))
+	if cacheHash != validateHash {
+		return "", fmt.Errorf(
+			"%s hash of cached file does not match with expected hash!\n read hash: %s\n expected hash: %s\n",
+			cacheHashFormat, validateHash, cacheHash)
+	}
+	return rehashHasher.HashToString(rehashHasher.Sum(nil)), nil
 }
 
 func (c *CacheIndex) NewHandleFromHashes(hashes map[string]string) (*CacheIndexHandle, bool) {
@@ -320,6 +413,59 @@ func (c *CacheIndex) NewHandleFromHashes(hashes map[string]string) (*CacheIndexH
 	}, false
 }
 
+func (c *CacheIndex) MoveImportFiles() error {
+	return filepath.Walk(filepath.Join(c.cachePath, DownloadCacheImportFolder), func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			_ = file.Close()
+			return fmt.Errorf("failed to open imported file %s: %w", path, err)
+		}
+		hasher, err := GetHashImpl(cacheHashFormat)
+		if err != nil {
+			_ = file.Close()
+			return fmt.Errorf("failed to validate imported file %s: %w", path, err)
+		}
+		_, err = io.Copy(hasher, file)
+		if err != nil {
+			_ = file.Close()
+			return fmt.Errorf("failed to validate imported file %s: %w", path, err)
+		}
+		handle, exists := c.NewHandleFromHashes(map[string]string{
+			cacheHashFormat: hasher.HashToString(hasher.Sum(nil)),
+		})
+		if exists {
+			err = file.Close()
+			if err != nil {
+				return fmt.Errorf("failed to close imported file %s: %w", path, err)
+			}
+			err = os.Remove(path)
+			if err != nil {
+				return fmt.Errorf("failed to delete imported file %s: %w", path, err)
+			}
+		} else {
+			newFile, err := handle.CreateFromTemp(file)
+			if err != nil {
+				if newFile != nil {
+					_ = newFile.Close()
+				}
+				return fmt.Errorf("failed to rename imported file %s: %w", path, err)
+			}
+			err = newFile.Close()
+			if err != nil {
+				return fmt.Errorf("failed to close renamed imported file %s: %w", path, err)
+			}
+			_ = handle.UpdateIndex()
+		}
+		return nil
+	})
+}
+
 func (h *CacheIndexHandle) GetRemainingHashes(hashesToObtain []string) []string {
 	var remaining []string
 	for _, hashFormat := range hashesToObtain {
@@ -331,7 +477,7 @@ func (h *CacheIndexHandle) GetRemainingHashes(hashesToObtain []string) []string 
 }
 
 func (h *CacheIndexHandle) Path() string {
-	cacheFileHash := h.index.Hashes[cacheHashFormat][h.hashIdx]
+	cacheFileHash := h.Hashes[cacheHashFormat]
 	cacheFilePath := filepath.Join(h.index.cachePath, cacheFileHash[:2], cacheFileHash[2:])
 	return cacheFilePath
 }
@@ -341,11 +487,11 @@ func (h *CacheIndexHandle) Open() (*os.File, error) {
 }
 
 func (h *CacheIndexHandle) CreateFromTemp(temp *os.File) (*os.File, error) {
-	err := os.MkdirAll(filepath.Dir(h.Path()), 0755)
+	err := temp.Close()
 	if err != nil {
 		return nil, err
 	}
-	err = temp.Close()
+	err = os.MkdirAll(filepath.Dir(h.Path()), 0755)
 	if err != nil {
 		return nil, err
 	}
@@ -417,7 +563,16 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 	cacheIndex.cachePath = cachePath
 	cacheIndex.nextHashIdx = len(cacheIndex.Hashes[cacheHashFormat])
 
-	// TODO: move in/ files?
+	// Create import folder
+	err = os.MkdirAll(filepath.Join(cachePath, DownloadCacheImportFolder), 0755)
+	if err != nil {
+		return nil, fmt.Errorf("error creating cache import folder: %w", err)
+	}
+	// Move import files
+	err = cacheIndex.MoveImportFiles()
+	if err != nil {
+		return nil, fmt.Errorf("error updating cache import folder: %w", err)
+	}
 
 	// Create session
 	downloadSession := downloadSessionInternal{
@@ -457,8 +612,23 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 		for i, v := range mods {
 			isManual, manualDownload := meta[i].GetManualDownload()
 			if isManual {
-				// TODO: lookup in index!
-				downloadSession.manualDownloads = append(downloadSession.manualDownloads, manualDownload)
+				handle, err := cacheIndex.GetHandleFromHashForce(v.Download.HashFormat, v.Download.Hash)
+				if err != nil {
+					return nil, fmt.Errorf("failed to lookup manual download %s: %w", v.Name, err)
+				}
+				if handle != nil {
+					file, err := handle.Open()
+					if err != nil {
+						return nil, fmt.Errorf("failed to open manual download %s: %w", v.Name, err)
+					}
+					downloadSession.foundManualDownloads = append(downloadSession.foundManualDownloads, CompletedDownload{
+						File:   file,
+						Mod:    v,
+						Hashes: handle.Hashes,
+					})
+				} else {
+					downloadSession.manualDownloads = append(downloadSession.manualDownloads, manualDownload)
+				}
 			} else {
 				downloadSession.downloadTasks = append(downloadSession.downloadTasks, downloadTask{
 					mod:                v,
@@ -471,6 +641,12 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 	}
 
 	// TODO: index housekeeping? i.e. remove deleted files, remove old files (LRU?)
+
+	// Save index after importing and Force index updates
+	err = downloadSession.SaveIndex()
+	if err != nil {
+		return nil, fmt.Errorf("error writing cache index: %w", err)
+	}
 
 	return &downloadSession, nil
 }

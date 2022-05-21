@@ -114,9 +114,7 @@ var exportCmd = &cobra.Command{
 		for _, mod := range mods {
 			projectRaw, ok := mod.GetParsedUpdateData("curseforge")
 			// If the mod has curseforge metadata, add it to cfFileRefs
-			// TODO: change back to use ok
-			_ = ok
-			if false {
+			if ok {
 				p := projectRaw.(cfUpdateData)
 				cfFileRefs = append(cfFileRefs, packinterop.AddonFileReference{
 					ProjectID:        p.ProjectID,
@@ -146,13 +144,11 @@ var exportCmd = &cobra.Command{
 
 			for dl := range session.StartDownloads() {
 				if dl.Error != nil {
-					// TODO: ensure name is populated
 					fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
 					continue
 				}
 				for warning := range dl.Warnings {
-					// TODO: get name
-					fmt.Printf("Download warning: %v\n", warning)
+					fmt.Printf("Warning for %s (%s): %v\n", dl.Mod.Name, dl.Mod.FileName, warning)
 				}
 
 				path, err := filepath.Rel(filepath.Dir(indexPath), dl.Mod.GetDestFilePath())
@@ -170,6 +166,8 @@ var exportCmd = &cobra.Command{
 					fmt.Printf("Error copying file %s: %v\n", path, err)
 					continue
 				}
+
+				fmt.Printf("%s (%s) added to zip\n", dl.Mod.Name, dl.Mod.FileName)
 			}
 
 			err = session.SaveIndex()

@@ -20,13 +20,9 @@ func ListManualDownloads(session core.DownloadSession) {
 			fmt.Printf("Error locating cache folder: %v", err)
 			os.Exit(1)
 		}
-		err = os.MkdirAll(filepath.Join(cacheDir, core.DownloadCacheInFolder), 0755)
-		if err != nil {
-			fmt.Printf("Error creating cache in folder: %v", err)
-			os.Exit(1)
-		}
+
 		fmt.Printf("Once you have done so, place these files in %s and re-run this command.\n",
-			filepath.Join(cacheDir, core.DownloadCacheInFolder))
+			filepath.Join(cacheDir, core.DownloadCacheImportFolder))
 		os.Exit(1)
 	}
 }
