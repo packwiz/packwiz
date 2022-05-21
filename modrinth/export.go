@@ -4,7 +4,10 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -80,84 +83,104 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// TODO: finish updating to use download session
-		fmt.Println("Retrieving external mods...")
-		session, err := core.CreateDownloadSession(mods, []string{"sha1", "sha512", "length-bytes"})
-		_ = session
+		fmt.Printf("Retrieving %v external files...\n", len(mods))
 
-		modsHashes := make([]map[string]string, len(mods))
-		for i, mod := range mods {
-			modsHashes[i], err = mod.GetHashes([]string{"sha1", "sha512", "length-bytes"})
-			if err != nil {
-				fmt.Printf("Error downloading mod file %s: %s\n", mod.Download.URL, err.Error())
-				continue
+		for _, mod := range mods {
+			if !canBeIncludedDirectly(mod) {
+				cmdshared.PrintDisclaimer(false)
+				break
 			}
-			fmt.Printf("Retrieved hashes for %s successfully\n", mod.Download.URL)
 		}
 
-		manifestFile, err := exp.Create("modrinth.index.json")
+		session, err := core.CreateDownloadSession(mods, []string{"sha1", "sha512", "length-bytes"})
 		if err != nil {
-			_ = exp.Close()
-			_ = expFile.Close()
-			fmt.Println("Error creating manifest: " + err.Error())
+			fmt.Printf("Error retrieving external files: %v\n", err)
 			os.Exit(1)
 		}
 
-		manifestFiles := make([]PackFile, len(mods))
-		for i, mod := range mods {
-			pathForward, err := filepath.Rel(filepath.Dir(indexPath), mod.GetDestFilePath())
-			if err != nil {
-				fmt.Printf("Error resolving mod file: %s\n", err.Error())
-				// TODO: exit(1)?
-				continue
-			}
+		cmdshared.ListManualDownloads(session)
 
-			path := filepath.ToSlash(pathForward)
+		manifestFiles := make([]PackFile, 0)
+		for dl := range session.StartDownloads() {
+			if canBeIncludedDirectly(dl.Mod) {
+				if dl.Error != nil {
+					fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
+					continue
+				}
+				for warning := range dl.Warnings {
+					fmt.Printf("Warning for %s (%s): %v\n", dl.Mod.Name, dl.Mod.FileName, warning)
+				}
 
-			hashes := make(map[string]string)
-			hashes["sha1"] = modsHashes[i]["sha1"]
-			hashes["sha512"] = modsHashes[i]["sha512"]
-			fileSize, err := strconv.ParseUint(modsHashes[i]["length-bytes"], 10, 64)
-			if err != nil {
-				panic(err)
-			}
+				pathForward, err := filepath.Rel(filepath.Dir(indexPath), dl.Mod.GetDestFilePath())
+				if err != nil {
+					fmt.Printf("Error resolving mod file: %s\n", err.Error())
+					// TODO: exit(1)?
+					continue
+				}
 
-			// Create env options based on configured optional/side
-			var envInstalled string
-			if mod.Option != nil && mod.Option.Optional {
-				envInstalled = "optional"
+				path := filepath.ToSlash(pathForward)
+
+				hashes := make(map[string]string)
+				hashes["sha1"] = dl.Hashes["sha1"]
+				hashes["sha512"] = dl.Hashes["sha512"]
+				fileSize, err := strconv.ParseUint(dl.Hashes["length-bytes"], 10, 64)
+				if err != nil {
+					panic(err)
+				}
+
+				// Create env options based on configured optional/side
+				var envInstalled string
+				if dl.Mod.Option != nil && dl.Mod.Option.Optional {
+					envInstalled = "optional"
+				} else {
+					envInstalled = "required"
+				}
+				var clientEnv, serverEnv string
+				if dl.Mod.Side == core.UniversalSide {
+					clientEnv = envInstalled
+					serverEnv = envInstalled
+				} else if dl.Mod.Side == core.ClientSide {
+					clientEnv = envInstalled
+					serverEnv = "unsupported"
+				} else if dl.Mod.Side == core.ServerSide {
+					clientEnv = "unsupported"
+					serverEnv = envInstalled
+				}
+
+				// Modrinth URLs must be RFC3986
+				u, err := core.ReencodeURL(dl.Mod.Download.URL)
+				if err != nil {
+					fmt.Printf("Error re-encoding mod URL: %s\n", err.Error())
+					u = dl.Mod.Download.URL
+				}
+
+				manifestFiles = append(manifestFiles, PackFile{
+					Path:   path,
+					Hashes: hashes,
+					Env: &struct {
+						Client string `json:"client"`
+						Server string `json:"server"`
+					}{Client: clientEnv, Server: serverEnv},
+					Downloads: []string{u},
+					FileSize:  uint32(fileSize),
+				})
+
+				fmt.Printf("%s (%s) added to manifest\n", dl.Mod.Name, dl.Mod.FileName)
 			} else {
-				envInstalled = "required"
+				if dl.Mod.Side == core.ClientSide {
+					_ = cmdshared.AddToZip(dl, exp, "client-overrides", indexPath)
+				} else if dl.Mod.Side == core.ServerSide {
+					_ = cmdshared.AddToZip(dl, exp, "server-overrides", indexPath)
+				} else {
+					_ = cmdshared.AddToZip(dl, exp, "overrides", indexPath)
+				}
 			}
-			var clientEnv, serverEnv string
-			if mod.Side == core.UniversalSide {
-				clientEnv = envInstalled
-				serverEnv = envInstalled
-			} else if mod.Side == core.ClientSide {
-				clientEnv = envInstalled
-				serverEnv = "unsupported"
-			} else if mod.Side == core.ServerSide {
-				clientEnv = "unsupported"
-				serverEnv = envInstalled
-			}
+		}
 
-			// Modrinth URLs must be RFC3986
-			u, err := core.ReencodeURL(mod.Download.URL)
-			if err != nil {
-				fmt.Printf("Error re-encoding mod URL: %s\n", err.Error())
-				u = mod.Download.URL
-			}
-
-			manifestFiles[i] = PackFile{
-				Path:   path,
-				Hashes: hashes,
-				Env: &struct {
-					Client string `json:"client"`
-					Server string `json:"server"`
-				}{Client: clientEnv, Server: serverEnv},
-				Downloads: []string{u},
-				FileSize:  uint32(fileSize),
-			}
+		err = session.SaveIndex()
+		if err != nil {
+			fmt.Printf("Error saving cache index: %v\n", err)
+			os.Exit(1)
 		}
 
 		dependencies := make(map[string]string)
@@ -188,6 +211,14 @@ var exportCmd = &cobra.Command{
 
 		if len(pack.Version) == 0 {
 			fmt.Println("Warning: pack.toml version field must not be empty to create a valid Modrinth pack")
+		}
+
+		manifestFile, err := exp.Create("modrinth.index.json")
+		if err != nil {
+			_ = exp.Close()
+			_ = expFile.Close()
+			fmt.Println("Error creating manifest: " + err.Error())
+			os.Exit(1)
 		}
 
 		w := json.NewEncoder(manifestFile)
@@ -224,42 +255,6 @@ var exportCmd = &cobra.Command{
 			}
 		}
 
-		// TODO: get rid of this, do whitelist checks elsewhere
-
-		if len(unwhitelistedMods) > 0 {
-			fmt.Println("Downloading unwhitelisted mods...")
-		}
-		for _, v := range unwhitelistedMods {
-			pathRel, err := filepath.Rel(filepath.Dir(indexPath), v.GetDestFilePath())
-			if err != nil {
-				fmt.Printf("Error resolving mod file: %s\n", err.Error())
-				// TODO: exit(1)?
-				continue
-			}
-			var path string
-			if v.Side == core.ClientSide {
-				path = filepath.ToSlash(filepath.Join("client-overrides", pathRel))
-			} else if v.Side == core.ServerSide {
-				path = filepath.ToSlash(filepath.Join("server-overrides", pathRel))
-			} else {
-				path = filepath.ToSlash(filepath.Join("overrides", pathRel))
-			}
-
-			file, err := exp.Create(path)
-			if err != nil {
-				fmt.Printf("Error creating file: %s\n", err.Error())
-				// TODO: exit(1)?
-				continue
-			}
-			err = v.DownloadFile(file)
-			if err != nil {
-				fmt.Printf("Error downloading file: %s\n", err.Error())
-				// TODO: exit(1)?
-				continue
-			}
-			fmt.Printf("Downloaded %v successfully\n", path)
-		}
-
 		err = exp.Close()
 		if err != nil {
 			fmt.Println("Error writing export file: " + err.Error())
@@ -275,22 +270,25 @@ var exportCmd = &cobra.Command{
 	},
 }
 
-// TODO: update whitelist
 var whitelistedHosts = []string{
 	"cdn.modrinth.com",
 	"edge.forgecdn.net",
+	"media.forgecdn.net",
 	"github.com",
 	"raw.githubusercontent.com",
 }
 
-//modUrl, err := url.Parse(modData.Download.URL)
-//if err == nil {
-//if slices.Contains(whitelistedHosts, modUrl.Host) {
-//mods = append(mods, modData)
-//} else {
-//unwhitelistedMods = append(unwhitelistedMods, modData)
-//}
-//}
+func canBeIncludedDirectly(mod *core.Mod) bool {
+	if mod.Download.Mode == "url" || mod.Download.Mode == "" {
+		modUrl, err := url.Parse(mod.Download.URL)
+		if err == nil {
+			if slices.Contains(whitelistedHosts, modUrl.Host) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 func init() {
 	modrinthCmd.AddCommand(exportCmd)

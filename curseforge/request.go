@@ -12,8 +12,6 @@ import (
 	"time"
 )
 
-// TODO: update everything for no URL and download mode "metadata:curseforge"
-
 const cfApiServer = "api.curseforge.com"
 
 // If you fork/derive from packwiz, I request that you obtain your own API key.

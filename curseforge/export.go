@@ -9,7 +9,6 @@ import (
 	"github.com/packwiz/packwiz/curseforge/packinterop"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -129,10 +128,7 @@ var exportCmd = &cobra.Command{
 		// Download external files and save directly into the zip
 		if len(nonCfMods) > 0 {
 			fmt.Printf("Retrieving %v external files to store in the modpack zip...\n", len(nonCfMods))
-			fmt.Println("Disclaimer: you are responsible for ensuring you comply with ALL the licenses, or obtain appropriate permissions, for the files listed below")
-			fmt.Println("Note that mods bundled within a CurseForge pack must be in the Approved Non-CurseForge Mods list")
-			fmt.Println("packwiz is currently unable to match metadata between mod sites - if any of these are available from CurseForge you should change them to use CurseForge metadata (e.g. by reinstalling them using the cf commands)")
-			fmt.Println()
+			cmdshared.PrintDisclaimer(true)
 
 			session, err := core.CreateDownloadSession(nonCfMods, []string{})
 			if err != nil {
@@ -143,31 +139,7 @@ var exportCmd = &cobra.Command{
 			cmdshared.ListManualDownloads(session)
 
 			for dl := range session.StartDownloads() {
-				if dl.Error != nil {
-					fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
-					continue
-				}
-				for warning := range dl.Warnings {
-					fmt.Printf("Warning for %s (%s): %v\n", dl.Mod.Name, dl.Mod.FileName, warning)
-				}
-
-				path, err := filepath.Rel(filepath.Dir(indexPath), dl.Mod.GetDestFilePath())
-				if err != nil {
-					fmt.Printf("Error resolving mod file: %v\n", err)
-					continue
-				}
-				modFile, err := exp.Create(filepath.ToSlash(filepath.Join("overrides", path)))
-				if err != nil {
-					fmt.Printf("Error creating mod file %s: %v\n", path, err)
-					continue
-				}
-				_, err = io.Copy(modFile, dl.File)
-				if err != nil {
-					fmt.Printf("Error copying file %s: %v\n", path, err)
-					continue
-				}
-
-				fmt.Printf("%s (%s) added to zip\n", dl.Mod.Name, dl.Mod.FileName)
+				_ = cmdshared.AddToZip(dl, exp, "overrides", indexPath)
 			}
 
 			err = session.SaveIndex()
@@ -189,7 +161,7 @@ var exportCmd = &cobra.Command{
 		if err != nil {
 			_ = exp.Close()
 			_ = expFile.Close()
-			fmt.Println("Error creating manifest: " + err.Error())
+			fmt.Println("Error writing manifest: " + err.Error())
 			os.Exit(1)
 		}
 

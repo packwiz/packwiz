@@ -382,6 +382,9 @@ func (in Index) SaveFile(f IndexFile, dest io.Writer) error {
 		hashFormat = in.HashFormat
 	}
 	src, err := os.Open(in.GetFilePath(f))
+	defer func(src *os.File) {
+		_ = src.Close()
+	}(src)
 	if err != nil {
 		return err
 	}
