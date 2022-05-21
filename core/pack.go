@@ -31,10 +31,10 @@ type Pack struct {
 	Options  map[string]interface{}            `toml:"options"`
 }
 
-const CurrentPackFormat = "packwiz:1.0.0"
+const CurrentPackFormat = "packwiz:1.1.0"
 
 var PackFormatConstraintAccepted = mustParseConstraint("~1")
-var PackFormatConstraintSuggestUpgrade = mustParseConstraint("~1.0")
+var PackFormatConstraintSuggestUpgrade = mustParseConstraint("~1.1")
 
 func mustParseConstraint(s string) *semver.Constraints {
 	c, err := semver.NewConstraint(s)
@@ -53,8 +53,13 @@ func LoadPack() (Pack, error) {
 
 	// Check pack-format
 	if len(modpack.PackFormat) == 0 {
-		fmt.Println("Modpack manifest has no pack-format field; assuming packwiz:1.0.0")
-		modpack.PackFormat = "packwiz:1.0.0"
+		fmt.Println("Modpack manifest has no pack-format field; assuming packwiz:1.1.0")
+		modpack.PackFormat = "packwiz:1.1.0"
+	}
+	// Auto-migrate versions
+	if modpack.PackFormat == "packwiz:1.0.0" {
+		fmt.Println("Automatically migrating pack to packwiz:1.1.0 format...")
+		modpack.PackFormat = "packwiz:1.1.0"
 	}
 	if !strings.HasPrefix(modpack.PackFormat, "packwiz:") {
 		return Pack{}, errors.New("pack-format field does not indicate a valid packwiz pack")
