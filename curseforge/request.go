@@ -145,9 +145,8 @@ type modInfo struct {
 		FileType    int    `json:"releaseType"`
 		Modloader   int    `json:"modLoader"`
 	} `json:"latestFilesIndexes"`
-	ModLoaders           []string `json:"modLoaders"`
-	AllowModDistribution bool     `json:"allowModDistribution"`
-	Links                struct {
+	ModLoaders []string `json:"modLoaders"`
+	Links      struct {
 		WebsiteURL string `json:"websiteUrl"`
 	} `json:"links"`
 }
