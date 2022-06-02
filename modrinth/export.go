@@ -85,8 +85,10 @@ var exportCmd = &cobra.Command{
 
 		fmt.Printf("Retrieving %v external files...\n", len(mods))
 
+		restrictDomains := viper.GetBool("modrinth.export.restrictDomains")
+
 		for _, mod := range mods {
-			if !canBeIncludedDirectly(mod) {
+			if !canBeIncludedDirectly(mod, restrictDomains) {
 				cmdshared.PrintDisclaimer(false)
 				break
 			}
@@ -102,7 +104,7 @@ var exportCmd = &cobra.Command{
 
 		manifestFiles := make([]PackFile, 0)
 		for dl := range session.StartDownloads() {
-			if canBeIncludedDirectly(dl.Mod) {
+			if canBeIncludedDirectly(dl.Mod, restrictDomains) {
 				if dl.Error != nil {
 					fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
 					continue
@@ -277,8 +279,12 @@ var whitelistedHosts = []string{
 	"gitlab.com",
 }
 
-func canBeIncludedDirectly(mod *core.Mod) bool {
+func canBeIncludedDirectly(mod *core.Mod, restrictDomains bool) bool {
 	if mod.Download.Mode == "url" || mod.Download.Mode == "" {
+		if !restrictDomains {
+			return true
+		}
+
 		modUrl, err := url.Parse(mod.Download.URL)
 		if err == nil {
 			if slices.Contains(whitelistedHosts, modUrl.Host) {
@@ -291,6 +297,8 @@ func canBeIncludedDirectly(mod *core.Mod) bool {
 
 func init() {
 	modrinthCmd.AddCommand(exportCmd)
+	exportCmd.Flags().Bool("restrictDomains", true, "Restricts domains to those allowed by modrinth.com")
 	exportCmd.Flags().StringP("output", "o", "", "The file to export the modpack to")
+	_ = viper.BindPFlag("modrinth.export.restrictDomains", exportCmd.Flags().Lookup("restrictDomains"))
 	_ = viper.BindPFlag("modrinth.export.output", exportCmd.Flags().Lookup("output"))
 }
