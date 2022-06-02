@@ -272,10 +272,9 @@ var exportCmd = &cobra.Command{
 
 var whitelistedHosts = []string{
 	"cdn.modrinth.com",
-	"edge.forgecdn.net",
-	"media.forgecdn.net",
 	"github.com",
 	"raw.githubusercontent.com",
+	"gitlab.com",
 }
 
 func canBeIncludedDirectly(mod *core.Mod) bool {
