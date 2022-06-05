@@ -89,9 +89,9 @@ var installCmd = &cobra.Command{
 			var cancelled bool
 			if slug == "" {
 				searchTerm := strings.Join(args, " ")
-				cancelled, modInfoData = searchCurseforgeInternal(searchTerm, false, game, category, mcVersion, getLoader(pack))
+				cancelled, modInfoData = searchCurseforgeInternal(searchTerm, false, game, category, mcVersion, getSearchLoaderType(pack))
 			} else {
-				cancelled, modInfoData = searchCurseforgeInternal(slug, true, game, category, mcVersion, getLoader(pack))
+				cancelled, modInfoData = searchCurseforgeInternal(slug, true, game, category, mcVersion, getSearchLoaderType(pack))
 			}
 			if cancelled {
 				return
@@ -114,7 +114,7 @@ var installCmd = &cobra.Command{
 		}
 
 		var fileInfoData modFileInfo
-		fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID, getLoader(pack))
+		fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID, getLoaders(pack))
 		if err != nil {
 			fmt.Printf("Failed to get file for project: %v\n", err)
 			os.Exit(1)
@@ -187,7 +187,7 @@ var installCmd = &cobra.Command{
 					depIDPendingQueue = depIDPendingQueue[:0]
 
 					for _, currData := range depInfoData {
-						depFileInfo, err := getLatestFile(currData, mcVersion, 0, getLoader(pack))
+						depFileInfo, err := getLatestFile(currData, mcVersion, 0, getLoaders(pack))
 						if err != nil {
 							fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
 							continue
@@ -278,7 +278,7 @@ func (r modResultsList) Len() int {
 	return len(r)
 }
 
-func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersion string, packLoaderType int) (bool, modInfo) {
+func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersion string, searchLoaderType int) (bool, modInfo) {
 	if isSlug {
 		fmt.Println("Looking up CurseForge slug...")
 	} else {
@@ -351,7 +351,7 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 	} else {
 		search = searchTerm
 	}
-	results, err := cfDefaultClient.getSearch(search, slug, gameID, classID, categoryID, filterGameVersion, packLoaderType)
+	results, err := cfDefaultClient.getSearch(search, slug, gameID, classID, categoryID, filterGameVersion, searchLoaderType)
 	if err != nil {
 		fmt.Printf("Failed to search for project: %v\n", err)
 		os.Exit(1)
@@ -409,7 +409,7 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 	}
 }
 
-func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoaderType int) (modFileInfo, error) {
+func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoaders []string) (modFileInfo, error) {
 	if fileID == 0 {
 		var fileInfoData modFileInfo
 		fileInfoObtained := false
@@ -419,7 +419,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 		for _, v := range modInfoData.LatestFiles {
 			anyFileObtained = true
 			// Choose "newest" version by largest ID
-			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaderType, v) {
+			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaders, v) {
 				fileID = v.ID
 				fileInfoData = v
 				fileInfoObtained = true
@@ -429,7 +429,7 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 		for _, v := range modInfoData.GameVersionLatestFiles {
 			anyFileObtained = true
 			// Choose "newest" version by largest ID
-			if matchGameVersion(mcVersion, v.GameVersion) && v.ID > fileID && matchLoaderType(packLoaderType, v.Modloader) {
+			if matchGameVersion(mcVersion, v.GameVersion) && v.ID > fileID && matchLoaderType(packLoaders, v.Modloader) {
 				fileID = v.ID
 				fileInfoObtained = false // Make sure we get the file info
 			}

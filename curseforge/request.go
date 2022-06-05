@@ -110,6 +110,7 @@ const (
 	modloaderTypeCauldron
 	modloaderTypeLiteloader
 	modloaderTypeFabric
+	modloaderTypeQuilt
 )
 
 var modloaderNames = [...]string{
@@ -118,6 +119,16 @@ var modloaderNames = [...]string{
 	"Cauldron",
 	"Liteloader",
 	"Fabric",
+	"Quilt",
+}
+
+var modloaderIds = [...]string{
+	"",
+	"forge",
+	"cauldron",
+	"liteloader",
+	"fabric",
+	"quilt",
 }
 
 //noinspection GoUnusedConst

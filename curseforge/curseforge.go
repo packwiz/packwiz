@@ -214,7 +214,7 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 	return index.RefreshFileWithHash(path, format, hash, true)
 }
 
-func getLoader(pack core.Pack) int {
+func getSearchLoaderType(pack core.Pack) int {
 	dependencies := pack.Versions
 
 	_, hasFabric := dependencies["fabric"]
@@ -222,8 +222,12 @@ func getLoader(pack core.Pack) int {
 	_, hasForge := dependencies["forge"]
 	if (hasFabric || hasQuilt) && hasForge {
 		return modloaderTypeAny
-	} else if hasFabric || hasQuilt { // Backwards-compatible; for now (could be configurable later)
+	} else if hasFabric || hasQuilt {
 		return modloaderTypeFabric
+	} else if hasQuilt {
+		// Backwards-compatible with Fabric for now (could be configurable later)
+		// since we can't filter by more than one loader, just accept any and filter the response
+		return modloaderTypeAny
 	} else if hasForge {
 		return modloaderTypeForge
 	} else {
@@ -231,23 +235,41 @@ func getLoader(pack core.Pack) int {
 	}
 }
 
-func matchLoaderType(packLoaderType int, modLoaderType int) bool {
-	if packLoaderType == modloaderTypeAny || modLoaderType == modloaderTypeAny {
+func getLoaders(pack core.Pack) (loaders []string) {
+	_, hasFabric := pack.Versions["fabric"]
+	if hasFabric {
+		loaders = append(loaders, "fabric")
+	}
+	if _, hasQuilt := pack.Versions["quilt"]; hasQuilt {
+		// Backwards-compatible with Fabric for now (could be configurable later)
+		if !hasFabric {
+			loaders = append(loaders, "fabric")
+		}
+		loaders = append(loaders, "quilt")
+	}
+	if _, hasForge := pack.Versions["forge"]; hasForge {
+		loaders = append(loaders, "forge")
+	}
+	return
+}
+
+func matchLoaderType(packLoaders []string, modLoaderType int) bool {
+	if len(packLoaders) == 0 || modLoaderType == modloaderTypeAny {
 		return true
 	} else {
-		return packLoaderType == modLoaderType
+		return slices.Contains(packLoaders, modloaderIds[modLoaderType])
 	}
 }
 
-func matchLoaderTypeFileInfo(packLoaderType int, fileInfoData modFileInfo) bool {
-	if packLoaderType == modloaderTypeAny {
+func matchLoaderTypeFileInfo(packLoaders []string, fileInfoData modFileInfo) bool {
+	if len(packLoaders) == 0 {
 		return true
 	} else {
 		containsLoader := false
 		for i, name := range modloaderNames {
 			if slices.Contains(fileInfoData.GameVersions, name) {
 				containsLoader = true
-				if i == packLoaderType {
+				if slices.Contains(packLoaders, modloaderIds[i]) {
 					return true
 				}
 			}
@@ -339,7 +361,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 		}
 	}
 
-	packLoaderType := getLoader(pack)
+	packLoaders := getLoaders(pack)
 
 	for i, v := range mods {
 		projectRaw, ok := v.GetParsedUpdateData("curseforge")
@@ -358,7 +380,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 		// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
 		for _, v := range modInfos[i].LatestFiles {
 			// Choose "newest" version by largest ID
-			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaderType, v) {
+			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaders, v) {
 				updateAvailable = true
 				fileID = v.ID
 				fileInfoData = v
@@ -371,7 +393,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 			// TODO: change to timestamp-based comparison??
 			// TODO: manage alpha/beta/release correctly, check update channel?
 			// Choose "newest" version by largest ID
-			if matchGameVersion(mcVersion, file.GameVersion) && file.ID > fileID && matchLoaderType(packLoaderType, file.Modloader) {
+			if matchGameVersion(mcVersion, file.GameVersion) && file.ID > fileID && matchLoaderType(packLoaders, file.Modloader) {
 				updateAvailable = true
 				fileID = file.ID
 				fileName = file.Name
