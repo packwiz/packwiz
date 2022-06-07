@@ -21,7 +21,6 @@ jobs:
         nix_path: nixpkgs=channel:nixos-unstable
 
     - name: Update flake deps
-      working-directory: nix
       run: nix flake update
 
     - name: Commit

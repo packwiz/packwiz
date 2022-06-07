@@ -32,9 +32,9 @@
       packages = forAllSystems (system: let
         pkgs = nixpkgsFor.${system};
       in rec {
-        packwiz = pkgs.callPackage ./default.nix {
+        packwiz = pkgs.callPackage ./nix {
           version = "nightly-${lastModifiedPretty}";
-          vendorSha256 = readFile ./vendor-sha256;
+          vendorSha256 = readFile ./nix/vendor-sha256;
           buildGoModule = pkgs.buildGo118Module;
         };
         # Build packwiz by default when no package name is specified

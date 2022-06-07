@@ -18,8 +18,7 @@ jobs:
         nix_path: nixpkgs=channel:nixos-unstable
 
     - name: Update packwiz version
-      working-directory: nix
-      run: nix run nixpkgs#nix-prefetch ./prefetcher.nix 2>/dev/null | tee ./vendor-sha256
+      run: nix run nixpkgs#nix-prefetch ./nix/prefetcher.nix 2>/dev/null | tee ./nix/vendor-sha256
 
     - name: Commit
       uses: stefanzweifel/git-auto-commit-action@v4
