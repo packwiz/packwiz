@@ -6,21 +6,18 @@
     nixpkgs,
   }:
     with nixpkgs.lib; let
-      # Compute version string-friendly date from last commit date.
-      lastModifiedPretty = let
-        year = substring 0 4 self.lastModifiedDate;
-        month = substring 4 2 self.lastModifiedDate;
-        day = substring 6 2 self.lastModifiedDate;
-      in "${year}-${month}-${day}";
+      # List of explicetely unsupported systems
+      explicitelyUnsupportedSystems = [];
 
-      # Supported systems.
-      # TODO: Whih systems does packwiz actually support ?
-      supportedSystems = [
-        "aarch64-darwin"
-        "x86_64-darwin"
-        "aarch64-linux"
-        "x86_64-linux"
-      ];
+      # Packwiz should support all 64-bit systems supported by go, but nix only
+      # support strictly less, so all nix-supported systems are included
+      # (except ones in explicitelyUnsupportedSystems).
+      supportedSystems =
+        filter
+        # Filter out systems that are explicetely supported
+        (s: ! elem s explicitelyUnsupportedSystems)
+        # This lists all systems reasonably well-supported by nix
+        (import "${nixpkgs}/lib/systems/flake-systems.nix" {});
 
       # Helper generating outputs for each supported system
       forAllSystems = genAttrs supportedSystems;
@@ -33,7 +30,7 @@
         pkgs = nixpkgsFor.${system};
       in rec {
         packwiz = pkgs.callPackage ./nix {
-          version = "nightly-${lastModifiedPretty}";
+          version = substring 0 8 self.rev or "dirty";
           vendorSha256 = readFile ./nix/vendor-sha256;
           buildGoModule = pkgs.buildGo118Module;
         };
