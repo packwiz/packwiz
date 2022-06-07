@@ -1,12 +1,9 @@
-name: "Update Flake Deps"
-on:
-  workflow_dispatch:
-  schedule:
-    - cron: '0 6 * * *'
+name: nix
+on: [push]
 
 jobs:
-  update-lock:
-    name: lock
+  update-vendor-sha:
+    name: vendor-sha
     runs-on: ubuntu-latest
     steps:
 
@@ -20,12 +17,13 @@ jobs:
           experimental-features = nix-command flakes
         nix_path: nixpkgs=channel:nixos-unstable
 
-    - name: Update flake deps
+    - name: Update packwiz version
       working-directory: nix
-      run: nix flake update
+      run: nix run nixpkgs#nix-prefetch ./prefetcher.nix 2>/dev/null | tee ./vendor-sha256
 
     - name: Commit
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: "chore: update flake.lock"
+        commit_message: "chore: update packwiz vendorSha256"
         branch: master
+
