@@ -171,7 +171,7 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 		return Version{}, err
 	}
 
-	loadersEncoded, err := json.Marshal(getLoaders(pack))
+	loadersEncoded, err := json.Marshal(pack.GetLoaders())
 	if err != nil {
 		return Version{}, err
 	}
@@ -342,22 +342,4 @@ func (v VersionFile) getBestHash() (string, string) {
 
 	//No hashes were present
 	return "", ""
-}
-
-func getLoaders(pack core.Pack) []string {
-	dependencies := pack.Versions
-
-	var list []string
-
-	if _, hasQuilt := dependencies["quilt"]; hasQuilt {
-		list = append(list, "quilt")
-		list = append(list, "fabric") // Backwards-compatible; for now (could be configurable later)
-	} else if _, hasFabric := dependencies["fabric"]; hasFabric {
-		list = append(list, "fabric")
-	}
-	if _, hasForge := dependencies["forge"]; hasForge {
-		list = append(list, "forge")
-	}
-
-	return list
 }

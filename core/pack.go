@@ -173,3 +173,16 @@ func (pack Pack) GetPackName() string {
 		return pack.Name + "-" + pack.Version
 	}
 }
+
+func (pack Pack) GetLoaders() (loaders []string) {
+	if _, hasQuilt := pack.Versions["quilt"]; hasQuilt {
+		loaders = append(loaders, "quilt")
+		loaders = append(loaders, "fabric") // Backwards-compatible; for now (could be configurable later)
+	} else if _, hasFabric := pack.Versions["fabric"]; hasFabric {
+		loaders = append(loaders, "fabric")
+	}
+	if _, hasForge := pack.Versions["forge"]; hasForge {
+		loaders = append(loaders, "forge")
+	}
+	return
+}

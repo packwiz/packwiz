@@ -114,7 +114,7 @@ var installCmd = &cobra.Command{
 		}
 
 		var fileInfoData modFileInfo
-		fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID, getLoaders(pack))
+		fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID, pack.GetLoaders())
 		if err != nil {
 			fmt.Printf("Failed to get file for project: %v\n", err)
 			os.Exit(1)
@@ -187,7 +187,7 @@ var installCmd = &cobra.Command{
 					depIDPendingQueue = depIDPendingQueue[:0]
 
 					for _, currData := range depInfoData {
-						depFileInfo, err := getLatestFile(currData, mcVersion, 0, getLoaders(pack))
+						depFileInfo, err := getLatestFile(currData, mcVersion, 0, pack.GetLoaders())
 						if err != nil {
 							fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
 							continue

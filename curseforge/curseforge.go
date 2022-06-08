@@ -235,24 +235,6 @@ func getSearchLoaderType(pack core.Pack) int {
 	}
 }
 
-func getLoaders(pack core.Pack) (loaders []string) {
-	_, hasFabric := pack.Versions["fabric"]
-	if hasFabric {
-		loaders = append(loaders, "fabric")
-	}
-	if _, hasQuilt := pack.Versions["quilt"]; hasQuilt {
-		// Backwards-compatible with Fabric for now (could be configurable later)
-		if !hasFabric {
-			loaders = append(loaders, "fabric")
-		}
-		loaders = append(loaders, "quilt")
-	}
-	if _, hasForge := pack.Versions["forge"]; hasForge {
-		loaders = append(loaders, "forge")
-	}
-	return
-}
-
 func matchLoaderType(packLoaders []string, modLoaderType int) bool {
 	if len(packLoaders) == 0 || modLoaderType == modloaderTypeAny {
 		return true
@@ -361,7 +343,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 		}
 	}
 
-	packLoaders := getLoaders(pack)
+	packLoaders := pack.GetLoaders()
 
 	for i, v := range mods {
 		projectRaw, ok := v.GetParsedUpdateData("curseforge")
