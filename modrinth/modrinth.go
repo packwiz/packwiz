@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -223,6 +224,12 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 		}
 
 		if semverCompare == 0 {
+			// Prefer Quilt over Fabric (Modrinth backend handles filtering)
+			if slices.Contains(v.Loaders, "quilt") && !slices.Contains(latestValidVersion.Loaders, "quilt") {
+				latestValidVersion = v
+				continue
+			}
+
 			//Semver is equal, compare date instead
 			vDate, _ := time.Parse(time.RFC3339Nano, v.DatePublished)
 			latestDate, _ := time.Parse(time.RFC3339Nano, latestValidVersion.DatePublished)
