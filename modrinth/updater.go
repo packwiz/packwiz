@@ -2,6 +2,7 @@ package modrinth
 
 import (
 	"errors"
+	"fmt"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/packwiz/packwiz/core"
@@ -45,7 +46,7 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 
 		newVersion, err := getLatestVersion(data.ModID, pack)
 		if err != nil {
-			results[i] = core.UpdateCheck{Error: err}
+			results[i] = core.UpdateCheck{Error: fmt.Errorf("failed to get latest version: %v", err)}
 			continue
 		}
 

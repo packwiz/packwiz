@@ -144,7 +144,7 @@ func installMod(mod Mod, pack core.Pack) error {
 
 	latestVersion, err := getLatestVersion(mod.ID, pack)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to get latest version: %v", err)
 	}
 	if latestVersion.ID == "" {
 		return errors.New("mod is not available for this Minecraft version (use the acceptable-game-versions option to accept more) or mod loader")
@@ -249,12 +249,12 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 func installVersionById(versionId string, pack core.Pack) error {
 	version, err := fetchVersion(versionId)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to fetch version %s: %v", versionId, err)
 	}
 
 	mod, err := fetchMod(version.ModID)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to fetch mod %s: %v", version.ModID, err)
 	}
 
 	return installVersion(mod, version, pack)

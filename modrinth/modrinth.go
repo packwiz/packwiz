@@ -3,6 +3,7 @@ package modrinth
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"io/ioutil"
@@ -194,7 +195,11 @@ func getLatestVersion(modID string, pack core.Pack) (Version, error) {
 	}
 
 	if resp.StatusCode == 404 {
-		return Version{}, errors.New("couldn't find mod: " + modID)
+		return Version{}, fmt.Errorf("mod not found (for URL %v)", baseUrl)
+	}
+
+	if resp.StatusCode != 200 {
+		return Version{}, fmt.Errorf("invalid response status %v for URL %v", resp.Status, baseUrl)
 	}
 
 	defer resp.Body.Close()
@@ -253,7 +258,11 @@ func fetchMod(modID string) (Mod, error) {
 	}
 
 	if resp.StatusCode == 404 {
-		return mod, errors.New("couldn't find mod: " + modID)
+		return mod, fmt.Errorf("mod not found (for URL %v)", modrinthApiUrl+"mod/"+modID)
+	}
+
+	if resp.StatusCode != 200 {
+		return mod, fmt.Errorf("invalid response status %v for URL %v", resp.Status, modrinthApiUrl+"mod/"+modID)
 	}
 
 	defer resp.Body.Close()
@@ -283,7 +292,11 @@ func fetchVersion(versionId string) (Version, error) {
 	}
 
 	if resp.StatusCode == 404 {
-		return version, errors.New("couldn't find version: " + versionId)
+		return version, fmt.Errorf("version not found (for URL %v)", modrinthApiUrl+"version/"+versionId)
+	}
+
+	if resp.StatusCode != 200 {
+		return version, fmt.Errorf("invalid response status %v for URL %v", resp.Status, modrinthApiUrl+"version/"+versionId)
 	}
 
 	defer resp.Body.Close()
