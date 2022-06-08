@@ -4,6 +4,8 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/spf13/viper"
 )
 
 func GetPackwizLocalStore() (string, error) {
@@ -54,6 +56,10 @@ func GetPackwizInstallBinFile() (string, error) {
 }
 
 func GetPackwizCache() (string, error) {
+	configuredCache := viper.GetString("cache.directory")
+	if configuredCache != "" {
+		return configuredCache, nil
+	}
 	localStore, err := GetPackwizLocalCache()
 	if err != nil {
 		return "", err
