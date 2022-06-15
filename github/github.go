@@ -45,7 +45,7 @@ type ModReleases struct {
 	} `json:"author"`
 	NodeID          string  `json:"node_id"`
 	TagName         string  `json:"tag_name"`
-	TargetCommitish string  `json:"target_commitish"`
+	TargetCommitish string  `json:"target_commitish"` // The branch of the release
 	Name            string  `json:"name"`
 	Draft           bool    `json:"draft"`
 	Prerelease      bool    `json:"prerelease"`
