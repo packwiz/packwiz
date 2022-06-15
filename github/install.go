@@ -93,7 +93,12 @@ func fetchMod(slug string) (Mod, error) {
 
 	repoResp, err := http.Get(githubApiUrl + "repos/" + slug)
 
+	if err != nil {
+		return mod, err
+	}
+
 	defer repoResp.Body.Close()
+
 	repoBody, err := ioutil.ReadAll(repoResp.Body)
 	if err != nil {
 		return mod, err
@@ -209,7 +214,7 @@ func installVersion(mod Mod, version ModReleases, pack core.Pack) error {
 		return err
 	}
 
-	hash, error := file.getSha256()
+	hash, error := file.getSha1()
 	if error != nil || hash == "" {
 		return errors.New("file doesn't have a hash")
 	}
@@ -220,7 +225,7 @@ func installVersion(mod Mod, version ModReleases, pack core.Pack) error {
 		Side:     "unknown",
 		Download: core.ModDownload{
 			URL:        file.BrowserDownloadURL,
-			HashFormat: "sha256",
+			HashFormat: "sha1",
 			Hash:       hash,
 		},
 		Update: updateMap,
@@ -336,9 +341,9 @@ type Asset struct {
 	BrowserDownloadURL string    `json:"browser_download_url"`
 }
 
-func (u Asset) getSha256() (string, error) {
+func (u Asset) getSha1() (string, error) {
 	// TODO potentionally cache downloads to speed things up and avoid getting ratelimited by github!
-	mainHasher, err := core.GetHashImpl("sha256")
+	mainHasher, err := core.GetHashImpl("sha1")
 	resp, err := http.Get(u.BrowserDownloadURL)
 	if err != nil {
 		return "", err

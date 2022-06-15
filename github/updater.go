@@ -80,7 +80,7 @@ func (u ghUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 			}
 		}
 
-		hash, error := file.getSha256()
+		hash, error := file.getSha1()
 		if error != nil || hash == "" {
 			return errors.New("file doesn't have a hash")
 		}
@@ -88,7 +88,7 @@ func (u ghUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 		mod.FileName = file.Name
 		mod.Download = core.ModDownload{
 			URL:        file.BrowserDownloadURL,
-			HashFormat: "sha256",
+			HashFormat: "sha1",
 			Hash:       hash,
 		}
 		mod.Update["github"]["version"] = version.ID
