@@ -40,9 +40,9 @@ var installCmd = &cobra.Command{
 		if strings.HasPrefix(args[1], "https://www.curseforge.com/") {
 			fmt.Println("Consider using packwiz curseforge add", args[1], "instead")
 		}
-		hash, err := getSha256(args[1])
+		hash, err := getSha1(args[1])
 		if err != nil {
-			fmt.Println("Failed to get sha-256 for file. ", err)
+			fmt.Println("Failed to get sha-1 for file. ", err)
 			os.Exit(1)
 		}
 
@@ -55,7 +55,7 @@ var installCmd = &cobra.Command{
 			Side:     "unknown",
 			Download: core.ModDownload{
 				URL:        args[1],
-				HashFormat: "sha256",
+				HashFormat: "sha1",
 				Hash:       hash,
 			},
 		}
@@ -97,9 +97,9 @@ var installCmd = &cobra.Command{
 
 	}}
 
-func getSha256(url string) (string, error) {
+func getSha1(url string) (string, error) {
 	// TODO potentionally cache downloads to speed things up and avoid getting ratelimited by github!
-	mainHasher, err := core.GetHashImpl("sha256")
+	mainHasher, err := core.GetHashImpl("sha1")
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err
