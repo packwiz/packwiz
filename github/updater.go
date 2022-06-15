@@ -45,11 +45,6 @@ func (u ghUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 			continue
 		}
 
-		// if newVersion.ID == "" { //There is no version available for this minecraft version or loader.
-		// 	results[i] = core.UpdateCheck{UpdateAvailable: false}
-		// 	continue
-		// }
-
 		if newVersion.TagName == data.InstalledVersion { //The latest version from the site is the same as the installed one
 			results[i] = core.UpdateCheck{UpdateAvailable: false}
 			continue
