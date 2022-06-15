@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -17,9 +16,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )
-
-var modSiteRegex = regexp.MustCompile("modrinth\\.com/mod/([^/]+)/?$")
-var versionSiteRegex = regexp.MustCompile("modrinth\\.com/mod/([^/]+)/version/([^/]+)/?$")
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
@@ -134,7 +130,7 @@ func fetchMod(slug string) (Mod, error) {
 func installMod(mod Mod, pack core.Pack) error {
 	fmt.Printf("Found mod %s: '%s'.\n", mod.Title, mod.Description)
 
-	latestVersion, err := getLatestVersion(mod.Slug, pack)
+	latestVersion, err := getLatestVersion(mod.Slug, pack, "")
 	if err != nil {
 		return fmt.Errorf("failed to get latest version: %v", err)
 	}
@@ -145,7 +141,7 @@ func installMod(mod Mod, pack core.Pack) error {
 	return installVersion(mod, latestVersion, pack)
 }
 
-func getLatestVersion(slug string, pack core.Pack) (ModReleases, error) {
+func getLatestVersion(slug string, pack core.Pack, branch string) (ModReleases, error) {
 	var modReleases []ModReleases
 	var release ModReleases
 
@@ -170,6 +166,11 @@ func getLatestVersion(slug string, pack core.Pack) (ModReleases, error) {
 	err = json.Unmarshal(body, &modReleases)
 	if err != nil {
 		return release, err
+	}
+	for _, r := range modReleases {
+		if r.TargetCommitish == branch {
+			return r, nil
+		}
 	}
 
 	return modReleases[0], nil
@@ -200,8 +201,9 @@ func installVersion(mod Mod, version ModReleases, pack core.Pack) error {
 	updateMap := make(map[string]map[string]interface{})
 
 	updateMap["github"], err = ghUpdateData{
-		ModID:            mod.ID,
+		ModID:            mod.Slug,
 		InstalledVersion: version.TagName,
+		Branch:           version.TargetCommitish,
 	}.ToMap()
 	if err != nil {
 		return err
