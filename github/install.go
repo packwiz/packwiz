@@ -224,11 +224,7 @@ func installVersion(mod Mod, version ModReleases, pack core.Pack) error {
 	if folder == "" {
 		folder = "mods"
 	}
-	if mod.Slug != "" {
-		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, mod.Slug+core.MetaExtension))
-	} else {
-		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, mod.Title+core.MetaExtension))
-	}
+	path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, mod.Title+core.MetaExtension))
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?
