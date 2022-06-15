@@ -1,13 +1,10 @@
 package github
 
 import (
-	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/ioutil"
-	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -339,12 +336,6 @@ type Asset struct {
 
 func (u Asset) getSha256() (string, error) {
 	// TODO potentionally cache downloads to speed things up and avoid getting ratelimited by github!
-	file, err := os.CreateTemp("", "download")
-
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
-	}
 	mainHasher, err := core.GetHashImpl("sha256")
 	resp, err := http.Get(u.BrowserDownloadURL)
 	if err != nil {
@@ -360,17 +351,9 @@ func (u Asset) getSha256() (string, error) {
 
 	defer resp.Body.Close()
 	body, err := ioutil.ReadAll(resp.Body)
+	mainHasher.Write(body)
 
-	file.Write(body)
-
-	h := sha256.New()
-	if _, err := io.Copy(h, file); err != nil {
-		log.Fatal(err)
-	}
-
-	hash := h.Sum(nil)
-
-	defer os.Remove(file.Name())
+	hash := mainHasher.Sum(nil)
 
 	return mainHasher.HashToString(hash), nil
 }
