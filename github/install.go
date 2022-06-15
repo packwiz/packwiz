@@ -29,6 +29,7 @@ var installCmd = &cobra.Command{
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		pack, err := core.LoadPack()
+
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -44,6 +45,14 @@ var installCmd = &cobra.Command{
 		}
 
 		slug := strings.Replace(args[0], "https://github.com/", "", 1)
+
+		if len(strings.Split(args[0], "/")) == 1 {
+			slug = args[0]
+		}
+
+		if strings.Contains(slug, "/releases") {
+			slug = strings.Split(slug, "/releases")[0]
+		}
 
 		mod, err := fetchMod(slug)
 
@@ -197,11 +206,6 @@ func installVersion(mod Mod, version ModReleases, pack core.Pack) error {
 	if err != nil {
 		return err
 	}
-
-	// side := mod.getSide()
-	// if side == "" {
-	// 	return errors.New("version doesn't have a side that's supported. Server: " + mod.ServerSide + " Client: " + mod.ClientSide)
-	// }
 
 	hash, error := file.getSha256()
 	if error != nil || hash == "" {
