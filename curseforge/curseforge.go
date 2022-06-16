@@ -117,7 +117,7 @@ var urlRegexes = [...]*regexp.Regexp{
 	regexp.MustCompile("^(?P<slug>[a-z][\\da-z\\-_]{0,127})$"),
 }
 
-func parseSlugOrUrl(url string) (game string, category string, slug string, fileID int, err error) {
+func parseSlugOrUrl(url string) (game string, category string, slug string, fileID uint32, err error) {
 	for _, r := range urlRegexes {
 		matches := r.FindStringSubmatch(url)
 		if matches != nil {
@@ -132,7 +132,9 @@ func parseSlugOrUrl(url string) (game string, category string, slug string, file
 			}
 			if i := r.SubexpIndex("fileID"); i >= 0 {
 				if matches[i] != "" {
-					fileID, err = strconv.Atoi(matches[i])
+					var f uint64
+					f, err = strconv.ParseUint(matches[i], 10, 32)
+					fileID = uint32(f)
 				}
 			}
 			return
@@ -214,7 +216,7 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 	return index.RefreshFileWithHash(path, format, hash, true)
 }
 
-func getSearchLoaderType(pack core.Pack) int {
+func getSearchLoaderType(pack core.Pack) modloaderType {
 	dependencies := pack.Versions
 
 	_, hasFabric := dependencies["fabric"]
@@ -235,7 +237,7 @@ func getSearchLoaderType(pack core.Pack) int {
 	}
 }
 
-func matchLoaderType(packLoaders []string, modLoaderType int) bool {
+func matchLoaderType(packLoaders []string, modLoaderType modloaderType) bool {
 	if len(packLoaders) == 0 || modLoaderType == modloaderTypeAny {
 		return true
 	} else {
@@ -290,8 +292,8 @@ func matchGameVersions(mcVersion string, modMcVersions []string) bool {
 }
 
 type cfUpdateData struct {
-	ProjectID int `mapstructure:"project-id"`
-	FileID    int `mapstructure:"file-id"`
+	ProjectID uint32 `mapstructure:"project-id"`
+	FileID    uint32 `mapstructure:"file-id"`
 }
 
 func (u cfUpdateData) ToMap() (map[string]interface{}, error) {
@@ -311,13 +313,13 @@ func (u cfUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 type cachedStateStore struct {
 	modInfo
 	hasFileInfo bool
-	fileID      int
+	fileID      uint32
 	fileInfo    modFileInfo
 }
 
 func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack) ([]core.UpdateCheck, error) {
 	results := make([]core.UpdateCheck, len(mods))
-	modIDs := make([]int, len(mods))
+	modIDs := make([]uint32, len(mods))
 	modInfos := make([]modInfo, len(mods))
 
 	for i, v := range mods {
@@ -438,7 +440,7 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 }
 
 type cfExportData struct {
-	ProjectID int `mapstructure:"project-id"`
+	ProjectID uint32 `mapstructure:"project-id"`
 }
 
 func (e cfExportData) ToMap() (map[string]interface{}, error) {
@@ -461,9 +463,9 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 	}
 
 	downloaderData := make([]core.MetaDownloaderData, len(mods))
-	indexMap := make(map[int]int)
+	indexMap := make(map[uint32]int)
 	projectMetadata := make([]cfUpdateData, len(mods))
-	fileIDs := make([]int, len(mods))
+	fileIDs := make([]uint32, len(mods))
 	for i, v := range mods {
 		updateData, ok := v.GetParsedUpdateData("curseforge")
 		if !ok {
@@ -480,7 +482,7 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 		return nil, fmt.Errorf("failed to get CurseForge file metadata: %w", err)
 	}
 
-	modIDsToLookup := make([]int, 0)
+	modIDsToLookup := make([]uint32, 0)
 	fileNames := make([]string, len(mods))
 	for _, file := range fileData {
 		if _, ok := indexMap[file.ModID]; !ok {
@@ -509,7 +511,7 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 			downloaderData[indexMap[mod.ID]] = &cfDownloadMetadata{
 				noDistribution: true, // Inverted so the default value is not this (probably doesn't matter)
 				name:           mod.Name,
-				websiteUrl:     mod.Links.WebsiteURL + "/files/" + strconv.Itoa(fileIDs[indexMap[mod.ID]]),
+				websiteUrl:     mod.Links.WebsiteURL + "/files/" + strconv.FormatUint(uint64(fileIDs[indexMap[mod.ID]]), 10),
 				fileName:       fileNames[indexMap[mod.ID]],
 			}
 		}

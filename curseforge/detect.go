@@ -32,8 +32,8 @@ var detectCmd = &cobra.Command{
 		}
 
 		// Walk files in the mods folder
-		var hashes []int
-		modPaths := make(map[int]string)
+		var hashes []uint32
+		modPaths := make(map[uint32]string)
 		err = filepath.Walk("mods", func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -51,8 +51,8 @@ var detectCmd = &cobra.Command{
 				return err
 			}
 			hash := getByteArrayHash(bytes)
-			hashes = append(hashes, int(hash))
-			modPaths[int(hash)] = path
+			hashes = append(hashes, hash)
+			modPaths[hash] = path
 			return nil
 		})
 		if err != nil {
@@ -132,8 +132,8 @@ func init() {
 	curseforgeCmd.AddCommand(detectCmd)
 }
 
-func getByteArrayHash(bytes []byte) uint64 {
-	return uint64(murmur.MurmurHash2(computeNormalizedArray(bytes), 1))
+func getByteArrayHash(bytes []byte) uint32 {
+	return murmur.MurmurHash2(computeNormalizedArray(bytes), 1)
 }
 
 func computeNormalizedArray(bytes []byte) []byte {

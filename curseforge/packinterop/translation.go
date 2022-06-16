@@ -63,23 +63,23 @@ func ReadMetadata(s ImportPackSource) ImportPackMetadata {
 
 // AddonFileReference is a struct to reference a single file on CurseForge
 type AddonFileReference struct {
-	ProjectID int
-	FileID    int
+	ProjectID uint32
+	FileID    uint32
 	// OptionalDisabled is true if the file is optional and disabled (turned off in Twitch launcher)
 	OptionalDisabled bool
 }
 
-func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projectID int, out io.Writer) error {
+func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projectID uint32, out io.Writer) error {
 	files := make([]struct {
-		ProjectID int  `json:"projectID"`
-		FileID    int  `json:"fileID"`
-		Required  bool `json:"required"`
+		ProjectID uint32 `json:"projectID"`
+		FileID    uint32 `json:"fileID"`
+		Required  bool   `json:"required"`
 	}, len(fileRefs))
 	for i, fr := range fileRefs {
 		files[i] = struct {
-			ProjectID int  `json:"projectID"`
-			FileID    int  `json:"fileID"`
-			Required  bool `json:"required"`
+			ProjectID uint32 `json:"projectID"`
+			FileID    uint32 `json:"fileID"`
+			Required  bool   `json:"required"`
 		}{ProjectID: fr.ProjectID, FileID: fr.FileID, Required: !fr.OptionalDisabled}
 	}
 

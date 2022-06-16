@@ -85,16 +85,20 @@ func (c *cfApiClient) makePost(endpoint string, body io.Reader) (*http.Response,
 	return resp, nil
 }
 
+type fileType uint8
+
 //noinspection GoUnusedConst
 const (
-	fileTypeRelease int = iota + 1
+	fileTypeRelease fileType = iota + 1
 	fileTypeBeta
 	fileTypeAlpha
 )
 
+type dependencyType uint8
+
 //noinspection GoUnusedConst
 const (
-	dependencyTypeEmbedded int = iota + 1
+	dependencyTypeEmbedded dependencyType = iota + 1
 	dependencyTypeOptional
 	dependencyTypeRequired
 	dependencyTypeTool
@@ -102,10 +106,12 @@ const (
 	dependencyTypeInclude
 )
 
+type modloaderType uint8
+
 //noinspection GoUnusedConst
 const (
 	// modloaderTypeAny should not be passed to the API - it does not work
-	modloaderTypeAny int = iota
+	modloaderTypeAny modloaderType = iota
 	modloaderTypeForge
 	modloaderTypeCauldron
 	modloaderTypeLiteloader
@@ -131,9 +137,11 @@ var modloaderIds = [...]string{
 	"quilt",
 }
 
+type hashAlgo uint8
+
 //noinspection GoUnusedConst
 const (
-	hashAlgoSHA1 int = iota + 1
+	hashAlgoSHA1 hashAlgo = iota + 1
 	hashAlgoMD5
 )
 
@@ -142,7 +150,7 @@ type modInfo struct {
 	Name                   string        `json:"name"`
 	Summary                string        `json:"summary"`
 	Slug                   string        `json:"slug"`
-	ID                     int           `json:"id"`
+	ID                     uint32        `json:"id"`
 	GameID                 uint32        `json:"gameId"`
 	PrimaryCategoryID      uint32        `json:"primaryCategoryId"`
 	ClassID                uint32        `json:"classId"`
@@ -150,11 +158,11 @@ type modInfo struct {
 	GameVersionLatestFiles []struct {
 		// TODO: check how twitch launcher chooses which one to use, when you are on beta/alpha channel?!
 		// or does it not have the concept of release channels?!
-		GameVersion string `json:"gameVersion"`
-		ID          int    `json:"fileId"`
-		Name        string `json:"filename"`
-		FileType    int    `json:"releaseType"`
-		Modloader   int    `json:"modLoader"`
+		GameVersion string        `json:"gameVersion"`
+		ID          uint32        `json:"fileId"`
+		Name        string        `json:"filename"`
+		FileType    fileType      `json:"releaseType"`
+		Modloader   modloaderType `json:"modLoader"`
 	} `json:"latestFilesIndexes"`
 	ModLoaders []string `json:"modLoaders"`
 	Links      struct {
@@ -162,12 +170,12 @@ type modInfo struct {
 	} `json:"links"`
 }
 
-func (c *cfApiClient) getModInfo(modID int) (modInfo, error) {
+func (c *cfApiClient) getModInfo(modID uint32) (modInfo, error) {
 	var infoRes struct {
 		Data modInfo `json:"data"`
 	}
 
-	idStr := strconv.Itoa(modID)
+	idStr := strconv.FormatUint(uint64(modID), 10)
 	resp, err := c.makeGet("/v1/mods/" + idStr)
 	if err != nil {
 		return modInfo{}, fmt.Errorf("failed to request addon data for ID %d: %w", modID, err)
@@ -185,13 +193,13 @@ func (c *cfApiClient) getModInfo(modID int) (modInfo, error) {
 	return infoRes.Data, nil
 }
 
-func (c *cfApiClient) getModInfoMultiple(modIDs []int) ([]modInfo, error) {
+func (c *cfApiClient) getModInfoMultiple(modIDs []uint32) ([]modInfo, error) {
 	var infoRes struct {
 		Data []modInfo `json:"data"`
 	}
 
 	modIDsData, err := json.Marshal(struct {
-		ModIDs []int `json:"modIds"`
+		ModIDs []uint32 `json:"modIds"`
 	}{
 		ModIDs: modIDs,
 	})
@@ -214,32 +222,31 @@ func (c *cfApiClient) getModInfoMultiple(modIDs []int) ([]modInfo, error) {
 
 // modFileInfo is a subset of the deserialised JSON response from the Curse API for mod files
 type modFileInfo struct {
-	ID           int       `json:"id"`
-	ModID        int       `json:"modId"`
+	ID           uint32    `json:"id"`
+	ModID        uint32    `json:"modId"`
 	FileName     string    `json:"fileName"`
 	FriendlyName string    `json:"displayName"`
 	Date         time.Time `json:"fileDate"`
-	Length       int       `json:"fileLength"`
-	FileType     int       `json:"releaseType"`
-	// fileStatus? means latest/preferred?
+	Length       uint64    `json:"fileLength"`
+	FileType     fileType  `json:"releaseType"`
 	// According to the CurseForge API T&Cs, this must not be saved or cached
 	DownloadURL  string   `json:"downloadUrl"`
 	GameVersions []string `json:"gameVersions"`
-	Fingerprint  int      `json:"fileFingerprint"`
+	Fingerprint  uint32   `json:"fileFingerprint"`
 	Dependencies []struct {
-		ModID int `json:"modId"`
-		Type  int `json:"relationType"`
+		ModID uint32         `json:"modId"`
+		Type  dependencyType `json:"relationType"`
 	} `json:"dependencies"`
 
 	Hashes []struct {
-		Value     string `json:"value"`
-		Algorithm int    `json:"algo"`
+		Value     string   `json:"value"`
+		Algorithm hashAlgo `json:"algo"`
 	} `json:"hashes"`
 }
 
 func (i modFileInfo) getBestHash() (hash string, hashFormat string) {
 	// TODO: check if the hash is invalid (e.g. 0)
-	hash = strconv.Itoa(i.Fingerprint)
+	hash = strconv.FormatUint(uint64(i.Fingerprint), 10)
 	hashFormat = "murmur2"
 	hashPreferred := 0
 
@@ -263,13 +270,13 @@ func (i modFileInfo) getBestHash() (hash string, hashFormat string) {
 	return
 }
 
-func (c *cfApiClient) getFileInfo(modID int, fileID int) (modFileInfo, error) {
+func (c *cfApiClient) getFileInfo(modID uint32, fileID uint32) (modFileInfo, error) {
 	var infoRes struct {
 		Data modFileInfo `json:"data"`
 	}
 
-	modIDStr := strconv.Itoa(modID)
-	fileIDStr := strconv.Itoa(fileID)
+	modIDStr := strconv.FormatUint(uint64(modID), 10)
+	fileIDStr := strconv.FormatUint(uint64(fileID), 10)
 
 	resp, err := c.makeGet("/v1/mods/" + modIDStr + "/files/" + fileIDStr)
 	if err != nil {
@@ -288,13 +295,13 @@ func (c *cfApiClient) getFileInfo(modID int, fileID int) (modFileInfo, error) {
 	return infoRes.Data, nil
 }
 
-func (c *cfApiClient) getFileInfoMultiple(fileIDs []int) ([]modFileInfo, error) {
+func (c *cfApiClient) getFileInfoMultiple(fileIDs []uint32) ([]modFileInfo, error) {
 	var infoRes struct {
 		Data []modFileInfo `json:"data"`
 	}
 
 	fileIDsData, err := json.Marshal(struct {
-		FileIDs []int `json:"fileIds"`
+		FileIDs []uint32 `json:"fileIds"`
 	}{
 		FileIDs: fileIDs,
 	})
@@ -315,16 +322,16 @@ func (c *cfApiClient) getFileInfoMultiple(fileIDs []int) ([]modFileInfo, error) 
 	return infoRes.Data, nil
 }
 
-func (c *cfApiClient) getSearch(searchTerm string, slug string, gameID int, classID int, categoryID int, gameVersion string, modloaderType int) ([]modInfo, error) {
+func (c *cfApiClient) getSearch(searchTerm string, slug string, gameID uint32, classID uint32, categoryID uint32, gameVersion string, modloaderType modloaderType) ([]modInfo, error) {
 	var infoRes struct {
 		Data []modInfo `json:"data"`
 	}
 
 	q := url.Values{}
-	q.Set("gameId", strconv.Itoa(gameID))
+	q.Set("gameId", strconv.FormatUint(uint64(gameID), 10))
 	q.Set("pageSize", "10")
 	if classID != 0 {
-		q.Set("classId", strconv.Itoa(classID))
+		q.Set("classId", strconv.FormatUint(uint64(classID), 10))
 	}
 	if slug != "" {
 		q.Set("slug", slug)
@@ -332,7 +339,7 @@ func (c *cfApiClient) getSearch(searchTerm string, slug string, gameID int, clas
 	// If classID and slug are provided, don't bother filtering by anything else (should be unique)
 	if classID == 0 && slug == "" {
 		if categoryID != 0 {
-			q.Set("categoryId", strconv.Itoa(categoryID))
+			q.Set("categoryId", strconv.FormatUint(uint64(categoryID), 10))
 		}
 		if searchTerm != "" {
 			q.Set("searchFilter", searchTerm)
@@ -341,7 +348,7 @@ func (c *cfApiClient) getSearch(searchTerm string, slug string, gameID int, clas
 			q.Set("gameVersion", gameVersion)
 		}
 		if modloaderType != modloaderTypeAny {
-			q.Set("modLoaderType", strconv.Itoa(modloaderType))
+			q.Set("modLoaderType", strconv.FormatUint(uint64(modloaderType), 10))
 		}
 	}
 
@@ -358,9 +365,11 @@ func (c *cfApiClient) getSearch(searchTerm string, slug string, gameID int, clas
 	return infoRes.Data, nil
 }
 
+type gameStatus uint8
+
 //noinspection GoUnusedConst
 const (
-	gameStatusDraft int = iota + 1
+	gameStatusDraft gameStatus = iota + 1
 	gameStatusTest
 	gameStatusPendingReview
 	gameStatusRejected
@@ -368,18 +377,20 @@ const (
 	gameStatusLive
 )
 
+type gameApiStatus uint8
+
 //noinspection GoUnusedConst
 const (
-	gameApiStatusPrivate int = iota + 1
+	gameApiStatusPrivate gameApiStatus = iota + 1
 	gameApiStatusPublic
 )
 
 type cfGame struct {
-	ID        uint32 `json:"id"`
-	Name      string `json:"name"`
-	Slug      string `json:"slug"`
-	Status    int    `json:"status"`
-	APIStatus int    `json:"apiStatus"`
+	ID        uint32        `json:"id"`
+	Name      string        `json:"name"`
+	Slug      string        `json:"slug"`
+	Status    gameStatus    `json:"status"`
+	APIStatus gameApiStatus `json:"apiStatus"`
 }
 
 func (c *cfApiClient) getGames() ([]cfGame, error) {
@@ -401,18 +412,18 @@ func (c *cfApiClient) getGames() ([]cfGame, error) {
 }
 
 type cfCategory struct {
-	ID      int    `json:"id"`
+	ID      uint32 `json:"id"`
 	Slug    string `json:"slug"`
 	IsClass bool   `json:"isClass"`
-	ClassID int    `json:"classId"`
+	ClassID uint32 `json:"classId"`
 }
 
-func (c *cfApiClient) getCategories(gameID int) ([]cfCategory, error) {
+func (c *cfApiClient) getCategories(gameID uint32) ([]cfCategory, error) {
 	var infoRes struct {
 		Data []cfCategory `json:"data"`
 	}
 
-	resp, err := c.makeGet("/v1/categories?gameId=" + strconv.Itoa(gameID))
+	resp, err := c.makeGet("/v1/categories?gameId=" + strconv.FormatUint(uint64(gameID), 10))
 	if err != nil {
 		return []cfCategory{}, fmt.Errorf("failed to retrieve category list for game %v: %w", gameID, err)
 	}
@@ -428,24 +439,24 @@ func (c *cfApiClient) getCategories(gameID int) ([]cfCategory, error) {
 type addonFingerprintResponse struct {
 	IsCacheBuilt bool `json:"isCacheBuilt"`
 	ExactMatches []struct {
-		ID          int           `json:"id"`
+		ID          uint32        `json:"id"`
 		File        modFileInfo   `json:"file"`
 		LatestFiles []modFileInfo `json:"latestFiles"`
 	} `json:"exactMatches"`
-	ExactFingerprints        []int    `json:"exactFingerprints"`
-	PartialMatches           []int    `json:"partialMatches"`
+	ExactFingerprints        []uint32 `json:"exactFingerprints"`
+	PartialMatches           []uint32 `json:"partialMatches"`
 	PartialMatchFingerprints struct{} `json:"partialMatchFingerprints"`
-	InstalledFingerprints    []int    `json:"installedFingerprints"`
-	UnmatchedFingerprints    []int    `json:"unmatchedFingerprints"`
+	InstalledFingerprints    []uint32 `json:"installedFingerprints"`
+	UnmatchedFingerprints    []uint32 `json:"unmatchedFingerprints"`
 }
 
-func (c *cfApiClient) getFingerprintInfo(hashes []int) (addonFingerprintResponse, error) {
+func (c *cfApiClient) getFingerprintInfo(hashes []uint32) (addonFingerprintResponse, error) {
 	var infoRes struct {
 		Data addonFingerprintResponse `json:"data"`
 	}
 
 	hashesData, err := json.Marshal(struct {
-		Fingerprints []int `json:"fingerprints"`
+		Fingerprints []uint32 `json:"fingerprints"`
 	}{
 		Fingerprints: hashes,
 	})

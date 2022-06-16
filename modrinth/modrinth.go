@@ -56,7 +56,7 @@ type Mod struct {
 	} `json:"license"`
 	ClientSide string   `json:"client_side"` //The support range for the client mod - required, optional, unsupported, or unknown
 	ServerSide string   `json:"server_side"` //The support range for the server mod - required, optional, unsupported, or unknown
-	Downloads  int      `json:"downloads"`   //The total number of downloads the mod has
+	Downloads  uint32   `json:"downloads"`   //The total number of downloads the mod has
 	Categories []string `json:"categories"`  //A list of the categories that the mod is in
 	Versions   []string `json:"versions"`    //A list of ids for versions of the mod
 	IconUrl    string   `json:"icon_url"`    //The URL of the icon of the mod (Optional)
@@ -74,7 +74,7 @@ type ModResult struct {
 	Description   string   `json:"description"`    //A short description of the mod
 	Categories    []string `json:"categories"`     //A list of the categories the mod is in
 	Versions      []string `json:"versions"`       //A list of the minecraft versions supported by the mod
-	Downloads     int      `json:"downloads"`      //The total number of downloads for the mod
+	Downloads     uint32   `json:"downloads"`      //The total number of downloads for the mod
 	PageUrl       string   `json:"page_url"`       //A link to the mod's main page;
 	IconUrl       string   `json:"icon_url"`       //The url of the mod's icon
 	AuthorUrl     string   `json:"author_url"`     //The url of the mod's author
@@ -89,9 +89,9 @@ type ModResult struct {
 
 type ModSearchResult struct {
 	Hits      []ModResult `json:"hits"`       //The list of results
-	Offset    int         `json:"offset"`     //The number of results that were skipped by the query
-	Limit     int         `json:"limit"`      //The number of mods returned by the query
-	TotalHits int         `json:"total_hits"` //The total number of mods that the query found
+	Offset    uint32      `json:"offset"`     //The number of results that were skipped by the query
+	Limit     uint32      `json:"limit"`      //The number of mods returned by the query
+	TotalHits uint32      `json:"total_hits"` //The total number of mods that the query found
 }
 
 type Version struct {
@@ -103,7 +103,7 @@ type Version struct {
 	VersionNumber string        `json:"version_number"` //The version number. Ideally will follow semantic versioning
 	Changelog     string        `json:"changelog"`      //The changelog for this version of the mod. (Optional)
 	DatePublished string        `json:"date_published"` //The date that this version was published
-	Downloads     int           `json:"downloads"`      //The number of downloads this specific version has
+	Downloads     uint32        `json:"downloads"`      //The number of downloads this specific version has
 	VersionType   string        `json:"version_type"`   //The type of the release - alpha, beta, or release
 	Files         []VersionFile `json:"files"`          //A list of files available for download for this version
 	//Dependencies  []string      `json:"dependencies"`   //A list of specific versions of mods that this version depends on

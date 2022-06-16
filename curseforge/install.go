@@ -46,7 +46,7 @@ var installCmd = &cobra.Command{
 
 		game := gameFlag
 		category := categoryFlag
-		var modID, fileID int
+		var modID, fileID uint32
 		var slug string
 
 		// If mod/file IDs are provided in command line, use those
@@ -122,7 +122,7 @@ var installCmd = &cobra.Command{
 
 		if len(fileInfoData.Dependencies) > 0 {
 			var depsInstallable []installableDep
-			var depIDPendingQueue []int
+			var depIDPendingQueue []uint32
 			for _, dep := range fileInfoData.Dependencies {
 				if dep.Type == dependencyTypeRequired {
 					depIDPendingQueue = append(depIDPendingQueue, dep.ModID)
@@ -133,7 +133,7 @@ var installCmd = &cobra.Command{
 				fmt.Println("Finding dependencies...")
 
 				cycles := 0
-				var installedIDList []int
+				var installedIDList []uint32
 				for len(depIDPendingQueue) > 0 && cycles < maxCycles {
 					if installedIDList == nil {
 						// Get modids of all mods
@@ -278,14 +278,14 @@ func (r modResultsList) Len() int {
 	return len(r)
 }
 
-func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersion string, searchLoaderType int) (bool, modInfo) {
+func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersion string, searchLoaderType modloaderType) (bool, modInfo) {
 	if isSlug {
 		fmt.Println("Looking up CurseForge slug...")
 	} else {
 		fmt.Println("Searching CurseForge...")
 	}
 
-	var gameID, categoryID, classID int
+	var gameID, categoryID, classID uint32
 	if game == "minecraft" {
 		gameID = 432
 	}
@@ -308,7 +308,7 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 					fmt.Printf("Failed to lookup game %s: selected game does not have a public API!\n", game)
 					os.Exit(1)
 				}
-				gameID = int(v.ID)
+				gameID = v.ID
 				break
 			}
 		}
@@ -409,7 +409,7 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 	}
 }
 
-func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoaders []string) (modFileInfo, error) {
+func getLatestFile(modInfoData modInfo, mcVersion string, fileID uint32, packLoaders []string) (modFileInfo, error) {
 	if fileID == 0 {
 		var fileInfoData modFileInfo
 		fileInfoObtained := false
@@ -455,8 +455,8 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 	return fileInfoData, nil
 }
 
-var addonIDFlag int
-var fileIDFlag int
+var addonIDFlag uint32
+var fileIDFlag uint32
 
 var gameFlag string
 var categoryFlag string
@@ -464,8 +464,8 @@ var categoryFlag string
 func init() {
 	curseforgeCmd.AddCommand(installCmd)
 
-	installCmd.Flags().IntVar(&addonIDFlag, "addon-id", 0, "The CurseForge project ID to use")
-	installCmd.Flags().IntVar(&fileIDFlag, "file-id", 0, "The CurseForge file ID to use")
+	installCmd.Flags().Uint32Var(&addonIDFlag, "addon-id", 0, "The CurseForge project ID to use")
+	installCmd.Flags().Uint32Var(&fileIDFlag, "file-id", 0, "The CurseForge file ID to use")
 	installCmd.Flags().StringVar(&gameFlag, "game", "minecraft", "The game to add files from (slug, as stored in URLs); the game in the URL takes precedence")
 	installCmd.Flags().StringVar(&categoryFlag, "category", "", "The category to add files from (slug, as stored in URLs); the category in the URL takes precedence")
 }

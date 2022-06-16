@@ -185,7 +185,7 @@ var importCmd = &cobra.Command{
 		}
 
 		modsList := packImport.Mods()
-		modIDs := make([]int, len(modsList))
+		modIDs := make([]uint32, len(modsList))
 		for i, v := range modsList {
 			modIDs[i] = v.ProjectID
 		}
@@ -198,17 +198,17 @@ var importCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		modInfosMap := make(map[int]modInfo)
+		modInfosMap := make(map[uint32]modInfo)
 		for _, v := range modInfos {
 			modInfosMap[v.ID] = v
 		}
 
 		// TODO: multithreading????
 
-		modFileInfosMap := make(map[int]modFileInfo)
+		modFileInfosMap := make(map[uint32]modFileInfo)
 		referencedModPaths := make([]string, 0, len(modsList))
 		successes := 0
-		remainingFileIDs := make([]int, 0, len(modsList))
+		remainingFileIDs := make([]uint32, 0, len(modsList))
 
 		// 1st pass: query mod metadata for every CurseForge file
 		for _, v := range modsList {
