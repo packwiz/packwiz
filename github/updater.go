@@ -10,7 +10,7 @@ import (
 )
 
 type ghUpdateData struct {
-	ModID            string `mapstructure:"mod-id"` // The slug of the repo but named modId for consistency reasons
+	Slug             string `mapstructure:"slug"`
 	InstalledVersion string `mapstructure:"version"`
 	Branch           string `mapstructure:"branch"`
 }
@@ -40,7 +40,7 @@ func (u ghUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 
 		data := rawData.(ghUpdateData)
 
-		newVersion, err := getLatestVersion(data.ModID, pack, data.Branch)
+		newVersion, err := getLatestVersion(data.Slug, data.Branch)
 		if err != nil {
 			results[i] = core.UpdateCheck{Error: fmt.Errorf("failed to get latest version: %v", err)}
 			continue
@@ -61,7 +61,7 @@ func (u ghUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,
 			UpdateString:    mod.FileName + " -> " + newFilename,
-			CachedState:     cachedStateStore{data.ModID, newVersion},
+			CachedState:     cachedStateStore{data.Slug, newVersion},
 		}
 	}
 
@@ -91,7 +91,7 @@ func (u ghUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 			HashFormat: "sha1",
 			Hash:       hash,
 		}
-		mod.Update["github"]["version"] = version.ID
+		mod.Update["github"]["version"] = version.TagName
 	}
 
 	return nil
