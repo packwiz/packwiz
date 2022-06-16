@@ -1,0 +1,28 @@
+name: nix
+on: [push]
+
+jobs:
+  update-vendor-sha:
+    name: vendor-sha
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout repo
+      uses: actions/checkout@v2
+
+    - name: Install nix
+      uses: cachix/install-nix-action@v17
+      with:
+        extra_nix_config: |
+          experimental-features = nix-command flakes
+        nix_path: nixpkgs=channel:nixos-unstable
+
+    - name: Update packwiz version
+      run: nix run nixpkgs#nix-prefetch ./nix/prefetcher.nix | tee ./nix/vendor-sha256
+
+    - name: Commit
+      uses: stefanzweifel/git-auto-commit-action@v4
+      with:
+        commit_message: "chore: update packwiz vendorSha256"
+        branch: master
+
