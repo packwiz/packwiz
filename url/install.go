@@ -1,4 +1,4 @@
-package cmd
+package url
 
 import (
 	"fmt"
@@ -15,9 +15,9 @@ import (
 
 var installCmd = &cobra.Command{
 	Use:     "install [name] [url]",
-	Short:   "Install a mod from a url this is different from modrinth/curseforge install",
+	Short:   "Add an external file from a direct download link, for sites that are not directly supported by packwiz",
 	Aliases: []string{"add", "get"},
-	Args:    cobra.ArbitraryArgs,
+	Args:    cobra.ExactArgs(2),
 	Run: func(cmd *cobra.Command, args []string) {
 		pack, err := core.LoadPack()
 
@@ -26,10 +26,6 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		if len(args) != 2 {
-			fmt.Println("Invalid usage: packwiz install [name] [url]")
-			os.Exit(1)
-		}
 		// TODO: consider using colors for these warnings but those can have issues on windows
 		if strings.HasPrefix(args[1], "https://github.com/") {
 			fmt.Println("Consider using packwiz github add", args[1], "instead")
@@ -122,5 +118,5 @@ func getSha1(url string) (string, error) {
 }
 
 func init() {
-	rootCmd.AddCommand(installCmd)
+	urlCmd.AddCommand(installCmd)
 }
