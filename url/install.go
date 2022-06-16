@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -26,16 +27,28 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		dl, err := url.Parse(args[1])
+
+		if err != nil {
+			fmt.Println("Failed parsing URL:", err)
+			os.Exit(1)
+		}
+		if dl.Scheme != "https" && dl.Scheme != "http" {
+			fmt.Println("Unsupported url scheme", dl.Scheme)
+			os.Exit(1)
+		}
+
 		// TODO: consider using colors for these warnings but those can have issues on windows
-		if strings.HasPrefix(args[1], "https://github.com/") {
+		if dl.Host == "github.com" {
 			fmt.Println("Consider using packwiz github add", args[1], "instead")
 		}
-		if strings.HasPrefix(args[1], "https://modrinth.com/") {
+		if dl.Host == "modrinth.com" {
 			fmt.Println("Consider using packwiz modrinth add", args[1], "instead")
 		}
-		if strings.HasPrefix(args[1], "https://www.curseforge.com/") {
+		if dl.Host == "www.curseforge.com" || dl.Host == "curseforge.com" {
 			fmt.Println("Consider using packwiz curseforge add", args[1], "instead")
 		}
+
 		hash, err := getSha1(args[1])
 		if err != nil {
 			fmt.Println("Failed to get sha-1 for file. ", err)
