@@ -39,14 +39,23 @@ var installCmd = &cobra.Command{
 		}
 
 		// TODO: consider using colors for these warnings but those can have issues on windows
-		if dl.Host == "github.com" {
-			fmt.Println("Consider using packwiz github add", args[1], "instead")
-		}
-		if dl.Host == "modrinth.com" {
-			fmt.Println("Consider using packwiz modrinth add", args[1], "instead")
-		}
-		if dl.Host == "www.curseforge.com" || dl.Host == "curseforge.com" {
-			fmt.Println("Consider using packwiz curseforge add", args[1], "instead")
+		force, err := cmd.Flags().GetBool("force")
+		if !force && err == nil {
+			var msg string
+			if dl.Host == "github.com" {
+				msg = "github add " + args[1]
+				os.Exit(1)
+			}
+			if dl.Host == "modrinth.com" {
+				msg = "modrinth add " + args[1]
+			}
+			if dl.Host == "www.curseforge.com" || dl.Host == "curseforge.com" {
+				msg = "curseforge add " + args[1]
+			}
+			if msg != "" {
+				fmt.Println("Consider using packwiz", msg, "instead if you know what you are doing use --force to install this mod anyway")
+				os.Exit(1)
+			}
 		}
 
 		hash, err := getSha1(args[1])
@@ -132,4 +141,6 @@ func getSha1(url string) (string, error) {
 
 func init() {
 	urlCmd.AddCommand(installCmd)
+
+	installCmd.Flags().Bool("force", false, "Force install a file even if the supplied url is supported by packwiz")
 }
