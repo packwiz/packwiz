@@ -42,7 +42,7 @@ var ModLoaders = map[string]ModLoaderComponent{
 	"liteloader": {
 		Name:              "liteloader",
 		FriendlyName:      "LiteLoader",
-		VersionListGetter: FetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
+		VersionListGetter: FetchMavenVersionPrefixedList("https://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
 	},
 	"quilt": {
 		Name:              "quilt",
