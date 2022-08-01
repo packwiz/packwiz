@@ -12,7 +12,7 @@ import (
 var removeCmd = &cobra.Command{
 	Use:     "remove",
 	Short:   "Remove a mod from the modpack",
-	Aliases: []string{"delete", "uninstall"},
+	Aliases: []string{"delete", "uninstall", "rm"},
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if len(args[0]) == 0 {
