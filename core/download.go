@@ -13,6 +13,18 @@ import (
 	"strings"
 )
 
+const UserAgent = "packwiz/packwiz"
+
+func GetWithUA(url string, contentType string) (resp *http.Response, err error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("Accept", contentType)
+	return http.DefaultClient.Do(req)
+}
+
 const DownloadCacheImportFolder = "import"
 
 type DownloadSession interface {
@@ -143,8 +155,7 @@ func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []st
 	if len(hashesToObtain) > 0 {
 		var data io.ReadCloser
 		if task.url != "" {
-			resp, err := http.Get(task.url)
-			// TODO: content type, user-agent?
+			resp, err := GetWithUA(task.url, "application/octet-stream")
 			if err != nil {
 				return CompletedDownload{}, fmt.Errorf("failed to download %s: %w", task.url, err)
 			}

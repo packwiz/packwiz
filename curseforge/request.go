@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/packwiz/packwiz/core"
 	"io"
 	"net/http"
 	"net/url"
@@ -40,8 +41,7 @@ func (c *cfApiClient) makeGet(endpoint string) (*http.Response, error) {
 		return nil, err
 	}
 
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
+	req.Header.Set("User-Agent", core.UserAgent)
 	req.Header.Set("Accept", "application/json")
 	if cfApiKey == "" {
 		cfApiKey = decodeDefaultKey()
@@ -65,8 +65,7 @@ func (c *cfApiClient) makePost(endpoint string, body io.Reader) (*http.Response,
 		return nil, err
 	}
 
-	// TODO: make this configurable application-wide
-	req.Header.Set("User-Agent", "packwiz/packwiz client")
+	req.Header.Set("User-Agent", core.UserAgent)
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
 	if cfApiKey == "" {

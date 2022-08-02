@@ -1,6 +1,7 @@
 package modrinth
 
 import (
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
@@ -69,7 +70,7 @@ var installCmd = &cobra.Command{
 			modStr = args[0]
 		}
 
-		mod, err := fetchMod(modStr)
+		mod, err := mrDefaultClient.Projects.Get(modStr)
 
 		if err == nil {
 			//We found a mod with that id/slug
@@ -111,7 +112,8 @@ func installViaSearch(query string, pack core.Pack) error {
 	menu := wmenu.NewMenu("Choose a number:")
 	menu.Option("Cancel", nil, false, nil)
 	for i, v := range results {
-		menu.Option(v.Title, v, i == 0, nil)
+		// Should be non-nil (Title is a required field)
+		menu.Option(*v.Title, v, i == 0, nil)
 	}
 
 	menu.Action(func(menuRes []wmenu.Opt) error {
@@ -120,15 +122,13 @@ func installViaSearch(query string, pack core.Pack) error {
 		}
 
 		//Get the selected mod
-		selectedMod, ok := menuRes[0].Value.(ModResult)
+		selectedMod, ok := menuRes[0].Value.(*modrinthApi.SearchResult)
 		if !ok {
 			return errors.New("error converting interface from wmenu")
 		}
 
 		//Install the selected mod
-		modId := strings.TrimPrefix(selectedMod.ModID, "local-")
-
-		mod, err := fetchMod(modId)
+		mod, err := mrDefaultClient.Projects.Get(*selectedMod.ProjectID)
 		if err != nil {
 			return err
 		}
@@ -139,21 +139,21 @@ func installViaSearch(query string, pack core.Pack) error {
 	return menu.Run()
 }
 
-func installMod(mod Mod, pack core.Pack) error {
-	fmt.Printf("Found mod %s: '%s'.\n", mod.Title, mod.Description)
+func installMod(mod *modrinthApi.Project, pack core.Pack) error {
+	fmt.Printf("Found mod %s: '%s'.\n", *mod.Title, *mod.Description)
 
-	latestVersion, err := getLatestVersion(mod.ID, pack)
+	latestVersion, err := getLatestVersion(*mod.ID, pack)
 	if err != nil {
 		return fmt.Errorf("failed to get latest version: %v", err)
 	}
-	if latestVersion.ID == "" {
+	if latestVersion.ID == nil {
 		return errors.New("mod is not available for this Minecraft version (use the acceptable-game-versions option to accept more) or mod loader")
 	}
 
 	return installVersion(mod, latestVersion, pack)
 }
 
-func installVersion(mod Mod, version Version, pack core.Pack) error {
+func installVersion(mod *modrinthApi.Project, version *modrinthApi.Version, pack core.Pack) error {
 	var files = version.Files
 
 	if len(files) == 0 {
@@ -164,13 +164,13 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 	var file = files[0]
 	// Prefer the primary file
 	for _, v := range files {
-		if v.Primary {
+		if *v.Primary {
 			file = v
 		}
 	}
 
 	//Install the file
-	fmt.Printf("Installing %s from version %s\n", file.Filename, version.VersionNumber)
+	fmt.Printf("Installing %s from version %s\n", *file.Filename, *version.VersionNumber)
 	index, err := pack.LoadIndex()
 	if err != nil {
 		return err
@@ -179,29 +179,29 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 	updateMap := make(map[string]map[string]interface{})
 
 	updateMap["modrinth"], err = mrUpdateData{
-		ModID:            mod.ID,
-		InstalledVersion: version.ID,
+		ModID:            *mod.ID,
+		InstalledVersion: *version.ID,
 	}.ToMap()
 	if err != nil {
 		return err
 	}
 
-	side := mod.getSide()
+	side := getSide(mod)
 	if side == "" {
-		return errors.New("version doesn't have a side that's supported. Server: " + mod.ServerSide + " Client: " + mod.ClientSide)
+		return errors.New("version doesn't have a side that's supported. Server: " + *mod.ServerSide + " Client: " + *mod.ClientSide)
 	}
 
-	algorithm, hash := file.getBestHash()
+	algorithm, hash := getBestHash(file)
 	if algorithm == "" {
 		return errors.New("file doesn't have a hash")
 	}
 
 	modMeta := core.Mod{
-		Name:     mod.Title,
-		FileName: file.Filename,
+		Name:     *mod.Title,
+		FileName: *file.Filename,
 		Side:     side,
 		Download: core.ModDownload{
-			URL:        file.Url,
+			URL:        *file.URL,
 			HashFormat: algorithm,
 			Hash:       hash,
 		},
@@ -212,10 +212,10 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 	if folder == "" {
 		folder = "mods"
 	}
-	if mod.Slug != "" {
-		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, mod.Slug+core.MetaExtension))
+	if mod.Slug != nil {
+		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, *mod.Slug+core.MetaExtension))
 	} else {
-		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, mod.Title+core.MetaExtension))
+		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, *mod.Title+core.MetaExtension))
 	}
 
 	// If the file already exists, this will overwrite it!!!
@@ -247,14 +247,14 @@ func installVersion(mod Mod, version Version, pack core.Pack) error {
 }
 
 func installVersionById(versionId string, pack core.Pack) error {
-	version, err := fetchVersion(versionId)
+	version, err := mrDefaultClient.Versions.Get(versionId)
 	if err != nil {
 		return fmt.Errorf("failed to fetch version %s: %v", versionId, err)
 	}
 
-	mod, err := fetchMod(version.ModID)
+	mod, err := mrDefaultClient.Projects.Get(*version.ProjectID)
 	if err != nil {
-		return fmt.Errorf("failed to fetch mod %s: %v", version.ModID, err)
+		return fmt.Errorf("failed to fetch mod %s: %v", *version.ProjectID, err)
 	}
 
 	return installVersion(mod, version, pack)

@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"io"
-	"net/http"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -540,8 +539,7 @@ func (m *cfDownloadMetadata) GetManualDownload() (bool, core.ManualDownload) {
 }
 
 func (m *cfDownloadMetadata) DownloadFile() (io.ReadCloser, error) {
-	resp, err := http.Get(m.url)
-	// TODO: content type, user-agent?
+	resp, err := core.GetWithUA(m.url, "application/octet-stream")
 	if err != nil {
 		return nil, fmt.Errorf("failed to download %s: %w", m.url, err)
 	}
