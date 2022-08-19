@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"os"
@@ -18,6 +21,9 @@ import (
 
 var refreshMutex sync.RWMutex
 
+//go:embed serve-templates/index.html
+var indexPage string
+
 // serveCmd represents the serve command
 var serveCmd = &cobra.Command{
 	Use:     "serve",
@@ -26,6 +32,8 @@ var serveCmd = &cobra.Command{
 	Aliases: []string{"server"},
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		port := strconv.Itoa(viper.GetInt("serve.port"))
+
 		if viper.GetBool("serve.basic") {
 			http.Handle("/", http.FileServer(http.Dir(".")))
 		} else {
@@ -43,7 +51,21 @@ var serveCmd = &cobra.Command{
 			indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
 			indexDir := filepath.Dir(indexPath)
 
+			t, err := template.New("index-page").Parse(indexPage)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			indexPageBuf := new(bytes.Buffer)
+			t.Execute(indexPageBuf, struct{ Port string }{Port: port})
+
 			http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
+				if req.URL.Path == "/" {
+					_, _ = w.Write(indexPageBuf.Bytes())
+					return
+				}
+
 				urlPath := strings.TrimPrefix(path.Clean("/"+strings.TrimPrefix(req.URL.Path, "/")), "/")
 				indexRelPath, err := filepath.Rel(indexDir, filepath.FromSlash(urlPath))
 				if err != nil {
@@ -144,7 +166,6 @@ var serveCmd = &cobra.Command{
 			})
 		}
 
-		port := strconv.Itoa(viper.GetInt("serve.port"))
 		fmt.Println("Running on port " + port)
 		err := http.ListenAndServe(":"+port, nil)
 		if err != nil {
