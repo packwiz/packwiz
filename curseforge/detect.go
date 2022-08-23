@@ -5,7 +5,6 @@ import (
 	"github.com/aviddiviner/go-murmur"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +45,7 @@ var detectCmd = &cobra.Command{
 				return nil
 			}
 			fmt.Println("Hashing " + path)
-			bytes, err := ioutil.ReadFile(path)
+			bytes, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
@@ -80,15 +79,21 @@ var detectCmd = &cobra.Command{
 				fmt.Printf("%s (%d)\n", modPaths[v], v)
 			}
 		}
-		fmt.Println("Installing...")
-		for _, v := range res.ExactMatches {
-			modInfoData, err := cfDefaultClient.getModInfo(v.ID)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
 
-			err = createModFile(modInfoData, v.File, &index, false)
+		fmt.Println("Retrieving metadata...")
+		ids := make([]uint32, len(res.ExactMatches))
+		for i, v := range res.ExactMatches {
+			ids[i] = v.ID
+		}
+		modInfos, err := cfDefaultClient.getModInfoMultiple(ids)
+		if err != nil {
+			fmt.Printf("Failed to retrieve metadata: %v", err)
+			os.Exit(1)
+		}
+
+		fmt.Println("Creating metadata files...")
+		for i, v := range res.ExactMatches {
+			err = createModFile(modInfos[i], v.File, &index, false)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -103,7 +108,7 @@ var detectCmd = &cobra.Command{
 				}
 			}
 		}
-		fmt.Println("Installation done")
+		fmt.Println("Detection complete!")
 
 		err = index.Refresh()
 		if err != nil {
