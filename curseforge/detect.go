@@ -2,12 +2,13 @@ package curseforge
 
 import (
 	"fmt"
-	"github.com/aviddiviner/go-murmur"
-	"github.com/packwiz/packwiz/core"
-	"github.com/spf13/cobra"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/aviddiviner/go-murmur"
+	"github.com/packwiz/packwiz/core"
+	"github.com/spf13/cobra"
 )
 
 // TODO: make all of this less bad and hardcoded
@@ -90,10 +91,14 @@ var detectCmd = &cobra.Command{
 			fmt.Printf("Failed to retrieve metadata: %v", err)
 			os.Exit(1)
 		}
+		modInfosMap := make(map[uint32]modInfo)
+		for _, v := range modInfos {
+			modInfosMap[v.ID] = v
+		}
 
 		fmt.Println("Creating metadata files...")
-		for i, v := range res.ExactMatches {
-			err = createModFile(modInfos[i], v.File, &index, false)
+		for _, v := range res.ExactMatches {
+			err = createModFile(modInfosMap[v.ID], v.File, &index, false)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
