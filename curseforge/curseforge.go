@@ -1,10 +1,6 @@
 package curseforge
 
 import (
-	"github.com/mitchellh/mapstructure"
-	"github.com/packwiz/packwiz/cmd"
-	"github.com/packwiz/packwiz/core"
-	"github.com/spf13/cobra"
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
@@ -14,6 +10,11 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/mitchellh/mapstructure"
+	"github.com/packwiz/packwiz/cmd"
+	"github.com/packwiz/packwiz/core"
+	"github.com/spf13/cobra"
 )
 
 var curseforgeCmd = &cobra.Command{

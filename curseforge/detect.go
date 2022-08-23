@@ -2,13 +2,12 @@ package curseforge
 
 import (
 	"fmt"
-	"os"
-	"path/filepath"
-	"strings"
-
 	"github.com/aviddiviner/go-murmur"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 // TODO: make all of this less bad and hardcoded
