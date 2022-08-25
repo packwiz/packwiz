@@ -1,9 +1,9 @@
 package curseforge
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/sahilm/fuzzy"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
@@ -212,15 +212,7 @@ var installCmd = &cobra.Command{
 						fmt.Println(v.Name)
 					}
 
-					fmt.Print("Would you like to add them? [Y/n]: ")
-					answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
-					if err != nil {
-						fmt.Println(err)
-						os.Exit(1)
-					}
-
-					ansNormal := strings.ToLower(strings.TrimSpace(answer))
-					if !(len(ansNormal) > 0 && ansNormal[0] == 'n') {
+					if cmdshared.PromptYesNo("Would you like to add them? [Y/n]: ") {
 						for _, v := range depsInstallable {
 							err = createModFile(v.modInfo, v.fileInfo, &index, false)
 							if err != nil {
@@ -360,6 +352,13 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 	} else {
 		// Fuzzy search on results list
 		fuzzySearchResults := fuzzy.FindFrom(searchTerm, modResultsList(results))
+
+		if viper.GetBool("non-interactive") {
+			if len(fuzzySearchResults) > 0 {
+				return false, results[fuzzySearchResults[0].Index]
+			}
+			return false, results[0]
+		}
 
 		menu := wmenu.NewMenu("Choose a number:")
 

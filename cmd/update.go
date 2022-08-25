@@ -1,14 +1,12 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
-	"github.com/spf13/viper"
-	"os"
-	"strings"
-
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"os"
 )
 
 // updateCmd represents the update command
@@ -101,15 +99,7 @@ var updateCmd = &cobra.Command{
 				return
 			}
 
-			fmt.Print("Do you want to update? [Y/n]: ")
-			answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-
-			ansNormal := strings.ToLower(strings.TrimSpace(answer))
-			if len(ansNormal) > 0 && ansNormal[0] == 'n' {
+			if !cmdshared.PromptYesNo("Do you want to update? [Y/n]: ") {
 				fmt.Println("Cancelled!")
 				return
 			}

@@ -1,10 +1,10 @@
 package modrinth
 
 import (
-	"bufio"
 	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"os"
@@ -114,6 +114,20 @@ func installViaSearch(query string, pack core.Pack, index *core.Index) error {
 	results, err := getModIdsViaSearch(query, append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...))
 	if err != nil {
 		return err
+	}
+
+	if len(results) == 0 {
+		return errors.New("no results found")
+	}
+
+	if viper.GetBool("non-interactive") || len(results) == 1 {
+		//Install the first mod
+		mod, err := mrDefaultClient.Projects.Get(*results[0].ProjectID)
+		if err != nil {
+			return err
+		}
+
+		return installMod(mod, pack, index)
 	}
 
 	//Create menu for the user to choose the correct mod
@@ -289,17 +303,9 @@ func installVersion(mod *modrinthApi.Project, version *modrinthApi.Version, pack
 					fmt.Println(*v.projectInfo.Title)
 				}
 
-				// TODO: --yes argument
-				fmt.Print("Would you like to add them? [Y/n]: ")
-				answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
-				if err != nil {
-					return err
-				}
-
-				ansNormal := strings.ToLower(strings.TrimSpace(answer))
-				if !(len(ansNormal) > 0 && ansNormal[0] == 'n') {
+				if cmdshared.PromptYesNo("Would you like to add them? [Y/n]: ") {
 					for _, v := range depMetadata {
-						err = createFileMeta(v.projectInfo, v.versionInfo, v.fileInfo, index)
+						err := createFileMeta(v.projectInfo, v.versionInfo, v.fileInfo, index)
 						if err != nil {
 							return err
 						}
