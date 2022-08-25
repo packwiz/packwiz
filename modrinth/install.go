@@ -1,10 +1,12 @@
 package modrinth
 
 import (
+	"bufio"
 	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -31,6 +33,12 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		index, err := pack.LoadIndex()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+
 		if len(args) == 0 || len(args[0]) == 0 {
 			fmt.Println("You must specify a mod.")
 			os.Exit(1)
@@ -38,7 +46,7 @@ var installCmd = &cobra.Command{
 
 		// If there are more than 1 argument, go straight to searching - URLs/Slugs should not have spaces!
 		if len(args) > 1 {
-			err = installViaSearch(strings.Join(args, " "), pack)
+			err = installViaSearch(strings.Join(args, " "), pack, &index)
 			if err != nil {
 				fmt.Printf("Failed installing mod: %s\n", err)
 				os.Exit(1)
@@ -49,7 +57,7 @@ var installCmd = &cobra.Command{
 		//Try interpreting the arg as a version url
 		matches := versionSiteRegex.FindStringSubmatch(args[0])
 		if matches != nil && len(matches) == 3 {
-			err = installVersionById(matches[2], pack)
+			err = installVersionById(matches[2], pack, &index)
 			if err != nil {
 				fmt.Printf("Failed installing mod: %s\n", err)
 				os.Exit(1)
@@ -74,7 +82,7 @@ var installCmd = &cobra.Command{
 
 		if err == nil {
 			//We found a mod with that id/slug
-			err = installMod(mod, pack)
+			err = installMod(mod, pack, &index)
 			if err != nil {
 				fmt.Printf("Failed installing mod: %s\n", err)
 				os.Exit(1)
@@ -84,7 +92,7 @@ var installCmd = &cobra.Command{
 			//This wasn't a valid modid/slug, try to search for it instead:
 			//Don't bother to search if it looks like a url though
 			if matches == nil {
-				err = installViaSearch(args[0], pack)
+				err = installViaSearch(args[0], pack, &index)
 				if err != nil {
 					fmt.Printf("Failed installing mod: %s\n", err)
 					os.Exit(1)
@@ -97,7 +105,7 @@ var installCmd = &cobra.Command{
 	},
 }
 
-func installViaSearch(query string, pack core.Pack) error {
+func installViaSearch(query string, pack core.Pack, index *core.Index) error {
 	mcVersion, err := pack.GetMCVersion()
 	if err != nil {
 		return err
@@ -133,13 +141,13 @@ func installViaSearch(query string, pack core.Pack) error {
 			return err
 		}
 
-		return installMod(mod, pack)
+		return installMod(mod, pack, index)
 	})
 
 	return menu.Run()
 }
 
-func installMod(mod *modrinthApi.Project, pack core.Pack) error {
+func installMod(mod *modrinthApi.Project, pack core.Pack, index *core.Index) error {
 	fmt.Printf("Found mod %s: '%s'.\n", *mod.Title, *mod.Description)
 
 	latestVersion, err := getLatestVersion(*mod.ID, pack)
@@ -150,20 +158,164 @@ func installMod(mod *modrinthApi.Project, pack core.Pack) error {
 		return errors.New("mod is not available for this Minecraft version (use the acceptable-game-versions option to accept more) or mod loader")
 	}
 
-	return installVersion(mod, latestVersion, pack)
+	return installVersion(mod, latestVersion, pack, index)
 }
 
-func installVersion(mod *modrinthApi.Project, version *modrinthApi.Version, pack core.Pack) error {
-	var files = version.Files
+const maxCycles = 20
 
-	if len(files) == 0 {
+type depMetadataStore struct {
+	projectInfo *modrinthApi.Project
+	versionInfo *modrinthApi.Version
+	fileInfo    *modrinthApi.File
+}
+
+func installVersion(mod *modrinthApi.Project, version *modrinthApi.Version, pack core.Pack, index *core.Index) error {
+	if len(version.Files) == 0 {
 		return errors.New("version doesn't have any files attached")
 	}
 
+	if len(version.Dependencies) > 0 {
+		// TODO: could get installed version IDs, and compare to install the newest - i.e. preferring pinned versions over getting absolute latest?
+		installedProjects := getInstalledProjectIDs(index)
+
+		var depMetadata []depMetadataStore
+		var depProjectIDPendingQueue []string
+		var depVersionIDPendingQueue []string
+
+		for _, dep := range version.Dependencies {
+			// TODO: recommend optional dependencies?
+			if dep.DependencyType != nil && *dep.DependencyType == "required" {
+				if dep.ProjectID != nil {
+					depProjectIDPendingQueue = append(depProjectIDPendingQueue, *dep.ProjectID)
+				}
+				if dep.VersionID != nil {
+					depVersionIDPendingQueue = append(depVersionIDPendingQueue, *dep.VersionID)
+				}
+			}
+		}
+
+		if len(depProjectIDPendingQueue)+len(depVersionIDPendingQueue) > 0 {
+			fmt.Println("Finding dependencies...")
+
+			cycles := 0
+			for len(depProjectIDPendingQueue)+len(depVersionIDPendingQueue) > 0 && cycles < maxCycles {
+				// Look up version IDs
+				if len(depVersionIDPendingQueue) > 0 {
+					depVersions, err := mrDefaultClient.Versions.GetMultiple(depVersionIDPendingQueue)
+					if err == nil {
+						for _, v := range depVersions {
+							// Add project ID to queue
+							depProjectIDPendingQueue = append(depProjectIDPendingQueue, *v.ProjectID)
+						}
+					} else {
+						fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
+					}
+					depVersionIDPendingQueue = depVersionIDPendingQueue[:0]
+				}
+
+				// Remove installed project IDs from dep queue
+				i := 0
+				for _, id := range depProjectIDPendingQueue {
+					contains := slices.Contains(installedProjects, id)
+					for _, dep := range depMetadata {
+						if *dep.projectInfo.ID == id {
+							contains = true
+							break
+						}
+					}
+					if !contains {
+						depProjectIDPendingQueue[i] = id
+						i++
+					}
+				}
+				depProjectIDPendingQueue = depProjectIDPendingQueue[:i]
+
+				if len(depProjectIDPendingQueue) == 0 {
+					break
+				}
+				depProjects, err := mrDefaultClient.Projects.GetMultiple(depProjectIDPendingQueue)
+				if err != nil {
+					fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
+				}
+				depProjectIDPendingQueue = depProjectIDPendingQueue[:0]
+
+				for _, project := range depProjects {
+					if project.ID == nil {
+						return errors.New("failed to get dependency data: invalid response")
+					}
+					// Get latest version - could reuse version lookup data but it's not as easy (particularly since the version won't necessarily be the latest)
+					latestVersion, err := getLatestVersion(*project.ID, pack)
+					if err != nil {
+						return fmt.Errorf("failed to get latest version of dependency %v: %v", *project.ID, err)
+					}
+
+					for _, dep := range version.Dependencies {
+						// TODO: recommend optional dependencies?
+						if dep.DependencyType != nil && *dep.DependencyType == "required" {
+							if dep.ProjectID != nil {
+								depProjectIDPendingQueue = append(depProjectIDPendingQueue, *dep.ProjectID)
+							}
+							if dep.VersionID != nil {
+								depVersionIDPendingQueue = append(depVersionIDPendingQueue, *dep.VersionID)
+							}
+						}
+					}
+
+					// TODO: add some way to allow users to pick which file to install?
+					var file = latestVersion.Files[0]
+					// Prefer the primary file
+					for _, v := range latestVersion.Files {
+						if *v.Primary {
+							file = v
+						}
+					}
+
+					depMetadata = append(depMetadata, depMetadataStore{
+						projectInfo: project,
+						versionInfo: latestVersion,
+						fileInfo:    file,
+					})
+				}
+
+				cycles++
+			}
+			if cycles >= maxCycles {
+				return errors.New("dependencies recurse too deeply, try increasing maxCycles")
+			}
+
+			if len(depMetadata) > 0 {
+				fmt.Println("Dependencies found:")
+				for _, v := range depMetadata {
+					fmt.Println(*v.projectInfo.Title)
+				}
+
+				// TODO: --yes argument
+				fmt.Print("Would you like to add them? [Y/n]: ")
+				answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
+				if err != nil {
+					return err
+				}
+
+				ansNormal := strings.ToLower(strings.TrimSpace(answer))
+				if !(len(ansNormal) > 0 && ansNormal[0] == 'n') {
+					for _, v := range depMetadata {
+						err = createFileMeta(v.projectInfo, v.versionInfo, v.fileInfo, index)
+						if err != nil {
+							return err
+						}
+						fmt.Printf("Dependency \"%s\" successfully added! (%s)\n", *v.projectInfo.Title, *v.fileInfo.Filename)
+					}
+				}
+			} else {
+				fmt.Println("All dependencies are already added!")
+			}
+		}
+	}
+
 	// TODO: add some way to allow users to pick which file to install?
-	var file = files[0]
+	var file = version.Files[0]
 	// Prefer the primary file
-	for _, v := range files {
+	for _, v := range version.Files {
 		if *v.Primary {
 			file = v
 		}
@@ -171,13 +323,31 @@ func installVersion(mod *modrinthApi.Project, version *modrinthApi.Version, pack
 
 	//Install the file
 	fmt.Printf("Installing %s from version %s\n", *file.Filename, *version.VersionNumber)
-	index, err := pack.LoadIndex()
+
+	err := createFileMeta(mod, version, file, index)
 	if err != nil {
 		return err
 	}
 
+	err = index.Write()
+	if err != nil {
+		return err
+	}
+	err = pack.UpdateIndexHash()
+	if err != nil {
+		return err
+	}
+	err = pack.Write()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func createFileMeta(mod *modrinthApi.Project, version *modrinthApi.Version, file *modrinthApi.File, index *core.Index) error {
 	updateMap := make(map[string]map[string]interface{})
 
+	var err error
 	updateMap["modrinth"], err = mrUpdateData{
 		ModID:            *mod.ID,
 		InstalledVersion: *version.ID,
@@ -227,26 +397,10 @@ func installVersion(mod *modrinthApi.Project, version *modrinthApi.Version, pack
 	if err != nil {
 		return err
 	}
-	err = index.RefreshFileWithHash(path, format, hash, true)
-	if err != nil {
-		return err
-	}
-	err = index.Write()
-	if err != nil {
-		return err
-	}
-	err = pack.UpdateIndexHash()
-	if err != nil {
-		return err
-	}
-	err = pack.Write()
-	if err != nil {
-		return err
-	}
-	return nil
+	return index.RefreshFileWithHash(path, format, hash, true)
 }
 
-func installVersionById(versionId string, pack core.Pack) error {
+func installVersionById(versionId string, pack core.Pack, index *core.Index) error {
 	version, err := mrDefaultClient.Versions.Get(versionId)
 	if err != nil {
 		return fmt.Errorf("failed to fetch version %s: %v", versionId, err)
@@ -257,7 +411,7 @@ func installVersionById(versionId string, pack core.Pack) error {
 		return fmt.Errorf("failed to fetch mod %s: %v", *version.ProjectID, err)
 	}
 
-	return installVersion(mod, version, pack)
+	return installVersion(mod, version, pack, index)
 }
 
 func init() {

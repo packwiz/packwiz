@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/sahilm/fuzzy"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"os"
 	"strings"
 
@@ -156,13 +157,7 @@ var installCmd = &cobra.Command{
 					// Remove installed IDs from dep queue
 					i := 0
 					for _, id := range depIDPendingQueue {
-						contains := false
-						for _, id2 := range installedIDList {
-							if id == id2 {
-								contains = true
-								break
-							}
-						}
+						contains := slices.Contains(installedIDList, id)
 						for _, data := range depsInstallable {
 							if id == data.ID {
 								contains = true
@@ -217,7 +212,7 @@ var installCmd = &cobra.Command{
 						fmt.Println(v.Name)
 					}
 
-					fmt.Print("Would you like to install them? [Y/n]: ")
+					fmt.Print("Would you like to add them? [Y/n]: ")
 					answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
 					if err != nil {
 						fmt.Println(err)

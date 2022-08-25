@@ -138,3 +138,22 @@ func getBestHash(v *modrinthApi.File) (string, string) {
 	//No hashes were present
 	return "", ""
 }
+
+func getInstalledProjectIDs(index *core.Index) []string {
+	var installedProjects []string
+	for _, modPath := range index.GetAllMods() {
+		mod, err := core.LoadMod(modPath)
+		if err == nil {
+			data, ok := mod.GetParsedUpdateData("modrinth")
+			if ok {
+				updateData, ok := data.(mrUpdateData)
+				if ok {
+					if len(updateData.ModID) > 0 {
+						installedProjects = append(installedProjects, updateData.ModID)
+					}
+				}
+			}
+		}
+	}
+	return installedProjects
+}
