@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
@@ -267,7 +266,7 @@ func (m mcVersionManifest) checkValid(version string) {
 }
 
 func getValidMCVersions() (mcVersionManifest, error) {
-	res, err := http.Get("https://launchermeta.mojang.com/mc/game/version_manifest.json")
+	res, err := core.GetWithUA("https://launchermeta.mojang.com/mc/game/version_manifest.json", "application/json")
 	if err != nil {
 		return mcVersionManifest{}, err
 	}

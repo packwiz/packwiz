@@ -52,7 +52,7 @@ var openCmd = &cobra.Command{
 		}
 		cfUpdateData := updateData.(cfUpdateData)
 		fmt.Println("Opening browser...")
-		url := "https://www.curseforge.com/projects/" + strconv.Itoa(cfUpdateData.ProjectID)
+		url := "https://www.curseforge.com/projects/" + strconv.FormatUint(uint64(cfUpdateData.ProjectID), 10)
 		err = open.Start(url)
 		if err != nil {
 			fmt.Println("Opening page failed, direct link:")

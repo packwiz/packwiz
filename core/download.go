@@ -13,6 +13,18 @@ import (
 	"strings"
 )
 
+const UserAgent = "packwiz/packwiz"
+
+func GetWithUA(url string, contentType string) (resp *http.Response, err error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("Accept", contentType)
+	return http.DefaultClient.Do(req)
+}
+
 const DownloadCacheImportFolder = "import"
 
 type DownloadSession interface {
@@ -143,8 +155,7 @@ func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []st
 	if len(hashesToObtain) > 0 {
 		var data io.ReadCloser
 		if task.url != "" {
-			resp, err := http.Get(task.url)
-			// TODO: content type, user-agent?
+			resp, err := GetWithUA(task.url, "application/octet-stream")
 			if err != nil {
 				return CompletedDownload{}, fmt.Errorf("failed to download %s: %w", task.url, err)
 			}
@@ -299,7 +310,7 @@ func (c *CacheIndex) getHashesMap(i int) map[string]string {
 func (c *CacheIndex) GetHandleFromHash(hashFormat string, hash string) *CacheIndexHandle {
 	storedHashFmtList, hasStoredHashFmt := c.Hashes[hashFormat]
 	if hasStoredHashFmt {
-		hashIdx := slices.Index(storedHashFmtList, hash)
+		hashIdx := slices.Index(storedHashFmtList, strings.ToLower(hash))
 		if hashIdx > -1 {
 			return &CacheIndexHandle{
 				index:   c,
@@ -322,7 +333,7 @@ func (c *CacheIndex) GetHandleFromHashForce(hashFormat string, hash string) (*Ca
 		c.Hashes[hashFormat] = storedHashFmtList
 		// Rehash every file that doesn't have this hash with this hash
 		for hashIdx, curHash := range storedHashFmtList {
-			if curHash == hash {
+			if strings.EqualFold(curHash, hash) {
 				return &CacheIndexHandle{
 					index:   c,
 					hashIdx: hashIdx,
@@ -334,7 +345,7 @@ func (c *CacheIndex) GetHandleFromHashForce(hashFormat string, hash string) (*Ca
 				if err != nil {
 					return nil, fmt.Errorf("failed to rehash %s: %w", c.Hashes[cacheHashFormat][hashIdx], err)
 				}
-				if storedHashFmtList[hashIdx] == hash {
+				if strings.EqualFold(storedHashFmtList[hashIdx], hash) {
 					return &CacheIndexHandle{
 						index:   c,
 						hashIdx: hashIdx,
@@ -353,7 +364,7 @@ func (c *CacheIndex) GetHandleFromHashForce(hashFormat string, hash string) (*Ca
 			if err != nil {
 				return nil, fmt.Errorf("failed to rehash %s: %w", cacheHash, err)
 			}
-			if storedHashFmtList[hashIdx] == hash {
+			if strings.EqualFold(storedHashFmtList[hashIdx], hash) {
 				return &CacheIndexHandle{
 					index:   c,
 					hashIdx: hashIdx,
@@ -399,7 +410,7 @@ func (c *CacheIndex) NewHandleFromHashes(hashes map[string]string) (*CacheIndexH
 		if handle != nil {
 			// Add hashes to handle
 			for hashFormat2, hash2 := range hashes {
-				handle.Hashes[hashFormat2] = hash2
+				handle.Hashes[hashFormat2] = strings.ToLower(hash2)
 			}
 			return handle, true
 		}

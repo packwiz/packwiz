@@ -58,7 +58,7 @@ func init() {
 	defaultCacheDir, err := core.GetPackwizCache()
 	cacheUsage := "The directory where packwiz will cache downloaded mods"
 	if err == nil {
-		cacheUsage += "(default \""+defaultCacheDir+"\")"
+		cacheUsage += "(default \"" + defaultCacheDir + "\")"
 	}
 	rootCmd.PersistentFlags().String("cache", defaultCacheDir, cacheUsage)
 	_ = viper.BindPFlag("cache.directory", rootCmd.PersistentFlags().Lookup("cache"))
@@ -70,6 +70,10 @@ func init() {
 	}
 	file = filepath.Join(file, ".packwiz.toml")
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "The config file to use (default \""+file+"\")")
+
+	var nonInteractive bool
+	rootCmd.PersistentFlags().BoolVarP(&nonInteractive, "yes", "y", false, "Accept all prompts with the default or \"yes\" option (non-interactive mode) - may pick unwanted options in search results")
+	_ = viper.BindPFlag("non-interactive", rootCmd.PersistentFlags().Lookup("yes"))
 }
 
 // initConfig reads in config file and ENV variables if set.

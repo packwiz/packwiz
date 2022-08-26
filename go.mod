@@ -26,7 +26,11 @@ require (
 	gopkg.in/dixonwille/wmenu.v4 v4.0.2
 )
 
-require golang.org/x/exp v0.0.0-20220414153411-bcd21879b8fd
+require (
+	codeberg.org/jmansfield/go-modrinth v0.4.1
+	github.com/spf13/pflag v1.0.5
+	golang.org/x/exp v0.0.0-20220414153411-bcd21879b8fd
+)
 
 require (
 	github.com/acarl005/stripansi v0.0.0-20180116102854-5a71ef0e047d // indirect
@@ -40,7 +44,6 @@ require (
 	github.com/spf13/afero v1.8.2 // indirect
 	github.com/spf13/cast v1.4.1 // indirect
 	github.com/spf13/jwalterweatherman v1.1.0 // indirect
-	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/subosito/gotenv v1.2.0 // indirect
 	gopkg.in/ini.v1 v1.66.4 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect

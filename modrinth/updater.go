@@ -1,6 +1,7 @@
 package modrinth
 
 import (
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
 
@@ -29,7 +30,7 @@ func (u mrUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 
 type cachedStateStore struct {
 	ModID   string
-	Version Version
+	Version *modrinthApi.Version
 }
 
 func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack) ([]core.UpdateCheck, error) {
@@ -50,12 +51,7 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 			continue
 		}
 
-		if newVersion.ID == "" { //There is no version available for this minecraft version or loader.
-			results[i] = core.UpdateCheck{UpdateAvailable: false}
-			continue
-		}
-
-		if newVersion.ID == data.InstalledVersion { //The latest version from the site is the same as the installed one
+		if *newVersion.ID == data.InstalledVersion { //The latest version from the site is the same as the installed one
 			results[i] = core.UpdateCheck{UpdateAvailable: false}
 			continue
 		}
@@ -68,14 +64,14 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 		newFilename := newVersion.Files[0].Filename
 		// Prefer the primary file
 		for _, v := range newVersion.Files {
-			if v.Primary {
+			if *v.Primary {
 				newFilename = v.Filename
 			}
 		}
 
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,
-			UpdateString:    mod.FileName + " -> " + newFilename,
+			UpdateString:    mod.FileName + " -> " + *newFilename,
 			CachedState:     cachedStateStore{data.ModID, newVersion},
 		}
 	}
@@ -91,19 +87,19 @@ func (u mrUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 		var file = version.Files[0]
 		// Prefer the primary file
 		for _, v := range version.Files {
-			if v.Primary {
+			if *v.Primary {
 				file = v
 			}
 		}
 
-		algorithm, hash := file.getBestHash()
+		algorithm, hash := getBestHash(file)
 		if algorithm == "" {
 			return errors.New("file for mod " + mod.Name + " doesn't have a hash")
 		}
 
-		mod.FileName = file.Filename
+		mod.FileName = *file.Filename
 		mod.Download = core.ModDownload{
-			URL:        file.Url,
+			URL:        *file.URL,
 			HashFormat: algorithm,
 			Hash:       hash,
 		}

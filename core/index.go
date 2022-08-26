@@ -400,7 +400,7 @@ func (in Index) SaveFile(f IndexFile, dest io.Writer) error {
 	}
 
 	calculatedHash := h.HashToString(h.Sum(nil))
-	if calculatedHash != f.Hash && !viper.GetBool("no-internal-hashes") {
+	if !strings.EqualFold(calculatedHash, f.Hash) && !viper.GetBool("no-internal-hashes") {
 		return errors.New("hash of saved file is invalid")
 	}
 

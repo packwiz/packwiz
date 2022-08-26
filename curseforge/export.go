@@ -238,7 +238,7 @@ func createModlist(zw *zip.Writer, mods []*core.Mod) error {
 			continue
 		}
 		project := projectRaw.(cfUpdateData)
-		_, err = w.WriteString("<li><a href=\"https://www.curseforge.com/projects/" + strconv.Itoa(project.ProjectID) + "\">" + mod.Name + "</a></li>\r\n")
+		_, err = w.WriteString("<li><a href=\"https://www.curseforge.com/projects/" + strconv.FormatUint(uint64(project.ProjectID), 10) + "\">" + mod.Name + "</a></li>\r\n")
 		if err != nil {
 			return err
 		}

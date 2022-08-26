@@ -1,11 +1,12 @@
 package curseforge
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/sahilm/fuzzy"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"os"
 	"strings"
 
@@ -46,7 +47,7 @@ var installCmd = &cobra.Command{
 
 		game := gameFlag
 		category := categoryFlag
-		var modID, fileID int
+		var modID, fileID uint32
 		var slug string
 
 		// If mod/file IDs are provided in command line, use those
@@ -122,7 +123,7 @@ var installCmd = &cobra.Command{
 
 		if len(fileInfoData.Dependencies) > 0 {
 			var depsInstallable []installableDep
-			var depIDPendingQueue []int
+			var depIDPendingQueue []uint32
 			for _, dep := range fileInfoData.Dependencies {
 				if dep.Type == dependencyTypeRequired {
 					depIDPendingQueue = append(depIDPendingQueue, dep.ModID)
@@ -133,7 +134,7 @@ var installCmd = &cobra.Command{
 				fmt.Println("Finding dependencies...")
 
 				cycles := 0
-				var installedIDList []int
+				var installedIDList []uint32
 				for len(depIDPendingQueue) > 0 && cycles < maxCycles {
 					if installedIDList == nil {
 						// Get modids of all mods
@@ -156,13 +157,7 @@ var installCmd = &cobra.Command{
 					// Remove installed IDs from dep queue
 					i := 0
 					for _, id := range depIDPendingQueue {
-						contains := false
-						for _, id2 := range installedIDList {
-							if id == id2 {
-								contains = true
-								break
-							}
-						}
+						contains := slices.Contains(installedIDList, id)
 						for _, data := range depsInstallable {
 							if id == data.ID {
 								contains = true
@@ -217,15 +212,7 @@ var installCmd = &cobra.Command{
 						fmt.Println(v.Name)
 					}
 
-					fmt.Print("Would you like to install them? [Y/n]: ")
-					answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
-					if err != nil {
-						fmt.Println(err)
-						os.Exit(1)
-					}
-
-					ansNormal := strings.ToLower(strings.TrimSpace(answer))
-					if !(len(ansNormal) > 0 && ansNormal[0] == 'n') {
+					if cmdshared.PromptYesNo("Would you like to add them? [Y/n]: ") {
 						for _, v := range depsInstallable {
 							err = createModFile(v.modInfo, v.fileInfo, &index, false)
 							if err != nil {
@@ -278,14 +265,14 @@ func (r modResultsList) Len() int {
 	return len(r)
 }
 
-func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersion string, searchLoaderType int) (bool, modInfo) {
+func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersion string, searchLoaderType modloaderType) (bool, modInfo) {
 	if isSlug {
 		fmt.Println("Looking up CurseForge slug...")
 	} else {
 		fmt.Println("Searching CurseForge...")
 	}
 
-	var gameID, categoryID, classID int
+	var gameID, categoryID, classID uint32
 	if game == "minecraft" {
 		gameID = 432
 	}
@@ -308,7 +295,7 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 					fmt.Printf("Failed to lookup game %s: selected game does not have a public API!\n", game)
 					os.Exit(1)
 				}
-				gameID = int(v.ID)
+				gameID = v.ID
 				break
 			}
 		}
@@ -366,6 +353,13 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 		// Fuzzy search on results list
 		fuzzySearchResults := fuzzy.FindFrom(searchTerm, modResultsList(results))
 
+		if viper.GetBool("non-interactive") {
+			if len(fuzzySearchResults) > 0 {
+				return false, results[fuzzySearchResults[0].Index]
+			}
+			return false, results[0]
+		}
+
 		menu := wmenu.NewMenu("Choose a number:")
 
 		menu.Option("Cancel", nil, false, nil)
@@ -409,7 +403,7 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 	}
 }
 
-func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoaders []string) (modFileInfo, error) {
+func getLatestFile(modInfoData modInfo, mcVersion string, fileID uint32, packLoaders []string) (modFileInfo, error) {
 	if fileID == 0 {
 		var fileInfoData modFileInfo
 		fileInfoObtained := false
@@ -455,8 +449,8 @@ func getLatestFile(modInfoData modInfo, mcVersion string, fileID int, packLoader
 	return fileInfoData, nil
 }
 
-var addonIDFlag int
-var fileIDFlag int
+var addonIDFlag uint32
+var fileIDFlag uint32
 
 var gameFlag string
 var categoryFlag string
@@ -464,8 +458,8 @@ var categoryFlag string
 func init() {
 	curseforgeCmd.AddCommand(installCmd)
 
-	installCmd.Flags().IntVar(&addonIDFlag, "addon-id", 0, "The CurseForge project ID to use")
-	installCmd.Flags().IntVar(&fileIDFlag, "file-id", 0, "The CurseForge file ID to use")
+	installCmd.Flags().Uint32Var(&addonIDFlag, "addon-id", 0, "The CurseForge project ID to use")
+	installCmd.Flags().Uint32Var(&fileIDFlag, "file-id", 0, "The CurseForge file ID to use")
 	installCmd.Flags().StringVar(&gameFlag, "game", "minecraft", "The game to add files from (slug, as stored in URLs); the game in the URL takes precedence")
 	installCmd.Flags().StringVar(&categoryFlag, "category", "", "The category to add files from (slug, as stored in URLs); the category in the URL takes precedence")
 }
