@@ -391,7 +391,7 @@ func createFileMeta(mod *modrinthApi.Project, version *modrinthApi.Version, file
 	if mod.Slug != nil {
 		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, *mod.Slug+core.MetaExtension))
 	} else {
-		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, *mod.Title+core.MetaExtension))
+		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, core.SlugifyName(*mod.Title)+core.MetaExtension))
 	}
 
 	// If the file already exists, this will overwrite it!!!
