@@ -65,30 +65,17 @@ func getLatestVersion(modID string, pack core.Pack) (*modrinthApi.Version, error
 
 	latestValidVersion := result[0]
 	for _, v := range result[1:] {
-		currVersion, err1 := semver.NewVersion(*v.VersionNumber)
-		latestVersion, err2 := semver.NewVersion(*latestValidVersion.VersionNumber)
-		var semverCompare = 0
-		// Only compare with semver if both are valid semver - otherwise compare by release date
-		if err1 == nil && err2 == nil {
-			semverCompare = currVersion.Compare(latestVersion)
+		// If loader is Quilt,Prefer Quilt over Fabric (Modrinth backend handles filtering)
+		if slices.Contains(v.Loaders, "quilt") && slices.Contains(pack.GetLoaders(), "quilt") && !slices.Contains(latestValidVersion.Loaders, "quilt") {
+			latestValidVersion = v
+			continue
 		}
 
-		if semverCompare == 0 {
-			// Prefer Quilt over Fabric (Modrinth backend handles filtering)
-			if slices.Contains(v.Loaders, "quilt") && !slices.Contains(latestValidVersion.Loaders, "quilt") {
-				latestValidVersion = v
-				continue
-			}
-
-			//Semver is equal, compare date instead
-			if v.DatePublished.After(*latestValidVersion.DatePublished) {
-				latestValidVersion = v
-			}
-		} else if semverCompare == 1 {
+		//compare date instead
+		if v.DatePublished.After(*latestValidVersion.DatePublished) {
 			latestValidVersion = v
 		}
 	}
-
 	return latestValidVersion, nil
 }
 
