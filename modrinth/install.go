@@ -17,7 +17,7 @@ import (
 	"gopkg.in/dixonwille/wmenu.v4"
 )
 
-var modSiteRegex = regexp.MustCompile("modrinth\\.com/mod/([^/]+)/?$")
+var modSiteRegex = regexp.MustCompile("modrinth\\.com/mod/([^/]+)/?.*$")
 var versionSiteRegex = regexp.MustCompile("modrinth\\.com/mod/([^/]+)/version/([^/]+)/?$")
 
 // installCmd represents the install command
