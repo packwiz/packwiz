@@ -45,12 +45,12 @@ type ModOption struct {
 	Default     bool   `toml:"default,omitempty"`
 }
 
-// The three possible values of Side (the side that the mod is on) are "server", "client", and "both".
-// noinspection GoUnusedConst
+// The four possible values of Side (the side that the mod is on) are "server", "client", "both", and "" (equivalent to "both")
 const (
 	ServerSide    = "server"
 	ClientSide    = "client"
 	UniversalSide = "both"
+	EmptySide     = ""
 )
 
 // LoadMod attempts to load a mod file from a path

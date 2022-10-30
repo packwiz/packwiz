@@ -72,7 +72,7 @@ var exportCmd = &cobra.Command{
 		// Filter mods by side
 		// TODO: opt-in optional disabled filtering?
 		for _, mod := range mods {
-			if len(mod.Side) == 0 || mod.Side == side || mod.Side == "both" || side == "both" {
+			if mod.Side == side || mod.Side == core.EmptySide || mod.Side == core.UniversalSide || side == core.UniversalSide {
 				mods[i] = mod
 				i++
 			}
