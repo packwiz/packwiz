@@ -3,6 +3,7 @@ package core
 import (
 	"encoding/xml"
 	"errors"
+	"github.com/unascribed/FlexVer/go/flexver"
 	"strings"
 )
 
@@ -93,6 +94,8 @@ func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersi
 		if hasPrefixSplitDash(out.Versioning.Latest, mcVersion) {
 			return allowedVersions, out.Versioning.Latest, nil
 		}
+		// Sort list to get largest version
+		flexver.VersionSlice(out.Versioning.Versions.Version).Sort()
 		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
 	}
 }

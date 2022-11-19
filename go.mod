@@ -29,6 +29,7 @@ require (
 require (
 	codeberg.org/jmansfield/go-modrinth v0.4.1
 	github.com/spf13/pflag v1.0.5
+	github.com/unascribed/FlexVer/go/flexver v1.0.0
 	golang.org/x/exp v0.0.0-20220414153411-bcd21879b8fd
 )
 
@@ -50,4 +51,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.0-20210107192922-496545a6307b // indirect
 )
 
-go 1.18
+go 1.19
