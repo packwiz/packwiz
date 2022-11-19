@@ -3,11 +3,11 @@ package modrinth
 import (
 	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
-	"github.com/Masterminds/semver/v3"
 	"github.com/packwiz/packwiz/cmd"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"github.com/unascribed/FlexVer/go/flexver"
 	"golang.org/x/exp/slices"
 	"net/http"
 )
@@ -65,15 +65,10 @@ func getLatestVersion(modID string, pack core.Pack) (*modrinthApi.Version, error
 
 	latestValidVersion := result[0]
 	for _, v := range result[1:] {
-		currVersion, err1 := semver.NewVersion(*v.VersionNumber)
-		latestVersion, err2 := semver.NewVersion(*latestValidVersion.VersionNumber)
-		var semverCompare = 0
-		// Only compare with semver if both are valid semver - otherwise compare by release date
-		if err1 == nil && err2 == nil {
-			semverCompare = currVersion.Compare(latestVersion)
-		}
+		// Use FlexVer to compare versions
+		compare := flexver.Compare(*v.VersionNumber, *latestValidVersion.VersionNumber)
 
-		if semverCompare == 0 {
+		if compare == 0 {
 			// Prefer Quilt over Fabric (Modrinth backend handles filtering)
 			if slices.Contains(v.Loaders, "quilt") && !slices.Contains(latestValidVersion.Loaders, "quilt") {
 				latestValidVersion = v
@@ -84,7 +79,7 @@ func getLatestVersion(modID string, pack core.Pack) (*modrinthApi.Version, error
 			if v.DatePublished.After(*latestValidVersion.DatePublished) {
 				latestValidVersion = v
 			}
-		} else if semverCompare == 1 {
+		} else if compare > 0 {
 			latestValidVersion = v
 		}
 	}
