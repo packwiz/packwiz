@@ -60,6 +60,12 @@ var serveCmd = &cobra.Command{
 			indexPageBuf := new(bytes.Buffer)
 			t.Execute(indexPageBuf, struct{ Port string }{Port: port})
 
+			// Force-disable no-internal-hashes mode (equiv to --build flag in refresh) for serving over HTTP
+			if viper.GetBool("no-internal-hashes") {
+				fmt.Println("Note: no-internal-hashes mode is set; still writing hashes for use with packwiz-installer - run packwiz refresh to remove them.")
+				viper.Set("no-internal-hashes", false)
+			}
+
 			http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
 				if req.URL.Path == "/" {
 					_, _ = w.Write(indexPageBuf.Bytes())
