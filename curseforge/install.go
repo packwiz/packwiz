@@ -57,11 +57,11 @@ var installCmd = &cobra.Command{
 		if addonIDFlag != 0 {
 			modID = addonIDFlag
 		}
+
 		if (len(args) == 0 || len(args[0]) == 0) && modID == 0 {
 			fmt.Println("You must specify a project; with the ID flags, or by passing a URL, slug or search term directly.")
 			os.Exit(1)
 		}
-		// If there are more than 1 argument, go straight to searching - URLs/Slugs should not have spaces!
 		if modID == 0 && len(args) == 1 {
 			parsedGame, parsedCategory, parsedSlug, parsedFileID, err := parseSlugOrUrl(args[0])
 			if err != nil {
