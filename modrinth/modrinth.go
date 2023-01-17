@@ -10,6 +10,8 @@ import (
 	"github.com/unascribed/FlexVer/go/flexver"
 	"golang.org/x/exp/slices"
 	"net/http"
+	"net/url"
+	"regexp"
 )
 
 var modrinthCmd = &cobra.Command{
@@ -27,7 +29,7 @@ func init() {
 	mrDefaultClient.UserAgent = core.UserAgent
 }
 
-func getModIdsViaSearch(query string, versions []string) ([]*modrinthApi.SearchResult, error) {
+func getProjectIdsViaSearch(query string, versions []string) ([]*modrinthApi.SearchResult, error) {
 	facets := make([]string, 0)
 	for _, v := range versions {
 		facets = append(facets, "versions:"+v)
@@ -36,9 +38,7 @@ func getModIdsViaSearch(query string, versions []string) ([]*modrinthApi.SearchR
 	res, err := mrDefaultClient.Projects.Search(&modrinthApi.SearchOptions{
 		Limit: 5,
 		Index: "relevance",
-		// Filters by mod since currently only mods and modpacks are supported by Modrinth
-		Facets: [][]string{facets, {"project_type:mod"}},
-		Query:  query,
+		Query: query,
 	})
 
 	if err != nil {
@@ -47,16 +47,66 @@ func getModIdsViaSearch(query string, versions []string) ([]*modrinthApi.SearchR
 	return res.Hits, nil
 }
 
-func getLatestVersion(modID string, pack core.Pack) (*modrinthApi.Version, error) {
+var urlRegexes = [...]*regexp.Regexp{
+	// Slug/version number regex from https://github.com/modrinth/labrinth/blob/1679a3f844497d756d0cf272c5374a5236eabd42/src/util/validate.rs#L8
+	regexp.MustCompile("^https?://modrinth\\.com/(?P<projectType>[^/]+)/(?P<slug>[a-zA-Z0-9!@$()`.+,_\"-]{3,64})(?:/version/(?P<version>[a-zA-Z0-9!@$()`.+,_\"-]{1,32}))?"),
+	// Version/project IDs are more restrictive: [a-zA-Z0-9]+ (base62)
+	regexp.MustCompile("^https?://cdn\\.modrinth\\.com/data/(?P<slug>[a-zA-Z0-9]+)/versions/(?P<versionID>[a-zA-Z0-9]+)/(?P<filename>[^/]+)$"),
+	regexp.MustCompile("^(?P<slug>[a-zA-Z0-9!@$()`.+,_\"-]{3,64})$"),
+}
+
+const slugRegexIdx = 2
+
+var projectTypes = []string{
+	"mod", "plugin", "datapack", "shader", "resourcepack", "modpack",
+}
+
+func parseSlugOrUrl(input string, slug *string, version *string, versionID *string, filename *string) (parsedSlug bool, err error) {
+	for regexIdx, r := range urlRegexes {
+		matches := r.FindStringSubmatch(input)
+		if matches != nil {
+			if i := r.SubexpIndex("projectType"); i >= 0 {
+				if !slices.Contains(projectTypes, matches[i]) {
+					err = errors.New("unknown project type: " + matches[i])
+					return
+				}
+			}
+			if i := r.SubexpIndex("slug"); i >= 0 {
+				*slug = matches[i]
+			}
+			if i := r.SubexpIndex("version"); i >= 0 {
+				*version = matches[i]
+			}
+			if i := r.SubexpIndex("versionID"); i >= 0 {
+				*versionID = matches[i]
+			}
+			if i := r.SubexpIndex("filename"); i >= 0 {
+				var parsed string
+				parsed, err = url.PathUnescape(matches[i])
+				if err != nil {
+					return
+				}
+				*filename = parsed
+			}
+			parsedSlug = regexIdx == slugRegexIdx
+			return
+		}
+	}
+	return
+}
+
+func getLatestVersion(projectID string, pack core.Pack) (*modrinthApi.Version, error) {
 	mcVersion, err := pack.GetMCVersion()
 	if err != nil {
 		return nil, err
 	}
 	gameVersions := append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...)
 
-	result, err := mrDefaultClient.Versions.ListVersions(modID, modrinthApi.ListVersionsOptions{
+	result, err := mrDefaultClient.Versions.ListVersions(projectID, modrinthApi.ListVersionsOptions{
 		GameVersions: gameVersions,
 		Loaders:      pack.GetLoaders(),
+		// TODO: change based on project type? or just add iris/optifine/datapack/vanilla/minecraft as default loaders
+		// TODO: add "datapack" as a loader *if* a path to store datapacks in is configured?
 	})
 
 	if len(result) == 0 {
@@ -75,7 +125,8 @@ func getLatestVersion(modID string, pack core.Pack) (*modrinthApi.Version, error
 				continue
 			}
 
-			//Semver is equal, compare date instead
+			// FlexVer comparison is equal, compare date instead
+			// TODO: flag to force comparing by date?
 			if v.DatePublished.After(*latestValidVersion.DatePublished) {
 				latestValidVersion = v
 			}
@@ -143,8 +194,8 @@ func getInstalledProjectIDs(index *core.Index) []string {
 			if ok {
 				updateData, ok := data.(mrUpdateData)
 				if ok {
-					if len(updateData.ModID) > 0 {
-						installedProjects = append(installedProjects, updateData.ModID)
+					if len(updateData.ProjectID) > 0 {
+						installedProjects = append(installedProjects, updateData.ProjectID)
 					}
 				}
 			}

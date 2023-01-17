@@ -10,7 +10,9 @@ import (
 )
 
 type mrUpdateData struct {
-	ModID            string `mapstructure:"mod-id"`
+	// TODO(format): change to "project-id"
+	ProjectID string `mapstructure:"mod-id"`
+	// TODO(format): change to "version-id"
 	InstalledVersion string `mapstructure:"version"`
 }
 
@@ -29,8 +31,8 @@ func (u mrUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 }
 
 type cachedStateStore struct {
-	ModID   string
-	Version *modrinthApi.Version
+	ProjectID string
+	Version   *modrinthApi.Version
 }
 
 func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack) ([]core.UpdateCheck, error) {
@@ -45,7 +47,7 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 
 		data := rawData.(mrUpdateData)
 
-		newVersion, err := getLatestVersion(data.ModID, pack)
+		newVersion, err := getLatestVersion(data.ProjectID, pack)
 		if err != nil {
 			results[i] = core.UpdateCheck{Error: fmt.Errorf("failed to get latest version: %v", err)}
 			continue
@@ -72,7 +74,7 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,
 			UpdateString:    mod.FileName + " -> " + *newFilename,
-			CachedState:     cachedStateStore{data.ModID, newVersion},
+			CachedState:     cachedStateStore{data.ProjectID, newVersion},
 		}
 	}
 
