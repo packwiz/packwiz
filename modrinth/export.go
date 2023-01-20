@@ -115,7 +115,7 @@ var exportCmd = &cobra.Command{
 
 				pathForward, err := filepath.Rel(filepath.Dir(indexPath), dl.Mod.GetDestFilePath())
 				if err != nil {
-					fmt.Printf("Error resolving mod file: %s\n", err.Error())
+					fmt.Printf("Error resolving external file: %s\n", err.Error())
 					// TODO: exit(1)?
 					continue
 				}
@@ -152,7 +152,7 @@ var exportCmd = &cobra.Command{
 				// Modrinth URLs must be RFC3986
 				u, err := core.ReencodeURL(dl.Mod.Download.URL)
 				if err != nil {
-					fmt.Printf("Error re-encoding mod URL: %s\n", err.Error())
+					fmt.Printf("Error re-encoding download URL: %s\n", err.Error())
 					u = dl.Mod.Download.URL
 				}
 

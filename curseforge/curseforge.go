@@ -324,7 +324,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 	for i, v := range mods {
 		projectRaw, ok := v.GetParsedUpdateData("curseforge")
 		if !ok {
-			results[i] = core.UpdateCheck{Error: errors.New("couldn't parse mod data")}
+			results[i] = core.UpdateCheck{Error: errors.New("failed to parse update metadata")}
 			continue
 		}
 		project := projectRaw.(cfUpdateData)
@@ -349,7 +349,7 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 	for i, v := range mods {
 		projectRaw, ok := v.GetParsedUpdateData("curseforge")
 		if !ok {
-			results[i] = core.UpdateCheck{Error: errors.New("couldn't parse mod data")}
+			results[i] = core.UpdateCheck{Error: errors.New("failed to parse update metadata")}
 			continue
 		}
 		project := projectRaw.(cfUpdateData)

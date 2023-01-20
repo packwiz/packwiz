@@ -190,11 +190,11 @@ var importCmd = &cobra.Command{
 			modIDs[i] = v.ProjectID
 		}
 
-		fmt.Println("Querying Curse API for mod info...")
+		fmt.Println("Querying Curse API for dependency info...")
 
 		modInfos, err := cfDefaultClient.getModInfoMultiple(modIDs)
 		if err != nil {
-			fmt.Printf("Failed to obtain mod information: %s\n", err)
+			fmt.Printf("Failed to obtain project information: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -214,7 +214,7 @@ var importCmd = &cobra.Command{
 		for _, v := range modsList {
 			modInfoValue, ok := modInfosMap[v.ProjectID]
 			if !ok {
-				fmt.Printf("Failed to obtain mod information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
+				fmt.Printf("Failed to obtain information for project/file IDs %d/%d\n", v.ProjectID, v.FileID)
 				continue
 			}
 
@@ -238,7 +238,7 @@ var importCmd = &cobra.Command{
 
 		modFileInfos, err := cfDefaultClient.getFileInfoMultiple(remainingFileIDs)
 		if err != nil {
-			fmt.Printf("Failed to obtain mod file information: %s\n", err)
+			fmt.Printf("Failed to obtain project file information: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -250,19 +250,19 @@ var importCmd = &cobra.Command{
 		for _, v := range modsList {
 			modInfoValue, ok := modInfosMap[v.ProjectID]
 			if !ok {
-				fmt.Printf("Failed to obtain mod information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
+				fmt.Printf("Failed to obtain project information for project/file IDs %d/%d\n", v.ProjectID, v.FileID)
 				continue
 			}
 
 			modFileInfoValue, ok := modFileInfosMap[v.FileID]
 			if !ok {
-				fmt.Printf("Failed to obtain mod file information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
+				fmt.Printf("Failed to obtain project file information for project/file IDs %d/%d\n", v.ProjectID, v.FileID)
 				continue
 			}
 
 			err = createModFile(modInfoValue, modFileInfoValue, &index, v.OptionalDisabled)
 			if err != nil {
-				fmt.Printf("Failed to save mod \"%s\": %s\n", modInfoValue.Name, err)
+				fmt.Printf("Failed to save project \"%s\": %s\n", modInfoValue.Name, err)
 				os.Exit(1)
 			}
 
@@ -272,11 +272,11 @@ var importCmd = &cobra.Command{
 				referencedModPaths = append(referencedModPaths, ref)
 			}
 
-			fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
+			fmt.Printf("Imported dependency \"%s\" successfully!\n", modInfoValue.Name)
 			successes++
 		}
 
-		fmt.Printf("Successfully imported %d/%d mods!\n", successes, len(modsList))
+		fmt.Printf("Successfully imported %d/%d dependencies!\n", successes, len(modsList))
 
 		fmt.Println("Reading override files...")
 		filesList, err := packImport.GetFiles()

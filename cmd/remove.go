@@ -11,14 +11,10 @@ import (
 // removeCmd represents the remove command
 var removeCmd = &cobra.Command{
 	Use:     "remove",
-	Short:   "Remove a mod from the modpack",
+	Short:   "Remove an external file from the modpack; equivalent to manually removing the file and running packwiz refresh",
 	Aliases: []string{"delete", "uninstall", "rm"},
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		if len(args[0]) == 0 {
-			fmt.Println("You must specify a mod.")
-			os.Exit(1)
-		}
 		fmt.Println("Loading modpack...")
 		pack, err := core.LoadPack()
 		if err != nil {
@@ -32,7 +28,7 @@ var removeCmd = &cobra.Command{
 		}
 		resolvedMod, ok := index.FindMod(args[0])
 		if !ok {
-			fmt.Println("You don't have this mod installed.")
+			fmt.Println("Can't find this file; please ensure you have run packwiz refresh and use the name of the .pw.toml file (defaults to the project slug)")
 			os.Exit(1)
 		}
 		err = os.Remove(resolvedMod)
@@ -40,7 +36,7 @@ var removeCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		fmt.Println("Removing mod from index...")
+		fmt.Println("Removing file from index...")
 		err = index.RemoveFile(resolvedMod)
 		if err != nil {
 			fmt.Println(err)
@@ -62,7 +58,7 @@ var removeCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Printf("Mod %s removed successfully!\n", args[0])
+		fmt.Printf("%s removed successfully!\n", args[0])
 	},
 }
 

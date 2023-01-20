@@ -24,9 +24,9 @@ type installableDep struct {
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
-	Use:     "install [URL|slug|search]",
-	Short:   "Install a project from a CurseForge URL, slug, ID or search",
-	Aliases: []string{"add", "get"},
+	Use:     "add [URL|slug|search]",
+	Short:   "Add a project from a CurseForge URL, slug, ID or search",
+	Aliases: []string{"install", "get"},
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		pack, err := core.LoadPack()

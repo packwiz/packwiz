@@ -41,7 +41,7 @@ func (u mrUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 	for i, mod := range mods {
 		rawData, ok := mod.GetParsedUpdateData("modrinth")
 		if !ok {
-			results[i] = core.UpdateCheck{Error: errors.New("couldn't parse mod data")}
+			results[i] = core.UpdateCheck{Error: errors.New("failed to parse update metadata")}
 			continue
 		}
 
@@ -96,7 +96,7 @@ func (u mrUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 
 		algorithm, hash := getBestHash(file)
 		if algorithm == "" {
-			return errors.New("file for mod " + mod.Name + " doesn't have a hash")
+			return errors.New("file for project " + mod.Name + " doesn't have a valid hash")
 		}
 
 		mod.FileName = *file.Filename

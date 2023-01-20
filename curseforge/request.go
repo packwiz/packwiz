@@ -86,7 +86,7 @@ func (c *cfApiClient) makePost(endpoint string, body io.Reader) (*http.Response,
 
 type fileType uint8
 
-//noinspection GoUnusedConst
+// noinspection GoUnusedConst
 const (
 	fileTypeRelease fileType = iota + 1
 	fileTypeBeta
@@ -95,7 +95,7 @@ const (
 
 type dependencyType uint8
 
-//noinspection GoUnusedConst
+// noinspection GoUnusedConst
 const (
 	dependencyTypeEmbedded dependencyType = iota + 1
 	dependencyTypeOptional
@@ -107,7 +107,7 @@ const (
 
 type modloaderType uint8
 
-//noinspection GoUnusedConst
+// noinspection GoUnusedConst
 const (
 	// modloaderTypeAny should not be passed to the API - it does not work
 	modloaderTypeAny modloaderType = iota
@@ -138,7 +138,7 @@ var modloaderIds = [...]string{
 
 type hashAlgo uint8
 
-//noinspection GoUnusedConst
+// noinspection GoUnusedConst
 const (
 	hashAlgoSHA1 hashAlgo = iota + 1
 	hashAlgoMD5
@@ -177,16 +177,16 @@ func (c *cfApiClient) getModInfo(modID uint32) (modInfo, error) {
 	idStr := strconv.FormatUint(uint64(modID), 10)
 	resp, err := c.makeGet("/v1/mods/" + idStr)
 	if err != nil {
-		return modInfo{}, fmt.Errorf("failed to request addon data for ID %d: %w", modID, err)
+		return modInfo{}, fmt.Errorf("failed to request project data for ID %d: %w", modID, err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
-		return modInfo{}, fmt.Errorf("failed to request addon data for ID %d: %w", modID, err)
+		return modInfo{}, fmt.Errorf("failed to request project data for ID %d: %w", modID, err)
 	}
 
 	if infoRes.Data.ID != modID {
-		return modInfo{}, fmt.Errorf("unexpected addon ID in CurseForge response: %d (expected %d)", infoRes.Data.ID, modID)
+		return modInfo{}, fmt.Errorf("unexpected project ID in CurseForge response: %d (expected %d)", infoRes.Data.ID, modID)
 	}
 
 	return infoRes.Data, nil
@@ -208,12 +208,12 @@ func (c *cfApiClient) getModInfoMultiple(modIDs []uint32) ([]modInfo, error) {
 
 	resp, err := c.makePost("/v1/mods", bytes.NewBuffer(modIDsData))
 	if err != nil {
-		return []modInfo{}, fmt.Errorf("failed to request addon data: %w", err)
+		return []modInfo{}, fmt.Errorf("failed to request project data: %w", err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
-		return []modInfo{}, fmt.Errorf("failed to request addon data: %w", err)
+		return []modInfo{}, fmt.Errorf("failed to request project data: %w", err)
 	}
 
 	return infoRes.Data, nil
@@ -279,16 +279,16 @@ func (c *cfApiClient) getFileInfo(modID uint32, fileID uint32) (modFileInfo, err
 
 	resp, err := c.makeGet("/v1/mods/" + modIDStr + "/files/" + fileIDStr)
 	if err != nil {
-		return modFileInfo{}, fmt.Errorf("failed to request file data for addon ID %d, file ID %d: %w", modID, fileID, err)
+		return modFileInfo{}, fmt.Errorf("failed to request file data for project ID %d, file ID %d: %w", modID, fileID, err)
 	}
 
 	err = json.NewDecoder(resp.Body).Decode(&infoRes)
 	if err != nil && err != io.EOF {
-		return modFileInfo{}, fmt.Errorf("failed to request file data for addon ID %d, file ID %d: %w", modID, fileID, err)
+		return modFileInfo{}, fmt.Errorf("failed to request file data for project ID %d, file ID %d: %w", modID, fileID, err)
 	}
 
 	if infoRes.Data.ID != fileID {
-		return modFileInfo{}, fmt.Errorf("unexpected file ID for addon %d in CurseForge response: %d (expected %d)", modID, infoRes.Data.ID, fileID)
+		return modFileInfo{}, fmt.Errorf("unexpected file ID for project %d in CurseForge response: %d (expected %d)", modID, infoRes.Data.ID, fileID)
 	}
 
 	return infoRes.Data, nil
@@ -366,7 +366,7 @@ func (c *cfApiClient) getSearch(searchTerm string, slug string, gameID uint32, c
 
 type gameStatus uint8
 
-//noinspection GoUnusedConst
+// noinspection GoUnusedConst
 const (
 	gameStatusDraft gameStatus = iota + 1
 	gameStatusTest
@@ -378,7 +378,7 @@ const (
 
 type gameApiStatus uint8
 
-//noinspection GoUnusedConst
+// noinspection GoUnusedConst
 const (
 	gameApiStatusPrivate gameApiStatus = iota + 1
 	gameApiStatusPublic

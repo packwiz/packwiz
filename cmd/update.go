@@ -11,13 +11,13 @@ import (
 
 // updateCmd represents the update command
 var updateCmd = &cobra.Command{
-	Use:     "update [mod]",
-	Short:   "Update a mod (or all mods) in the modpack",
+	Use:     "update [name]",
+	Short:   "Update an external file (or all external files) in the modpack",
 	Aliases: []string{"upgrade"},
 	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO: --check flag?
-		// TODO: specify multiple mods to update at once?
+		// TODO: specify multiple files to update at once?
 
 		fmt.Println("Loading modpack...")
 		pack, err := core.LoadPack()
@@ -39,11 +39,11 @@ var updateCmd = &cobra.Command{
 		var singleUpdatedName string
 		if viper.GetBool("update.all") {
 			updaterMap := make(map[string][]core.Mod)
-			fmt.Println("Reading mod files...")
+			fmt.Println("Reading metadata files...")
 			for _, v := range index.GetAllMods() {
 				modData, err := core.LoadMod(v)
 				if err != nil {
-					fmt.Printf("Error reading mod file: %s\n", err.Error())
+					fmt.Printf("Error reading metadata file: %s\n", err.Error())
 					continue
 				}
 
@@ -95,7 +95,7 @@ var updateCmd = &cobra.Command{
 			}
 
 			if !updatesFound {
-				fmt.Println("All mods are up to date!")
+				fmt.Println("All files are up to date!")
 				return
 			}
 
@@ -126,12 +126,12 @@ var updateCmd = &cobra.Command{
 			}
 		} else {
 			if len(args) < 1 || len(args[0]) == 0 {
-				fmt.Println("Must specify a valid mod, or use the --all flag!")
+				fmt.Println("Must specify a valid file, or use the --all flag!")
 				os.Exit(1)
 			}
 			modPath, ok := index.FindMod(args[0])
 			if !ok {
-				fmt.Println("You don't have this mod installed.")
+				fmt.Println("Can't find this file; please ensure you have run packwiz refresh and use the name of the .pw.toml file (defaults to the project slug)")
 				os.Exit(1)
 			}
 			modData, err := core.LoadMod(modPath)
@@ -207,7 +207,7 @@ var updateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if viper.GetBool("update.all") {
-			fmt.Println("Mods updated!")
+			fmt.Println("Files updated!")
 		} else {
 			fmt.Printf("\"%s\" updated!\n", singleUpdatedName)
 		}
@@ -217,6 +217,6 @@ var updateCmd = &cobra.Command{
 func init() {
 	rootCmd.AddCommand(updateCmd)
 
-	updateCmd.Flags().BoolP("all", "a", false, "Update all mods")
+	updateCmd.Flags().BoolP("all", "a", false, "Update all external files")
 	_ = viper.BindPFlag("update.all", updateCmd.Flags().Lookup("all"))
 }

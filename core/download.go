@@ -607,14 +607,14 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 			dlID := strings.TrimPrefix(mod.Download.Mode, "metadata:")
 			pendingMetadata[dlID] = append(pendingMetadata[dlID], mod)
 		} else {
-			return nil, fmt.Errorf("unknown download mode %s for mod %s", mod.Download.Mode, mod.Name)
+			return nil, fmt.Errorf("unknown download mode %s for %s", mod.Download.Mode, mod.Name)
 		}
 	}
 
 	for dlID, mods := range pendingMetadata {
 		downloader, ok := MetaDownloaders[dlID]
 		if !ok {
-			return nil, fmt.Errorf("unknown download mode %s for mod %s", mods[0].Download.Mode, mods[0].Name)
+			return nil, fmt.Errorf("unknown download mode %s for %s", mods[0].Download.Mode, mods[0].Name)
 		}
 		meta, err := downloader.GetFilesMetadata(mods)
 		if err != nil {

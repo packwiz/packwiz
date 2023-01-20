@@ -40,12 +40,12 @@ func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, indexPath 
 
 	path, err := filepath.Rel(filepath.Dir(indexPath), dl.Mod.GetDestFilePath())
 	if err != nil {
-		fmt.Printf("Error resolving mod file: %v\n", err)
+		fmt.Printf("Error resolving external file: %v\n", err)
 		return false
 	}
 	modFile, err := exp.Create(filepath.ToSlash(filepath.Join(dir, path)))
 	if err != nil {
-		fmt.Printf("Error creating mod file %s: %v\n", path, err)
+		fmt.Printf("Error creating metadata file %s: %v\n", path, err)
 		return false
 	}
 	_, err = io.Copy(modFile, dl.File)
@@ -67,9 +67,9 @@ func PrintDisclaimer(isCf bool) {
 	fmt.Println("Disclaimer: you are responsible for ensuring you comply with ALL the licenses, or obtain appropriate permissions, for the files \"added to zip\" below")
 	if isCf {
 		fmt.Println("Note that mods bundled within a CurseForge pack must be in the Approved Non-CurseForge Mods list")
-		fmt.Println("packwiz is currently unable to match metadata between mod sites - if any of these are available from CurseForge you should change them to use CurseForge metadata (e.g. by reinstalling them using the cf commands)")
+		fmt.Println("packwiz is currently unable to match metadata between mod sites - if any of these are available from CurseForge you should change them to use CurseForge metadata (e.g. by re-adding them using the cf commands)")
 	} else {
-		fmt.Println("packwiz is currently unable to match metadata between mod sites - if any of these are available from Modrinth you should change them to use Modrinth metadata (e.g. by reinstalling them using the mr commands)")
+		fmt.Println("packwiz is currently unable to match metadata between mod sites - if any of these are available from Modrinth you should change them to use Modrinth metadata (e.g. by re-adding them using the mr commands)")
 	}
 	fmt.Println()
 }
