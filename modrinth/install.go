@@ -202,8 +202,6 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 		return errors.New("version doesn't have any files attached")
 	}
 
-	// TODO: explicitly reject modpacks
-
 	if len(version.Dependencies) > 0 {
 		// TODO: could get installed version IDs, and compare to install the newest - i.e. preferring pinned versions over getting absolute latest?
 		installedProjects := getInstalledProjectIDs(index)
@@ -320,7 +318,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 
 				if cmdshared.PromptYesNo("Would you like to add them? [Y/n]: ") {
 					for _, v := range depMetadata {
-						err := createFileMeta(v.projectInfo, v.versionInfo, v.fileInfo, index)
+						err := createFileMeta(v.projectInfo, v.versionInfo, v.fileInfo, pack, index)
 						if err != nil {
 							return err
 						}
@@ -340,9 +338,10 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 			file = v
 		}
 	}
+	// TODO: handle optional/required resource pack files
 
 	// Create the metadata file
-	err := createFileMeta(project, version, file, index)
+	err := createFileMeta(project, version, file, pack, index)
 	if err != nil {
 		return err
 	}
@@ -364,7 +363,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 	return nil
 }
 
-func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, file *modrinthApi.File, index *core.Index) error {
+func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, file *modrinthApi.File, pack core.Pack, index *core.Index) error {
 	updateMap := make(map[string]map[string]interface{})
 
 	var err error
@@ -400,8 +399,10 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 	var path string
 	folder := viper.GetString("meta-folder")
 	if folder == "" {
-		folder = "mods"
-		// TODO: vary based on project type
+		folder, err = getProjectTypeFolder(*project.ProjectType, version.Loaders, pack.GetLoaders())
+		if err != nil {
+			return err
+		}
 	}
 	if project.Slug != nil {
 		path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, *project.Slug+core.MetaExtension))

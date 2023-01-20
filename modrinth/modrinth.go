@@ -3,12 +3,14 @@ package modrinth
 import (
 	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
+	"fmt"
 	"github.com/packwiz/packwiz/cmd"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/unascribed/FlexVer/go/flexver"
 	"golang.org/x/exp/slices"
+	"math"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -61,6 +63,132 @@ var projectTypes = []string{
 	"mod", "plugin", "datapack", "shader", "resourcepack", "modpack",
 }
 
+// "Loaders" that are supported regardless of the configured mod loaders
+var defaultMRLoaders = []string{
+	// TODO: check if Iris/Optifine are installed? suggest installing them?
+	"iris",
+	"optifine",
+	"vanilla",   // Core shaders
+	"minecraft", // Resource packs
+}
+
+var withDatapackPathMRLoaders = []string{
+	"iris",
+	"optifine",
+	"vanilla",   // Core shaders
+	"minecraft", // Resource packs
+	// TODO: check if a datapack loader is installed; suggest installing one?
+	"datapack", // Datapacks (requires a datapack loader)
+}
+
+var loaderFolders = map[string]string{
+	"quilt":      "mods",
+	"fabric":     "mods",
+	"forge":      "mods",
+	"liteloader": "mods",
+	"modloader":  "mods",
+	"rift":       "mods",
+	"bukkit":     "plugins",
+	"spigot":     "plugins",
+	"paper":      "plugins",
+	"purpur":     "plugins",
+	"sponge":     "plugins",
+	"bungeecord": "plugins",
+	"waterfall":  "plugins",
+	"velocity":   "plugins",
+	"iris":       "shaderpacks",
+	"optifine":   "shaderpacks",
+	"vanilla":    "resourcepacks",
+}
+
+// Preference list for loader types, for comparing files where the version is the same - more preferred is lower
+var loaderPreferenceList = []string{
+	// Prefer quilt versions over fabric versions
+	"quilt",
+	"fabric",
+	"forge",
+	"liteloader",
+	"modloader",
+	"rift",
+	// Prefer mods to plugins
+	"sponge",
+	// Prefer newer Bukkit forks
+	"purpur",
+	"paper",
+	"spigot",
+	"bukkit",
+	"velocity",
+	// Prefer newer BungeeCord forks
+	"waterfall",
+	"bungeecord",
+	// Prefer Iris shaders to Optifine shaders to core shaders
+	"iris",
+	"optifine",
+	"vanilla",
+	// Prefer mods to datapacks
+	"datapack",
+	// Prefer mods to resource packs?! Idk this is just here for completeness
+	"minecraft",
+}
+
+func getMinLoaderIdx(loaders []string) (minIdx int) {
+	minIdx = math.MaxInt
+	for _, v := range loaders {
+		idx := slices.Index(loaderPreferenceList, v)
+		if idx != -1 && idx < minIdx {
+			minIdx = idx
+		}
+	}
+	return minIdx
+}
+
+func getProjectTypeFolder(projectType string, fileLoaders []string, packLoaders []string) (string, error) {
+	if projectType == "modpack" {
+		return "", errors.New("this command should not be used to add Modrinth modpacks, and importing of Modrinth modpacks is not yet supported")
+	} else if projectType == "resourcepack" {
+		return "resourcepacks", nil
+	} else if projectType == "shader" {
+		bestLoaderIdx := math.MaxInt
+		for _, v := range fileLoaders {
+			idx := slices.Index(loaderPreferenceList, v)
+			if idx != -1 && idx < bestLoaderIdx {
+				bestLoaderIdx = idx
+			}
+		}
+		if bestLoaderIdx > -1 && bestLoaderIdx < math.MaxInt {
+			return loaderPreferenceList[bestLoaderIdx], nil
+		}
+		return "shaderpacks", nil
+	} else if projectType == "mod" {
+		// Look up pack loaders in the list of loaders (note this is currently filtered to quilt/fabric/forge)
+		bestLoaderIdx := math.MaxInt
+		for _, v := range fileLoaders {
+			if slices.Contains(packLoaders, v) {
+				idx := slices.Index(loaderPreferenceList, v)
+				if idx != -1 && idx < bestLoaderIdx {
+					bestLoaderIdx = idx
+				}
+			}
+		}
+		if bestLoaderIdx > -1 && bestLoaderIdx < math.MaxInt {
+			return loaderPreferenceList[bestLoaderIdx], nil
+		}
+
+		// Datapack loader is "datapack"
+		if slices.Contains(fileLoaders, "datapack") {
+			if viper.GetString("datapack-path") != "" {
+				return viper.GetString("datapack-path"), nil
+			} else {
+				return "", errors.New("set the datapack-path option to use datapacks")
+			}
+		}
+		// Default to "mods" for mod type
+		return "mods", nil
+	} else {
+		return "", fmt.Errorf("unknown project type %s", projectType)
+	}
+}
+
 func parseSlugOrUrl(input string, slug *string, version *string, versionID *string, filename *string) (parsedSlug bool, err error) {
 	for regexIdx, r := range urlRegexes {
 		matches := r.FindStringSubmatch(input)
@@ -101,27 +229,35 @@ func getLatestVersion(projectID string, pack core.Pack) (*modrinthApi.Version, e
 		return nil, err
 	}
 	gameVersions := append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...)
+	var loaders []string
+	if viper.GetString("datapack-path") != "" {
+		loaders = append(pack.GetLoaders(), withDatapackPathMRLoaders...)
+	} else {
+		loaders = append(pack.GetLoaders(), defaultMRLoaders...)
+	}
 
 	result, err := mrDefaultClient.Versions.ListVersions(projectID, modrinthApi.ListVersionsOptions{
 		GameVersions: gameVersions,
-		Loaders:      pack.GetLoaders(),
-		// TODO: change based on project type? or just add iris/optifine/datapack/vanilla/minecraft as default loaders
-		// TODO: add "datapack" as a loader *if* a path to store datapacks in is configured?
+		Loaders:      loaders,
 	})
 
 	if len(result) == 0 {
-		return nil, errors.New("no valid versions found")
+		// TODO: retry with datapack specified, to determine what the issue is? or just request all and filter afterwards
+		return nil, errors.New("no valid versions found\nUse the acceptable-game-versions option to accept more game versions\nTo use datapacks, add a datapack loader mod and specify the datapack-path option with the location this mod loads datapacks from")
 	}
 
 	latestValidVersion := result[0]
+	latestValidLoaderIdx := getMinLoaderIdx(result[0].Loaders)
 	for _, v := range result[1:] {
 		// Use FlexVer to compare versions
 		compare := flexver.Compare(*v.VersionNumber, *latestValidVersion.VersionNumber)
 
 		if compare == 0 {
-			// Prefer Quilt over Fabric (Modrinth backend handles filtering)
-			if slices.Contains(v.Loaders, "quilt") && !slices.Contains(latestValidVersion.Loaders, "quilt") {
+			loaderIdx := getMinLoaderIdx(v.Loaders)
+			// Prefer loaders; principally Quilt over Fabric, mods over datapacks (Modrinth backend handles filtering)
+			if loaderIdx < latestValidLoaderIdx {
 				latestValidVersion = v
+				latestValidLoaderIdx = loaderIdx
 				continue
 			}
 
@@ -129,9 +265,11 @@ func getLatestVersion(projectID string, pack core.Pack) (*modrinthApi.Version, e
 			// TODO: flag to force comparing by date?
 			if v.DatePublished.After(*latestValidVersion.DatePublished) {
 				latestValidVersion = v
+				latestValidLoaderIdx = getMinLoaderIdx(v.Loaders)
 			}
 		} else if compare > 0 {
 			latestValidVersion = v
+			latestValidLoaderIdx = getMinLoaderIdx(v.Loaders)
 		}
 	}
 
