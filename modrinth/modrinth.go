@@ -51,7 +51,8 @@ func getProjectIdsViaSearch(query string, versions []string) ([]*modrinthApi.Sea
 
 // "Loaders" that are supported regardless of the configured mod loaders
 var defaultMRLoaders = []string{
-	// TODO: check if Iris/Optifine are installed? suggest installing them?
+	// TODO: check if Canvas/Iris/Optifine are installed? suggest installing them?
+	"canvas",
 	"iris",
 	"optifine",
 	"vanilla",   // Core shaders
@@ -59,6 +60,7 @@ var defaultMRLoaders = []string{
 }
 
 var withDatapackPathMRLoaders = []string{
+	"canvas",
 	"iris",
 	"optifine",
 	"vanilla",   // Core shaders
@@ -82,6 +84,7 @@ var loaderFolders = map[string]string{
 	"bungeecord": "plugins",
 	"waterfall":  "plugins",
 	"velocity":   "plugins",
+	"canvas":     "resourcepacks",
 	"iris":       "shaderpacks",
 	"optifine":   "shaderpacks",
 	"vanilla":    "resourcepacks",
@@ -107,7 +110,8 @@ var loaderPreferenceList = []string{
 	// Prefer newer BungeeCord forks
 	"waterfall",
 	"bungeecord",
-	// Prefer Iris shaders to Optifine shaders to core shaders
+	// Prefer Canvas shaders to Iris shaders to Optifine shaders to core shaders
+	"canvas",
 	"iris",
 	"optifine",
 	"vanilla",
