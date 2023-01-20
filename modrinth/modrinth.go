@@ -341,3 +341,27 @@ func getInstalledProjectIDs(index *core.Index) []string {
 	}
 	return installedProjects
 }
+
+func resolveVersion(project *modrinthApi.Project, version string) (*modrinthApi.Version, error) {
+	// If it exists in the version list, it is already a version ID (and doesn't need querying further)
+	if slices.Contains(project.Versions, version) {
+		versionData, err := mrDefaultClient.Versions.Get(version)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch version %s: %v", version, err)
+		}
+		return versionData, nil
+	}
+
+	// Look up all versions
+	// TODO: PR a version number filter to Modrinth?
+	versionsList, err := mrDefaultClient.Versions.ListVersions(*project.ID, modrinthApi.ListVersionsOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch version list for %s: %v", *project.ID, err)
+	}
+	for _, v := range versionsList {
+		if *v.VersionNumber == version {
+			return v, nil
+		}
+	}
+	return nil, fmt.Errorf("unable to find version %s", version)
+}

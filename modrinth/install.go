@@ -39,9 +39,17 @@ var installCmd = &cobra.Command{
 		var projectID, versionID, versionFilename string
 		if projectIDFlag != "" {
 			projectID = projectIDFlag
+			if len(args) != 0 {
+				fmt.Println("--project-id cannot be used with a separately specified URL/slug/search term")
+				os.Exit(1)
+			}
 		}
 		if versionIDFlag != "" {
 			versionID = versionIDFlag
+			if len(args) != 0 {
+				fmt.Println("--version-id cannot be used with a separately specified URL/slug/search term")
+				os.Exit(1)
+			}
 		}
 		if versionFilenameFlag != "" {
 			versionFilename = versionFilenameFlag
@@ -52,17 +60,15 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// Try interpreting the argument as a slug/project ID, or project/version/CDN URL
 		var version string
-		parsedSlug, err := parseSlugOrUrl(args[0], &projectID, &version, &versionID, &versionFilename)
-		if err != nil {
-			fmt.Printf("Failed to parse URL: %v\n", err)
-			os.Exit(1)
-		}
-
-		if version != "" && versionID == "" {
-			// TODO: resolve version (could be an ID, could be a version number) into ID
-			versionID = version
+		var parsedSlug bool
+		if projectID == "" && versionID == "" {
+			// Try interpreting the argument as a slug/project ID, or project/version/CDN URL
+			parsedSlug, err = parseSlugOrUrl(args[0], &projectID, &version, &versionID, &versionFilename)
+			if err != nil {
+				fmt.Printf("Failed to parse URL: %v\n", err)
+				os.Exit(1)
+			}
 		}
 
 		// Got version ID; install using this ID
@@ -82,6 +88,22 @@ var installCmd = &cobra.Command{
 			project, err = mrDefaultClient.Projects.Get(projectID)
 			if err == nil {
 				// We found a project with that id/slug
+				if version != "" {
+					// Try to look up version number
+					versionData, err := resolveVersion(project, version)
+					if err != nil {
+						fmt.Printf("Failed to add project: %s\n", err)
+						os.Exit(1)
+					}
+					err = installVersion(project, versionData, versionFilename, pack, &index)
+					if err != nil {
+						fmt.Printf("Failed to add project: %s\n", err)
+						os.Exit(1)
+					}
+					return
+				}
+
+				// No version specified; find latest
 				err = installProject(project, versionFilename, pack, &index)
 				if err != nil {
 					fmt.Printf("Failed to add project: %s\n", err)
