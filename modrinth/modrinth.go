@@ -142,7 +142,7 @@ func getProjectTypeFolder(projectType string, fileLoaders []string, packLoaders 
 			}
 		}
 		if bestLoaderIdx > -1 && bestLoaderIdx < math.MaxInt {
-			return loaderPreferenceList[bestLoaderIdx], nil
+			return loaderFolders[loaderPreferenceList[bestLoaderIdx]], nil
 		}
 		return "shaderpacks", nil
 	} else if projectType == "mod" {
@@ -157,7 +157,7 @@ func getProjectTypeFolder(projectType string, fileLoaders []string, packLoaders 
 			}
 		}
 		if bestLoaderIdx > -1 && bestLoaderIdx < math.MaxInt {
-			return loaderPreferenceList[bestLoaderIdx], nil
+			return loaderFolders[loaderPreferenceList[bestLoaderIdx]], nil
 		}
 
 		// Datapack loader is "datapack"
