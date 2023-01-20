@@ -49,20 +49,6 @@ func getProjectIdsViaSearch(query string, versions []string) ([]*modrinthApi.Sea
 	return res.Hits, nil
 }
 
-var urlRegexes = [...]*regexp.Regexp{
-	// Slug/version number regex from https://github.com/modrinth/labrinth/blob/1679a3f844497d756d0cf272c5374a5236eabd42/src/util/validate.rs#L8
-	regexp.MustCompile("^https?://modrinth\\.com/(?P<projectType>[^/]+)/(?P<slug>[a-zA-Z0-9!@$()`.+,_\"-]{3,64})(?:/version/(?P<version>[a-zA-Z0-9!@$()`.+,_\"-]{1,32}))?"),
-	// Version/project IDs are more restrictive: [a-zA-Z0-9]+ (base62)
-	regexp.MustCompile("^https?://cdn\\.modrinth\\.com/data/(?P<slug>[a-zA-Z0-9]+)/versions/(?P<versionID>[a-zA-Z0-9]+)/(?P<filename>[^/]+)$"),
-	regexp.MustCompile("^(?P<slug>[a-zA-Z0-9!@$()`.+,_\"-]{3,64})$"),
-}
-
-const slugRegexIdx = 2
-
-var projectTypes = []string{
-	"mod", "plugin", "datapack", "shader", "resourcepack", "modpack",
-}
-
 // "Loaders" that are supported regardless of the configured mod loaders
 var defaultMRLoaders = []string{
 	// TODO: check if Iris/Optifine are installed? suggest installing them?
@@ -189,12 +175,26 @@ func getProjectTypeFolder(projectType string, fileLoaders []string, packLoaders 
 	}
 }
 
+var urlRegexes = [...]*regexp.Regexp{
+	// Slug/version number regex from https://github.com/modrinth/labrinth/blob/1679a3f844497d756d0cf272c5374a5236eabd42/src/util/validate.rs#L8
+	regexp.MustCompile("^https?://modrinth\\.com/(?P<urlCategory>[^/]+)/(?P<slug>[a-zA-Z0-9!@$()`.+,_\"-]{3,64})(?:/version/(?P<version>[a-zA-Z0-9!@$()`.+,_\"-]{1,32}))?"),
+	// Version/project IDs are more restrictive: [a-zA-Z0-9]+ (base62)
+	regexp.MustCompile("^https?://cdn\\.modrinth\\.com/data/(?P<slug>[a-zA-Z0-9]+)/versions/(?P<versionID>[a-zA-Z0-9]+)/(?P<filename>[^/]+)$"),
+	regexp.MustCompile("^(?P<slug>[a-zA-Z0-9!@$()`.+,_\"-]{3,64})$"),
+}
+
+const slugRegexIdx = 2
+
+var urlCategories = []string{
+	"mod", "plugin", "datapack", "shader", "resourcepack", "modpack",
+}
+
 func parseSlugOrUrl(input string, slug *string, version *string, versionID *string, filename *string) (parsedSlug bool, err error) {
 	for regexIdx, r := range urlRegexes {
 		matches := r.FindStringSubmatch(input)
 		if matches != nil {
-			if i := r.SubexpIndex("projectType"); i >= 0 {
-				if !slices.Contains(projectTypes, matches[i]) {
+			if i := r.SubexpIndex("urlCategory"); i >= 0 {
+				if !slices.Contains(urlCategories, matches[i]) {
 					err = errors.New("unknown project type: " + matches[i])
 					return
 				}
