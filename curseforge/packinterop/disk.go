@@ -3,7 +3,6 @@ package packinterop
 import (
 	"bufio"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -68,7 +67,7 @@ func (s diskPackSource) GetFileList() ([]ImportPackFile, error) {
 }
 
 func (s diskPackSource) GetPackFile() ImportPackFile {
-	rc := ioutil.NopCloser(s.MetaSource)
+	rc := io.NopCloser(s.MetaSource)
 	return readerFile{s.MetaName, &rc}
 }
 

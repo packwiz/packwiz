@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"golang.org/x/exp/slices"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -108,7 +107,7 @@ func (d *downloadSessionInternal) SaveIndex() error {
 	if err != nil {
 		return fmt.Errorf("failed to serialise index: %w", err)
 	}
-	err = ioutil.WriteFile(filepath.Join(d.cacheFolder, "index.json"), data, 0644)
+	err = os.WriteFile(filepath.Join(d.cacheFolder, "index.json"), data, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write index: %w", err)
 	}
@@ -146,7 +145,7 @@ func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, m
 
 func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []string, index *CacheIndex) (CompletedDownload, error) {
 	// Create temp file to download to
-	tempFile, err := ioutil.TempFile(filepath.Join(cacheFolder, "temp"), "download-tmp")
+	tempFile, err := os.CreateTemp(filepath.Join(cacheFolder, "temp"), "download-tmp")
 	if err != nil {
 		return CompletedDownload{}, fmt.Errorf("failed to create temporary file for download: %w", err)
 	}
@@ -551,7 +550,7 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache temp directory: %w", err)
 	}
-	cacheIndexData, err := ioutil.ReadFile(filepath.Join(cachePath, "index.json"))
+	cacheIndexData, err := os.ReadFile(filepath.Join(cachePath, "index.json"))
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to read cache index file: %w", err)

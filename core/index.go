@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -183,7 +182,7 @@ var ignoreDefaults = []string{
 }
 
 func readGitignore(path string) (*gitignore.GitIgnore, bool) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		// TODO: check for read errors (and present them)
 		return gitignore.CompileIgnoreLines(ignoreDefaults...), false

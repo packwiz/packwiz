@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/packwiz/packwiz/curseforge/packinterop"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -97,7 +96,7 @@ var importCmd = &cobra.Command{
 			// Check if file is a zip
 			if string(header) == "PK" {
 				// Read the whole file (as bufio doesn't work for zips)
-				zipData, err := ioutil.ReadAll(buf)
+				zipData, err := io.ReadAll(buf)
 				if err != nil {
 					fmt.Printf("Error reading file: %s\n", err)
 					os.Exit(1)
@@ -142,7 +141,7 @@ var importCmd = &cobra.Command{
 			_, err = os.Stat(indexFilePath)
 			if os.IsNotExist(err) {
 				// Create file
-				err = ioutil.WriteFile(indexFilePath, []byte{}, 0644)
+				err = os.WriteFile(indexFilePath, []byte{}, 0644)
 				if err != nil {
 					fmt.Printf("Error creating index file: %s\n", err)
 					os.Exit(1)

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"sort"
@@ -134,7 +133,7 @@ var initCmd = &cobra.Command{
 		_, err = os.Stat(indexFilePath)
 		if os.IsNotExist(err) {
 			// Create file
-			err = ioutil.WriteFile(indexFilePath, []byte{}, 0644)
+			err = os.WriteFile(indexFilePath, []byte{}, 0644)
 			if err != nil {
 				fmt.Printf("Error creating index file: %s\n", err)
 				os.Exit(1)

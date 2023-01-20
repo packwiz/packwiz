@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"github.com/packwiz/packwiz/core"
 	"io"
-	"io/ioutil"
 	"os"
 )
 
@@ -20,7 +19,7 @@ func ReadMetadata(s ImportPackSource) ImportPackMetadata {
 	}
 
 	// Read the whole file (as we are going to parse it multiple times)
-	fileData, err := ioutil.ReadAll(rdr)
+	fileData, err := io.ReadAll(rdr)
 	if err != nil {
 		fmt.Printf("Error reading file: %s\n", err)
 		os.Exit(1)
