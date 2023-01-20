@@ -162,10 +162,10 @@ func getProjectTypeFolder(projectType string, fileLoaders []string, packLoaders 
 
 		// Datapack loader is "datapack"
 		if slices.Contains(fileLoaders, "datapack") {
-			if viper.GetString("datapack-path") != "" {
-				return viper.GetString("datapack-path"), nil
+			if viper.GetString("datapack-folder") != "" {
+				return viper.GetString("datapack-folder"), nil
 			} else {
-				return "", errors.New("set the datapack-path option to use datapacks")
+				return "", errors.New("set the datapack-folder option to use datapacks")
 			}
 		}
 		// Default to "mods" for mod type
@@ -230,7 +230,7 @@ func getLatestVersion(projectID string, pack core.Pack) (*modrinthApi.Version, e
 	}
 	gameVersions := append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...)
 	var loaders []string
-	if viper.GetString("datapack-path") != "" {
+	if viper.GetString("datapack-folder") != "" {
 		loaders = append(pack.GetLoaders(), withDatapackPathMRLoaders...)
 	} else {
 		loaders = append(pack.GetLoaders(), defaultMRLoaders...)
@@ -243,7 +243,7 @@ func getLatestVersion(projectID string, pack core.Pack) (*modrinthApi.Version, e
 
 	if len(result) == 0 {
 		// TODO: retry with datapack specified, to determine what the issue is? or just request all and filter afterwards
-		return nil, errors.New("no valid versions found\nUse the acceptable-game-versions option to accept more game versions\nTo use datapacks, add a datapack loader mod and specify the datapack-path option with the location this mod loads datapacks from")
+		return nil, errors.New("no valid versions found\nUse the acceptable-game-versions option to accept more game versions\nTo use datapacks, add a datapack loader mod and specify the datapack-folder option with the folder this mod loads datapacks from")
 	}
 
 	latestValidVersion := result[0]
