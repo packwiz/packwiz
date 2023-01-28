@@ -112,7 +112,7 @@ func getCurseforgeVersion(mcVersion string) string {
 
 var urlRegexes = [...]*regexp.Regexp{
 	regexp.MustCompile("^https?://(?P<game>minecraft)\\.curseforge\\.com/projects/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
-	regexp.MustCompile("^https?://(?:www\\.)?curseforge\\.com/(?P<game>[^/]+)/(?P<category>[^/]+)/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
+	regexp.MustCompile("^https?://(?:www\\.|beta\\.)?curseforge\\.com/(?P<game>[^/]+)/(?P<category>[^/]+)/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
 	regexp.MustCompile("^(?P<slug>[a-z][\\da-z\\-_]{0,127})$"),
 }
 
