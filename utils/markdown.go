@@ -22,7 +22,7 @@ var markdownCmd = &cobra.Command{
 			fmt.Printf("Error creating directory: %s\n", err)
 			os.Exit(1)
 		}
-		cmd.DisableAutoGenTag = true
+		disableTag(cmd.Root())
 		err = doc.GenMarkdownTree(cmd.Root(), outDir)
 		if err != nil {
 			fmt.Printf("Error generating markdown: %s\n", err)
@@ -30,6 +30,13 @@ var markdownCmd = &cobra.Command{
 		}
 		fmt.Println("Generated markdown successfully!")
 	},
+}
+
+func disableTag(cmd *cobra.Command) {
+	cmd.DisableAutoGenTag = true
+	for _, v := range cmd.Commands() {
+		disableTag(v)
+	}
 }
 
 func init() {
