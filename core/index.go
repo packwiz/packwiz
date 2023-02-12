@@ -170,6 +170,9 @@ var ignoreDefaults = []string{
 	".gitattributes",
 	".gitignore",
 
+	// Exclude macOS metadata
+	".DS_Store",
+
 	// Exclude exported CurseForge zip files
 	"/*.zip",
 
