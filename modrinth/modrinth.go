@@ -227,10 +227,14 @@ func parseSlugOrUrl(input string, slug *string, version *string, versionID *stri
 	return
 }
 
-func findLatestVersion(versions []*modrinthApi.Version, useFlexVer bool) *modrinthApi.Version {
+func findLatestVersion(versions []*modrinthApi.Version, gameVersions []string, useFlexVer bool) *modrinthApi.Version {
 	latestValidVersion := versions[0]
 	latestValidLoaderIdx := getMinLoaderIdx(versions[0].Loaders)
+	bestGameVersion := core.HighestSliceIndex(gameVersions, versions[0].GameVersions)
 	for _, v := range versions[1:] {
+		loaderIdx := getMinLoaderIdx(v.Loaders)
+		gameVersionIdx := core.HighestSliceIndex(gameVersions, v.GameVersions)
+
 		var compare int32
 		if useFlexVer {
 			// Use FlexVer to compare versions
@@ -238,22 +242,18 @@ func findLatestVersion(versions []*modrinthApi.Version, useFlexVer bool) *modrin
 		}
 
 		if compare == 0 {
-			loaderIdx := getMinLoaderIdx(v.Loaders)
-			// Prefer loaders; principally Quilt over Fabric, mods over datapacks (Modrinth backend handles filtering)
-			if loaderIdx < latestValidLoaderIdx {
-				latestValidVersion = v
-				latestValidLoaderIdx = loaderIdx
-				continue
+			if loaderIdx < latestValidLoaderIdx { // Prefer loaders; principally Quilt over Fabric, mods over datapacks (Modrinth backend handles filtering)
+				compare = 1
+			} else if gameVersionIdx > bestGameVersion { // Prefer later specified game versions (main version specified last)
+				compare = 1
+			} else if v.DatePublished.After(*latestValidVersion.DatePublished) { // FlexVer comparison is equal or disabled, compare date instead
+				compare = 1
 			}
-
-			// FlexVer comparison is equal, compare date instead
-			if v.DatePublished.After(*latestValidVersion.DatePublished) {
-				latestValidVersion = v
-				latestValidLoaderIdx = getMinLoaderIdx(v.Loaders)
-			}
-		} else if compare > 0 {
+		}
+		if compare > 0 {
 			latestValidVersion = v
-			latestValidLoaderIdx = getMinLoaderIdx(v.Loaders)
+			latestValidLoaderIdx = loaderIdx
+			bestGameVersion = gameVersionIdx
 		}
 	}
 
@@ -261,11 +261,10 @@ func findLatestVersion(versions []*modrinthApi.Version, useFlexVer bool) *modrin
 }
 
 func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthApi.Version, error) {
-	mcVersion, err := pack.GetMCVersion()
+	gameVersions, err := pack.GetSupportedMCVersions()
 	if err != nil {
 		return nil, err
 	}
-	gameVersions := append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...)
 	var loaders []string
 	if viper.GetString("datapack-folder") != "" {
 		loaders = append(pack.GetLoaders(), withDatapackPathMRLoaders...)
@@ -285,10 +284,10 @@ func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthA
 
 	// TODO: option to always compare using flexver?
 	// TODO: ask user which one to use?
-	flexverLatest := findLatestVersion(result, true)
-	releaseDateLatest := findLatestVersion(result, false)
+	flexverLatest := findLatestVersion(result, gameVersions, true)
+	releaseDateLatest := findLatestVersion(result, gameVersions, false)
 	if flexverLatest != releaseDateLatest && releaseDateLatest.VersionNumber != nil && flexverLatest.VersionNumber != nil {
-		fmt.Printf("Warning: Modrinth versions for %s inconsistent between version numbers and release dates (%s newer than %s)\n", name, *releaseDateLatest.VersionNumber, *flexverLatest.VersionNumber)
+		fmt.Printf("Warning: Modrinth versions for %s inconsistent between latest version number and newest release date (%s vs %s)\n", name, *flexverLatest.VersionNumber, *releaseDateLatest.VersionNumber)
 	}
 
 	return releaseDateLatest, nil

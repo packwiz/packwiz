@@ -164,6 +164,16 @@ func (pack Pack) GetMCVersion() (string, error) {
 	return mcVersion, nil
 }
 
+// GetSupportedMCVersions gets the versions of Minecraft this pack allows in downloaded mods, ordered by preference (highest = most desirable)
+func (pack Pack) GetSupportedMCVersions() ([]string, error) {
+	mcVersion, ok := pack.Versions["minecraft"]
+	if !ok {
+		return nil, errors.New("no minecraft version specified in modpack")
+	}
+	allVersions := append(append([]string(nil), viper.GetStringSlice("acceptable-game-versions")...), mcVersion)
+	return allVersions, nil
+}
+
 func (pack Pack) GetPackName() string {
 	if pack.Name == "" {
 		return "export"

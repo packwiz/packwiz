@@ -39,7 +39,7 @@ var installCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		mcVersion, err := pack.GetMCVersion()
+		mcVersions, err := pack.GetSupportedMCVersions()
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
@@ -90,9 +90,9 @@ var installCmd = &cobra.Command{
 			var cancelled bool
 			if slug == "" {
 				searchTerm := strings.Join(args, " ")
-				cancelled, modInfoData = searchCurseforgeInternal(searchTerm, false, game, category, mcVersion, getSearchLoaderType(pack))
+				cancelled, modInfoData = searchCurseforgeInternal(searchTerm, false, game, category, mcVersions, getSearchLoaderType(pack))
 			} else {
-				cancelled, modInfoData = searchCurseforgeInternal(slug, true, game, category, mcVersion, getSearchLoaderType(pack))
+				cancelled, modInfoData = searchCurseforgeInternal(slug, true, game, category, mcVersions, getSearchLoaderType(pack))
 			}
 			if cancelled {
 				return
@@ -115,7 +115,7 @@ var installCmd = &cobra.Command{
 		}
 
 		var fileInfoData modFileInfo
-		fileInfoData, err = getLatestFile(modInfoData, mcVersion, fileID, pack.GetLoaders())
+		fileInfoData, err = getLatestFile(modInfoData, mcVersions, fileID, pack.GetLoaders())
 		if err != nil {
 			fmt.Printf("Failed to get file for project: %v\n", err)
 			os.Exit(1)
@@ -182,7 +182,7 @@ var installCmd = &cobra.Command{
 					depIDPendingQueue = depIDPendingQueue[:0]
 
 					for _, currData := range depInfoData {
-						depFileInfo, err := getLatestFile(currData, mcVersion, 0, pack.GetLoaders())
+						depFileInfo, err := getLatestFile(currData, mcVersions, 0, pack.GetLoaders())
 						if err != nil {
 							fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
 							continue
@@ -265,7 +265,7 @@ func (r modResultsList) Len() int {
 	return len(r)
 }
 
-func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersion string, searchLoaderType modloaderType) (bool, modInfo) {
+func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, category string, mcVersions []string, searchLoaderType modloaderType) (bool, modInfo) {
 	if isSlug {
 		fmt.Println("Looking up CurseForge slug...")
 	} else {
@@ -328,9 +328,9 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 	}
 
 	// If there are more than one acceptable version, we shouldn't filter by game version at all (as we can't filter by multiple)
-	filterGameVersion := getCurseforgeVersion(mcVersion)
-	if len(viper.GetStringSlice("acceptable-game-versions")) > 0 {
-		filterGameVersion = ""
+	filterGameVersion := ""
+	if len(mcVersions) == 1 {
+		filterGameVersion = getCurseforgeVersion(mcVersions[0])
 	}
 	var search, slug string
 	if isSlug {
@@ -403,37 +403,16 @@ func searchCurseforgeInternal(searchTerm string, isSlug bool, game string, categ
 	}
 }
 
-func getLatestFile(modInfoData modInfo, mcVersion string, fileID uint32, packLoaders []string) (modFileInfo, error) {
+func getLatestFile(modInfoData modInfo, mcVersions []string, fileID uint32, packLoaders []string) (modFileInfo, error) {
 	if fileID == 0 {
-		var fileInfoData modFileInfo
-		fileInfoObtained := false
-		anyFileObtained := false
-
-		// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
-		for _, v := range modInfoData.LatestFiles {
-			anyFileObtained = true
-			// Choose "newest" version by largest ID
-			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaders, v) {
-				fileID = v.ID
-				fileInfoData = v
-				fileInfoObtained = true
-			}
-		}
-		// TODO: change to timestamp-based comparison??
-		for _, v := range modInfoData.GameVersionLatestFiles {
-			anyFileObtained = true
-			// Choose "newest" version by largest ID
-			if matchGameVersion(mcVersion, v.GameVersion) && v.ID > fileID && matchLoaderType(packLoaders, v.Modloader) {
-				fileID = v.ID
-				fileInfoObtained = false // Make sure we get the file info
-			}
-		}
-		if fileInfoObtained {
-			return fileInfoData, nil
-		}
-
-		if !anyFileObtained {
+		if len(modInfoData.LatestFiles) == 0 && len(modInfoData.GameVersionLatestFiles) == 0 {
 			return modFileInfo{}, fmt.Errorf("addon %d has no files", modInfoData.ID)
+		}
+
+		var fileInfoData *modFileInfo
+		fileID, fileInfoData, _ = findLatestFile(modInfoData, mcVersions, packLoaders)
+		if fileInfoData != nil {
+			return *fileInfoData, nil
 		}
 
 		// Possible to reach this point without obtaining file info; particularly from GameVersionLatestFiles

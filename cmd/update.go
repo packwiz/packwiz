@@ -30,11 +30,6 @@ var updateCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		mcVersion, err := pack.GetMCVersion()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 
 		var singleUpdatedName string
 		if viper.GetBool("update.all") {
@@ -70,7 +65,7 @@ var updateCmd = &cobra.Command{
 			updaterPointerMap := make(map[string][]*core.Mod)
 			updaterCachedStateMap := make(map[string][]interface{})
 			for k, v := range updaterMap {
-				checks, err := core.Updaters[k].CheckUpdate(v, mcVersion, pack)
+				checks, err := core.Updaters[k].CheckUpdate(v, pack)
 				if err != nil {
 					// TODO: do we return err code 1?
 					fmt.Printf("Failed to check updates for %s: %s\n", k, err.Error())
@@ -148,7 +143,7 @@ var updateCmd = &cobra.Command{
 				}
 				updaterFound = true
 
-				check, err := updater.CheckUpdate([]core.Mod{modData}, mcVersion, pack)
+				check, err := updater.CheckUpdate([]core.Mod{modData}, pack)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)

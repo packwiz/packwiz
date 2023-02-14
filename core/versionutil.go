@@ -145,3 +145,16 @@ func ComponentToFriendlyName(component string) string {
 		return component
 	}
 }
+
+// HighestSliceIndex returns the highest index of the given values in the slice (-1 if no value is found in the slice)
+func HighestSliceIndex(slice []string, values []string) int {
+	highest := -1
+	for _, val := range values {
+		for i, v := range slice {
+			if v == val && i > highest {
+				highest = i
+			}
+		}
+	}
+	return highest
+}

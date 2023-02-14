@@ -110,6 +110,14 @@ func getCurseforgeVersion(mcVersion string) string {
 	return mcVersion
 }
 
+func getCurseforgeVersions(mcVersions []string) []string {
+	out := make([]string, len(mcVersions))
+	for i, v := range mcVersions {
+		out[i] = getCurseforgeVersion(v)
+	}
+	return out
+}
+
 var urlRegexes = [...]*regexp.Regexp{
 	regexp.MustCompile("^https?://(?P<game>minecraft)\\.curseforge\\.com/projects/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
 	regexp.MustCompile("^https?://(?:www\\.|beta\\.)?curseforge\\.com/(?P<game>[^/]+)/(?P<category>[^/]+)/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
@@ -262,32 +270,37 @@ func matchLoaderTypeFileInfo(packLoaders []string, fileInfoData modFileInfo) boo
 	}
 }
 
-func matchGameVersion(mcVersion string, modMcVersion string) bool {
-	if getCurseforgeVersion(mcVersion) == modMcVersion {
-		return true
-	} else {
-		for _, v := range viper.GetStringSlice("acceptable-game-versions") {
-			if getCurseforgeVersion(v) == modMcVersion {
-				return true
-			}
-		}
-		return false
-	}
-}
+// findLatestFile looks at mod info, and finds the latest file ID (and potentially the file info for it - may be null)
+func findLatestFile(modInfoData modInfo, mcVersions []string, packLoaders []string) (fileID uint32, fileInfoData *modFileInfo, fileName string) {
+	cfMcVersions := getCurseforgeVersions(mcVersions)
+	bestMcVer := -1
 
-func matchGameVersions(mcVersion string, modMcVersions []string) bool {
-	for _, modMcVersion := range modMcVersions {
-		if getCurseforgeVersion(mcVersion) == modMcVersion {
-			return true
-		} else {
-			for _, v := range viper.GetStringSlice("acceptable-game-versions") {
-				if getCurseforgeVersion(v) == modMcVersion {
-					return true
-				}
-			}
+	// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
+	for _, v := range modInfoData.LatestFiles {
+		mcVerIdx := core.HighestSliceIndex(mcVersions, v.GameVersions)
+		// Choose "newest" version by largest ID
+		// Prefer higher indexes of mcVersions
+		if mcVerIdx > -1 && matchLoaderTypeFileInfo(packLoaders, v) && (mcVerIdx >= bestMcVer || v.ID > fileID) {
+			fileID = v.ID
+			fileInfoData = &v
+			fileName = v.FileName
+			bestMcVer = mcVerIdx
 		}
 	}
-	return false
+	// TODO: change to timestamp-based comparison??
+	// TODO: manage alpha/beta/release correctly, check update channel?
+	for _, v := range modInfoData.GameVersionLatestFiles {
+		mcVerIdx := slices.Index(cfMcVersions, v.GameVersion)
+		// Choose "newest" version by largest ID
+		// Prefer higher indexes of mcVersions
+		if mcVerIdx > -1 && matchLoaderType(packLoaders, v.Modloader) && (mcVerIdx >= bestMcVer || v.ID > fileID) {
+			fileID = v.ID
+			fileInfoData = nil // (no file info in GameVersionLatestFiles)
+			fileName = v.Name
+			bestMcVer = mcVerIdx
+		}
+	}
+	return
 }
 
 type cfUpdateData struct {
@@ -311,15 +324,19 @@ func (u cfUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 
 type cachedStateStore struct {
 	modInfo
-	hasFileInfo bool
-	fileID      uint32
-	fileInfo    modFileInfo
+	fileID   uint32
+	fileInfo *modFileInfo
 }
 
-func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack) ([]core.UpdateCheck, error) {
+func (u cfUpdater) CheckUpdate(mods []core.Mod, pack core.Pack) ([]core.UpdateCheck, error) {
 	results := make([]core.UpdateCheck, len(mods))
 	modIDs := make([]uint32, len(mods))
 	modInfos := make([]modInfo, len(mods))
+
+	mcVersions, err := pack.GetSupportedMCVersions()
+	if err != nil {
+		return nil, err
+	}
 
 	for i, v := range mods {
 		projectRaw, ok := v.GetParsedUpdateData("curseforge")
@@ -354,55 +371,18 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 		}
 		project := projectRaw.(cfUpdateData)
 
-		updateAvailable := false
-		fileID := project.FileID
-		fileInfoObtained := false
-		var fileInfoData modFileInfo
-		var fileName string
-
-		// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
-		for _, v := range modInfos[i].LatestFiles {
-			// Choose "newest" version by largest ID
-			if matchGameVersions(mcVersion, v.GameVersions) && v.ID > fileID && matchLoaderTypeFileInfo(packLoaders, v) {
-				updateAvailable = true
-				fileID = v.ID
-				fileInfoData = v
-				fileInfoObtained = true
-				fileName = v.FileName
+		fileID, fileInfoData, fileName := findLatestFile(modInfos[i], mcVersions, packLoaders)
+		if fileID > project.FileID && fileID != 0 {
+			// Update available!
+			results[i] = core.UpdateCheck{
+				UpdateAvailable: true,
+				UpdateString:    v.FileName + " -> " + fileName,
+				CachedState:     cachedStateStore{modInfos[i], fileID, fileInfoData},
 			}
-		}
-
-		for _, file := range modInfos[i].GameVersionLatestFiles {
-			// TODO: change to timestamp-based comparison??
-			// TODO: manage alpha/beta/release correctly, check update channel?
-			// Choose "newest" version by largest ID
-			if matchGameVersion(mcVersion, file.GameVersion) && file.ID > fileID && matchLoaderType(packLoaders, file.Modloader) {
-				updateAvailable = true
-				fileID = file.ID
-				fileName = file.Name
-				fileInfoObtained = false // Make sure we get the file info again
-			}
-		}
-
-		if !updateAvailable {
+		} else {
+			// Could not find a file, too old, or up to date: no update available
 			results[i] = core.UpdateCheck{UpdateAvailable: false}
 			continue
-		}
-
-		// The API also provides some files inline, because that's efficient!
-		if !fileInfoObtained {
-			for _, file := range modInfos[i].LatestFiles {
-				if file.ID == fileID {
-					fileInfoObtained = true
-					fileInfoData = file
-				}
-			}
-		}
-
-		results[i] = core.UpdateCheck{
-			UpdateAvailable: true,
-			UpdateString:    v.FileName + " -> " + fileName,
-			CachedState:     cachedStateStore{modInfos[i], fileInfoObtained, fileID, fileInfoData},
 		}
 	}
 	return results, nil
@@ -413,8 +393,10 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 	for i, v := range mods {
 		modState := cachedState[i].(cachedStateStore)
 
-		fileInfoData := modState.fileInfo
-		if !modState.hasFileInfo {
+		var fileInfoData modFileInfo
+		if modState.fileInfo != nil {
+			fileInfoData = *modState.fileInfo
+		} else {
 			var err error
 			fileInfoData, err = cfDefaultClient.getFileInfo(modState.ID, modState.fileID)
 			if err != nil {

@@ -142,14 +142,14 @@ func installVersionById(versionId string, versionFilename string, pack core.Pack
 }
 
 func installViaSearch(query string, versionFilename string, autoAcceptFirst bool, pack core.Pack, index *core.Index) error {
-	mcVersion, err := pack.GetMCVersion()
+	mcVersions, err := pack.GetSupportedMCVersions()
 	if err != nil {
 		return err
 	}
 
 	fmt.Println("Searching Modrinth...")
 
-	results, err := getProjectIdsViaSearch(query, append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...))
+	results, err := getProjectIdsViaSearch(query, mcVersions)
 	if err != nil {
 		return err
 	}
