@@ -200,7 +200,7 @@ func installViaSearch(query string, versionFilename string, autoAcceptFirst bool
 }
 
 func installProject(project *modrinthApi.Project, versionFilename string, pack core.Pack, index *core.Index) error {
-	latestVersion, err := getLatestVersion(*project.ID, pack)
+	latestVersion, err := getLatestVersion(*project.ID, *project.Title, pack)
 	if err != nil {
 		return fmt.Errorf("failed to get latest version: %v", err)
 	}
@@ -294,7 +294,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 						return errors.New("failed to get dependency data: invalid response")
 					}
 					// Get latest version - could reuse version lookup data but it's not as easy (particularly since the version won't necessarily be the latest)
-					latestVersion, err := getLatestVersion(*project.ID, pack)
+					latestVersion, err := getLatestVersion(*project.ID, *project.Title, pack)
 					if err != nil {
 						return fmt.Errorf("failed to get latest version of dependency %v: %v", *project.ID, err)
 					}
