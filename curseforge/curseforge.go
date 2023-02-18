@@ -244,29 +244,46 @@ func getSearchLoaderType(pack core.Pack) modloaderType {
 	}
 }
 
-func matchLoaderType(packLoaders []string, modLoaderType modloaderType) bool {
+// Crude way of preferring Quilt to Fabric: larger types are preferred
+// so Quilt > Fabric > Forge > Any
+
+func filterLoaderTypeIndex(packLoaders []string, modLoaderType modloaderType) (modloaderType, bool) {
 	if len(packLoaders) == 0 || modLoaderType == modloaderTypeAny {
-		return true
+		// No loaders are specified: allow all files
+		return modloaderTypeAny, true
 	} else {
-		return slices.Contains(packLoaders, modloaderIds[modLoaderType])
+		if slices.Contains(packLoaders, modloaderIds[modLoaderType]) {
+			// Pack contains this loader, pass through
+			return modLoaderType, true
+		} else {
+			// Pack does not contain this loader, report unsupported
+			return modloaderTypeAny, false
+		}
 	}
 }
 
-func matchLoaderTypeFileInfo(packLoaders []string, fileInfoData modFileInfo) bool {
+func filterFileInfoLoaderIndex(packLoaders []string, fileInfoData modFileInfo) (modloaderType, bool) {
 	if len(packLoaders) == 0 {
-		return true
+		// No loaders are specified: allow all files
+		return modloaderTypeAny, true
 	} else {
-		containsLoader := false
+		bestLoaderId := -1
 		for i, name := range modloaderNames {
-			if slices.Contains(fileInfoData.GameVersions, name) {
-				containsLoader = true
-				if slices.Contains(packLoaders, modloaderIds[i]) {
-					return true
+			// Check if packLoaders and the file both contain this loader type
+			if slices.Contains(packLoaders, modloaderIds[i]) && slices.Contains(fileInfoData.GameVersions, name) {
+				if i > bestLoaderId {
+					// First loader found, or a loader preferred over the previous one (later IDs are preferred)
+					bestLoaderId = i
 				}
 			}
 		}
-		// If a file doesn't contain any loaders, it matches all!
-		return !containsLoader
+		if bestLoaderId > -1 {
+			// Found a supported loader
+			return modloaderType(bestLoaderId), true
+		} else {
+			// Failed to find a supported version
+			return modloaderTypeAny, false
+		}
 	}
 }
 
@@ -274,30 +291,35 @@ func matchLoaderTypeFileInfo(packLoaders []string, fileInfoData modFileInfo) boo
 func findLatestFile(modInfoData modInfo, mcVersions []string, packLoaders []string) (fileID uint32, fileInfoData *modFileInfo, fileName string) {
 	cfMcVersions := getCurseforgeVersions(mcVersions)
 	bestMcVer := -1
+	bestLoaderType := modloaderTypeAny
 
 	// For snapshots, curseforge doesn't put them in GameVersionLatestFiles
 	for _, v := range modInfoData.LatestFiles {
 		mcVerIdx := core.HighestSliceIndex(mcVersions, v.GameVersions)
+		loaderIdx, loaderValid := filterFileInfoLoaderIndex(packLoaders, v)
 		// Choose "newest" version by largest ID
 		// Prefer higher indexes of mcVersions
-		if mcVerIdx > -1 && matchLoaderTypeFileInfo(packLoaders, v) && (mcVerIdx >= bestMcVer || v.ID > fileID) {
+		if mcVerIdx > -1 && loaderValid && (mcVerIdx > bestMcVer || loaderIdx > bestLoaderType || v.ID > fileID) {
 			fileID = v.ID
 			fileInfoData = &v
 			fileName = v.FileName
 			bestMcVer = mcVerIdx
+			bestLoaderType = loaderIdx
 		}
 	}
 	// TODO: change to timestamp-based comparison??
 	// TODO: manage alpha/beta/release correctly, check update channel?
 	for _, v := range modInfoData.GameVersionLatestFiles {
 		mcVerIdx := slices.Index(cfMcVersions, v.GameVersion)
+		loaderIdx, loaderValid := filterLoaderTypeIndex(packLoaders, v.Modloader)
 		// Choose "newest" version by largest ID
 		// Prefer higher indexes of mcVersions
-		if mcVerIdx > -1 && matchLoaderType(packLoaders, v.Modloader) && (mcVerIdx >= bestMcVer || v.ID > fileID) {
+		if mcVerIdx > -1 && loaderValid && (mcVerIdx > bestMcVer || loaderIdx > bestLoaderType || v.ID > fileID) {
 			fileID = v.ID
 			fileInfoData = nil // (no file info in GameVersionLatestFiles)
 			fileName = v.Name
 			bestMcVer = mcVerIdx
+			bestLoaderType = loaderIdx
 		}
 	}
 	return
