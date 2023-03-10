@@ -25,8 +25,8 @@ type Mod struct {
 }
 
 const (
-	modeURL string = "url"
-	modeCF  string = "metadata:curseforge"
+	ModeURL string = "url"
+	ModeCF  string = "metadata:curseforge"
 )
 
 // ModDownload specifies how to download the mod file
@@ -132,11 +132,11 @@ func (m Mod) GetDestFilePath() string {
 	return filepath.Join(filepath.Dir(m.metaFile), filepath.FromSlash(m.FileName))
 }
 
-var slugifyRegex1 = regexp.MustCompile("\\(.*\\)")
-var slugifyRegex2 = regexp.MustCompile(" - .+")
-var slugifyRegex3 = regexp.MustCompile("[^a-z\\d]")
-var slugifyRegex4 = regexp.MustCompile("-+")
-var slugifyRegex5 = regexp.MustCompile("^-|-$")
+var slugifyRegex1 = regexp.MustCompile(`\(.*\)`)
+var slugifyRegex2 = regexp.MustCompile(` - .+`)
+var slugifyRegex3 = regexp.MustCompile(`[^a-z\d]`)
+var slugifyRegex4 = regexp.MustCompile(`-+`)
+var slugifyRegex5 = regexp.MustCompile(`^-|-$`)
 
 func SlugifyName(name string) string {
 	lower := strings.ToLower(name)

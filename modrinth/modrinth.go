@@ -282,7 +282,9 @@ func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthA
 		GameVersions: gameVersions,
 		Loaders:      loaders,
 	})
-
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch latest version: %w", err)
+	}
 	if len(result) == 0 {
 		// TODO: retry with datapack specified, to determine what the issue is? or just request all and filter afterwards
 		return nil, errors.New("no valid versions found\nUse the acceptable-game-versions option to accept more game versions\nTo use datapacks, add a datapack loader mod and specify the datapack-folder option with the folder this mod loads datapacks from")

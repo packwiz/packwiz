@@ -56,6 +56,10 @@ func init() {
 	_ = viper.BindPFlag("meta-folder-base", rootCmd.PersistentFlags().Lookup("meta-folder-base"))
 
 	defaultCacheDir, err := core.GetPackwizCache()
+	if err != nil {
+		fmt.Println(err)
+		os.Exit(1)
+	}
 	rootCmd.PersistentFlags().String("cache", defaultCacheDir, "The directory where packwiz will cache downloaded mods")
 	_ = viper.BindPFlag("cache.directory", rootCmd.PersistentFlags().Lookup("cache"))
 

@@ -280,7 +280,7 @@ var whitelistedHosts = []string{
 }
 
 func canBeIncludedDirectly(mod *core.Mod, restrictDomains bool) bool {
-	if mod.Download.Mode == "url" || mod.Download.Mode == "" {
+	if mod.Download.Mode == core.ModeURL || mod.Download.Mode == "" {
 		if !restrictDomains {
 			return true
 		}

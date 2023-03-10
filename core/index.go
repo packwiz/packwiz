@@ -208,9 +208,8 @@ func (in *Index) Refresh() error {
 	pathIndex, _ := filepath.Abs(in.indexFile)
 
 	packRoot := in.GetPackRoot()
-	ignoreExists := true
 	pathIgnore, _ := filepath.Abs(filepath.Join(packRoot, ".packwizignore"))
-	ignore, ignoreExists := readGitignore(filepath.Join(packRoot, ".packwizignore"))
+	ignore, ignoreExists := readGitignore(pathIgnore)
 
 	var fileList []string
 	err := filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {

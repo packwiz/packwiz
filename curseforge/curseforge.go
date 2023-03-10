@@ -29,7 +29,7 @@ func init() {
 	core.MetaDownloaders["curseforge"] = cfDownloader{}
 }
 
-var snapshotVersionRegex = regexp.MustCompile("(?:Snapshot )?(\\d+)w0?(0|[1-9]\\d*)([a-z])")
+var snapshotVersionRegex = regexp.MustCompile(`(?:Snapshot )?(\d+)w0?(0|[1-9]\d*)([a-z])`)
 
 var snapshotNames = [...]string{"-pre", " Pre-Release ", " Pre-release ", "-rc"}
 
@@ -119,9 +119,9 @@ func getCurseforgeVersions(mcVersions []string) []string {
 }
 
 var urlRegexes = [...]*regexp.Regexp{
-	regexp.MustCompile("^https?://(?P<game>minecraft)\\.curseforge\\.com/projects/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
-	regexp.MustCompile("^https?://(?:www\\.|beta\\.)?curseforge\\.com/(?P<game>[^/]+)/(?P<category>[^/]+)/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\\d+))?"),
-	regexp.MustCompile("^(?P<slug>[a-z][\\da-z\\-_]{0,127})$"),
+	regexp.MustCompile(`^https?://(?P<game>minecraft)\.curseforge\.com/projects/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\d+))?`),
+	regexp.MustCompile(`^https?://(?:www\.|beta\.)?curseforge\.com/(?P<game>[^/]+)/(?P<category>[^/]+)/(?P<slug>[^/]+)(?:/(?:files|download)/(?P<fileID>\d+))?`),
+	regexp.MustCompile(`^(?P<slug>[a-z][\da-z\-_]{0,127})$`),
 }
 
 func parseSlugOrUrl(url string) (game string, category string, slug string, fileID uint32, err error) {
@@ -203,7 +203,7 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 		Download: core.ModDownload{
 			HashFormat: hashFormat,
 			Hash:       hash,
-			Mode:       "metadata:curseforge",
+			Mode:       core.ModeCF,
 		},
 		Option: optional,
 		Update: updateMap,
@@ -456,7 +456,7 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 		v.Download = core.ModDownload{
 			HashFormat: hashFormat,
 			Hash:       hash,
-			Mode:       "metadata:curseforge",
+			Mode:       core.ModeCF,
 		}
 
 		v.Update["curseforge"]["project-id"] = modState.ID

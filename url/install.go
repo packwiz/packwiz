@@ -126,6 +126,9 @@ var installCmd = &cobra.Command{
 func getSha1(url string) (string, error) {
 	// TODO: hook up to existing cache system? might not be that useful
 	mainHasher, err := core.GetHashImpl("sha1")
+	if err != nil {
+		return "", err
+	}
 	resp, err := http.Get(url)
 	if err != nil {
 		return "", err

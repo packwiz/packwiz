@@ -58,7 +58,10 @@ var serveCmd = &cobra.Command{
 			}
 
 			indexPageBuf := new(bytes.Buffer)
-			t.Execute(indexPageBuf, struct{ Port string }{Port: port})
+			err = t.Execute(indexPageBuf, struct{ Port string }{Port: port})
+			if err != nil {
+				panic(fmt.Errorf("failed to compile index page template: %w", err))
+			}
 
 			// Force-disable no-internal-hashes mode (equiv to --build flag in refresh) for serving over HTTP
 			if viper.GetBool("no-internal-hashes") {

@@ -595,7 +595,7 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 
 	// Get necessary metadata for all files
 	for _, mod := range mods {
-		if mod.Download.Mode == "url" || mod.Download.Mode == "" {
+		if mod.Download.Mode == ModeURL || mod.Download.Mode == "" {
 			downloadSession.downloadTasks = append(downloadSession.downloadTasks, downloadTask{
 				mod:        mod,
 				url:        mod.Download.URL,
