@@ -38,9 +38,10 @@ func getProjectIdsViaSearch(query string, versions []string) ([]*modrinthApi.Sea
 	}
 
 	res, err := mrDefaultClient.Projects.Search(&modrinthApi.SearchOptions{
-		Limit: 5,
-		Index: "relevance",
-		Query: query,
+		Limit:  5,
+		Index:  "relevance",
+		Facets: [][]string{facets},
+		Query:  query,
 	})
 
 	if err != nil {
