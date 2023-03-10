@@ -297,24 +297,48 @@ func findLatestFile(modInfoData modInfo, mcVersions []string, packLoaders []stri
 	for _, v := range modInfoData.LatestFiles {
 		mcVerIdx := core.HighestSliceIndex(mcVersions, v.GameVersions)
 		loaderIdx, loaderValid := filterFileInfoLoaderIndex(packLoaders, v)
-		// Choose "newest" version by largest ID
-		// Prefer higher indexes of mcVersions
-		if mcVerIdx > -1 && loaderValid && (mcVerIdx > bestMcVer || loaderIdx > bestLoaderType || v.ID > fileID) {
+
+		if mcVerIdx < 0 || !loaderValid {
+			continue
+		}
+		// Compare first by Minecraft version (prefer higher indexes of mcVersions)
+		compare := int32(mcVerIdx - bestMcVer)
+		if compare == 0 {
+			// Prefer higher loader indexes
+			compare = int32(loaderIdx - bestLoaderType)
+		}
+		if compare == 0 {
+			// Other comparisons are equal, compare by ID instead
+			compare = int32(v.ID - fileID)
+		}
+		if compare > 0 {
 			fileID = v.ID
-			fileInfoData = &v
+			fileInfoDataCopy := v // Fix for loop variable reference (which gets reassigned on every iteration!)
+			fileInfoData = &fileInfoDataCopy
 			fileName = v.FileName
 			bestMcVer = mcVerIdx
 			bestLoaderType = loaderIdx
 		}
 	}
-	// TODO: change to timestamp-based comparison??
 	// TODO: manage alpha/beta/release correctly, check update channel?
 	for _, v := range modInfoData.GameVersionLatestFiles {
 		mcVerIdx := slices.Index(cfMcVersions, v.GameVersion)
 		loaderIdx, loaderValid := filterLoaderTypeIndex(packLoaders, v.Modloader)
-		// Choose "newest" version by largest ID
-		// Prefer higher indexes of mcVersions
-		if mcVerIdx > -1 && loaderValid && (mcVerIdx > bestMcVer || loaderIdx > bestLoaderType || v.ID > fileID) {
+
+		if mcVerIdx < 0 || !loaderValid {
+			continue
+		}
+		// Compare first by Minecraft version (prefer higher indexes of mcVersions)
+		compare := int32(mcVerIdx - bestMcVer)
+		if compare == 0 {
+			// Prefer higher loader indexes
+			compare = int32(loaderIdx - bestLoaderType)
+		}
+		if compare == 0 {
+			// Other comparisons are equal, compare by ID instead
+			compare = int32(v.ID - fileID)
+		}
+		if compare > 0 {
 			fileID = v.ID
 			fileInfoData = nil // (no file info in GameVersionLatestFiles)
 			fileName = v.Name

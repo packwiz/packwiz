@@ -242,11 +242,16 @@ func findLatestVersion(versions []*modrinthApi.Version, gameVersions []string, u
 		}
 
 		if compare == 0 {
-			if loaderIdx < latestValidLoaderIdx { // Prefer loaders; principally Quilt over Fabric, mods over datapacks (Modrinth backend handles filtering)
-				compare = 1
-			} else if gameVersionIdx > bestGameVersion { // Prefer later specified game versions (main version specified last)
-				compare = 1
-			} else if v.DatePublished.After(*latestValidVersion.DatePublished) { // FlexVer comparison is equal or disabled, compare date instead
+			// Prefer later specified game versions (main version specified last)
+			compare = int32(gameVersionIdx - bestGameVersion)
+		}
+		if compare == 0 {
+			// Prefer loaders; principally Quilt over Fabric, mods over datapacks (Modrinth backend handles filtering)
+			compare = int32(latestValidLoaderIdx - loaderIdx)
+		}
+		if compare == 0 {
+			// Other comparisons are equal, compare date instead
+			if v.DatePublished.After(*latestValidVersion.DatePublished) {
 				compare = 1
 			}
 		}

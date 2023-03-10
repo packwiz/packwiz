@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"io"
 	"os"
 	"path/filepath"
@@ -171,7 +172,16 @@ func (pack Pack) GetSupportedMCVersions() ([]string, error) {
 		return nil, errors.New("no minecraft version specified in modpack")
 	}
 	allVersions := append(append([]string(nil), viper.GetStringSlice("acceptable-game-versions")...), mcVersion)
-	return allVersions, nil
+	// Deduplicate values
+	allVersionsDeduped := []string(nil)
+	for i, v := range allVersions {
+		// If another copy of this value exists past this point in the array, don't insert
+		// (i.e. prefer a later copy over an earlier copy, so the main version is last)
+		if !slices.Contains(allVersions[i+1:], v) {
+			allVersionsDeduped = append(allVersionsDeduped, v)
+		}
+	}
+	return allVersionsDeduped, nil
 }
 
 func (pack Pack) GetPackName() string {
