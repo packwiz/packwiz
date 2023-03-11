@@ -490,7 +490,8 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 	}
 
 	downloaderData := make([]core.MetaDownloaderData, len(mods))
-	indexMap := make(map[uint32]int)
+	// Need array mapping project ID -> mod index, since there may be multiple files with the same project ID
+	indexMap := make(map[uint32][]int)
 	projectMetadata := make([]cfUpdateData, len(mods))
 	fileIDs := make([]uint32, len(mods))
 	for i, v := range mods {
@@ -499,7 +500,7 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 			return nil, fmt.Errorf("failed to read CurseForge update metadata from %s", v.Name)
 		}
 		project := updateData.(cfUpdateData)
-		indexMap[project.ProjectID] = i
+		indexMap[project.ProjectID] = append(indexMap[project.ProjectID], i)
 		projectMetadata[i] = project
 		fileIDs[i] = project.FileID
 	}
@@ -510,7 +511,7 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 	}
 
 	modIDsToLookup := make([]uint32, 0)
-	fileNames := make([]string, len(mods))
+	fileNames := make(map[uint32]string)
 	for _, file := range fileData {
 		if _, ok := indexMap[file.ModID]; !ok {
 			return nil, fmt.Errorf("unknown project ID in response: %v (file %v, name %v)", file.ModID, file.ID, file.FileName)
@@ -518,10 +519,12 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 		// Opted-out mods don't provide their download URLs
 		if file.DownloadURL == "" {
 			modIDsToLookup = append(modIDsToLookup, file.ModID)
-			fileNames[indexMap[file.ModID]] = file.FileName
+			fileNames[file.ModID] = file.FileName
 		} else {
-			downloaderData[indexMap[file.ModID]] = &cfDownloadMetadata{
-				url: file.DownloadURL,
+			for _, v := range indexMap[file.ModID] {
+				downloaderData[v] = &cfDownloadMetadata{
+					url: file.DownloadURL,
+				}
 			}
 		}
 	}
@@ -535,12 +538,21 @@ func (c cfDownloader) GetFilesMetadata(mods []*core.Mod) ([]core.MetaDownloaderD
 			if _, ok := indexMap[mod.ID]; !ok {
 				return nil, fmt.Errorf("unknown project ID in response: %v (for %v)", mod.ID, mod.Name)
 			}
-			downloaderData[indexMap[mod.ID]] = &cfDownloadMetadata{
-				noDistribution: true, // Inverted so the default value is not this (probably doesn't matter)
-				name:           mod.Name,
-				websiteUrl:     mod.Links.WebsiteURL + "/files/" + strconv.FormatUint(uint64(fileIDs[indexMap[mod.ID]]), 10),
-				fileName:       fileNames[indexMap[mod.ID]],
+			for _, v := range indexMap[mod.ID] {
+				downloaderData[v] = &cfDownloadMetadata{
+					noDistribution: true, // Inverted so the default value is not this (probably doesn't matter)
+					name:           mod.Name,
+					websiteUrl:     mod.Links.WebsiteURL + "/files/" + strconv.FormatUint(uint64(fileIDs[v]), 10),
+					fileName:       fileNames[mod.ID],
+				}
 			}
+		}
+	}
+
+	// Ensure all files got data
+	for i, v := range downloaderData {
+		if v == nil {
+			return nil, fmt.Errorf("did not get CurseForge metadata for %s", mods[i].Name)
 		}
 	}
 
