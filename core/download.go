@@ -268,7 +268,7 @@ func teeHashes(hashesToObtain []string, hashes map[string]string,
 	calculatedHash := mainHasher.HashToString(mainHasher.Sum(nil))
 
 	// Check if the hash of the downloaded file matches the expected hash
-	if calculatedHash != validateHash {
+	if strings.ToLower(calculatedHash) != strings.ToLower(validateHash) {
 		return fmt.Errorf(
 			"%s hash of downloaded file does not match with expected hash!\n download hash: %s\n expected hash: %s\n",
 			validateHashFormat, calculatedHash, validateHash)
