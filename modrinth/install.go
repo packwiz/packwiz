@@ -296,7 +296,8 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 					// Get latest version - could reuse version lookup data but it's not as easy (particularly since the version won't necessarily be the latest)
 					latestVersion, err := getLatestVersion(*project.ID, *project.Title, pack)
 					if err != nil {
-						return fmt.Errorf("failed to get latest version of dependency %v: %v", *project.ID, err)
+						fmt.Printf("Failed to get latest version of dependency %v: %v\n", *project.Title, err)
+						continue
 					}
 
 					for _, dep := range version.Dependencies {
