@@ -62,7 +62,7 @@ var installCmd = &cobra.Command{
 
 		var version string
 		var parsedSlug bool
-		if projectID == "" && versionID == "" {
+		if projectID == "" && versionID == "" && len(args) == 1 {
 			// Try interpreting the argument as a slug/project ID, or project/version/CDN URL
 			parsedSlug, err = parseSlugOrUrl(args[0], &projectID, &version, &versionID, &versionFilename)
 			if err != nil {
