@@ -84,8 +84,10 @@ func (in *Index) updateFileHashGiven(path, format, hash string, mod bool) error 
 	if err != nil {
 		return err
 	}
+	slashPath := filepath.ToSlash(relPath)
+	// TODO: make this not a linear scan for every file update
 	for k, v := range in.Files {
-		if filepath.Clean(filepath.FromSlash(v.File)) == relPath {
+		if v.File == slashPath {
 			found = true
 			// Update hash
 			in.Files[k].Hash = hash
@@ -96,15 +98,14 @@ func (in *Index) updateFileHashGiven(path, format, hash string, mod bool) error 
 			}
 			// Mark this file as found
 			in.Files[k].fileExistsTemp = true
-			// Clean up path if it's untidy
-			in.Files[k].File = filepath.ToSlash(relPath)
+			in.Files[k].File = slashPath
 			// Don't break out of loop, as there may be aliased versions that
 			// also need to be updated
 		}
 	}
 	if !found {
 		newFile := IndexFile{
-			File:           filepath.ToSlash(relPath),
+			File:           slashPath,
 			Hash:           hash,
 			fileExistsTemp: true,
 		}
