@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -260,6 +261,11 @@ func (in *Index) Refresh() error {
 			),
 		),
 	)
+
+	// Normalise file paths: updateFile needs to compare path equality
+	for i := range in.Files {
+		in.Files[i].File = path.Clean(in.Files[i].File)
+	}
 
 	for _, v := range fileList {
 		start := time.Now()
