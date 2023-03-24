@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"io"
 	"io/fs"
 	"os"
@@ -79,33 +80,45 @@ func (in *Index) resortIndex() {
 	})
 }
 
+func (in *Index) markFound(i int, format, hash string) {
+	// Update hash
+	in.Files[i].Hash = hash
+	if in.HashFormat == format {
+		in.Files[i].HashFormat = ""
+	} else {
+		in.Files[i].HashFormat = format
+	}
+	// Mark this file as found
+	in.Files[i].fileExistsTemp = true
+}
+
 func (in *Index) updateFileHashGiven(path, format, hash string, mod bool) error {
 	// Find in index
-	found := false
 	relPath, err := filepath.Rel(filepath.Dir(in.indexFile), path)
 	if err != nil {
 		return err
 	}
 	slashPath := filepath.ToSlash(relPath)
-	// TODO: make this not a linear scan for every file update
-	for k, v := range in.Files {
-		if v.File == slashPath {
-			found = true
-			// Update hash
-			in.Files[k].Hash = hash
-			if in.HashFormat == format {
-				in.Files[k].HashFormat = ""
-			} else {
-				in.Files[k].HashFormat = format
-			}
-			// Mark this file as found
-			in.Files[k].fileExistsTemp = true
-			in.Files[k].File = slashPath
-			// Don't break out of loop, as there may be aliased versions that
-			// also need to be updated
+
+	// Binary search for slashPath in the files list
+	i, found := slices.BinarySearchFunc(in.Files, IndexFile{File: slashPath}, func(a IndexFile, b IndexFile) int {
+		return strings.Compare(a.File, b.File)
+	})
+	if found {
+		in.markFound(i, format, hash)
+		// There may be other entries with the same file path but different alias!
+		// Search back and forth to find them:
+		j := i
+		for j > 0 && in.Files[j-1].File == slashPath {
+			j = j - 1
+			in.markFound(j, format, hash)
 		}
-	}
-	if !found {
+		j = i
+		for j < len(in.Files)-1 && in.Files[j+1].File == slashPath {
+			j = j + 1
+			in.markFound(j, format, hash)
+		}
+	} else {
 		newFile := IndexFile{
 			File:           slashPath,
 			Hash:           hash,
@@ -271,6 +284,8 @@ func (in *Index) Refresh() error {
 	for i := range in.Files {
 		in.Files[i].File = path.Clean(in.Files[i].File)
 	}
+	// Resort index (required by updateFile)
+	in.resortIndex()
 
 	for _, v := range fileList {
 		start := time.Now()
@@ -303,6 +318,8 @@ func (in *Index) Refresh() error {
 
 // RefreshFile calculates the hash for a given path and updates it in the index (also sorts the index)
 func (in *Index) RefreshFile(path string) error {
+	// Resort index first (required by updateFile)
+	in.resortIndex()
 	err := in.updateFile(path)
 	if err != nil {
 		return err
@@ -335,6 +352,8 @@ func (in *Index) RefreshFileWithHash(path, format, hash string, mod bool) error 
 	if viper.GetBool("no-internal-hashes") {
 		hash = ""
 	}
+	// Resort index first (required by updateFile)
+	in.resortIndex()
 	err := in.updateFileHashGiven(path, format, hash, mod)
 	if err != nil {
 		return err
