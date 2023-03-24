@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"path"
 	"path/filepath"
@@ -214,19 +215,23 @@ func (in *Index) Refresh() error {
 	ignore, ignoreExists := readGitignore(pathIgnore)
 
 	var fileList []string
-	err := filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(packRoot, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			// TODO: Handle errors on individual files properly
 			return err
 		}
 
+		if info.IsDir() {
+			// Don't traverse ignored directories (consistent with Git handling of ignored dirs)
+			if ignore.MatchesPath(path) {
+				return fs.SkipDir
+			}
+			// Don't add directories to the file list
+			return nil
+		}
 		// Exit if the files are the same as the pack/index files
 		absPath, _ := filepath.Abs(path)
 		if absPath == pathPF || absPath == pathIndex {
-			return nil
-		}
-		// Exit if this is a directory
-		if info.IsDir() {
 			return nil
 		}
 		if ignoreExists {
