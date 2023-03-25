@@ -234,6 +234,11 @@ func (in *Index) Refresh() error {
 			return err
 		}
 
+		// Never ignore pack root itself (gitignore doesn't allow ignoring the root)
+		if path == packRoot {
+			return nil
+		}
+
 		if info.IsDir() {
 			// Don't traverse ignored directories (consistent with Git handling of ignored dirs)
 			if ignore.MatchesPath(path) {
