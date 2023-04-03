@@ -17,7 +17,7 @@ var acceptableVersionsCommand = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		modpack, err := core.LoadPack()
 		if err != nil {
-			// Check if it's a no sucj fiole or directory error
+			// Check if it's a no such file or directory error
 			if os.IsNotExist(err) {
 				fmt.Println("No pack.toml file found, run 'packwiz init' to create one!")
 				os.Exit(1)
