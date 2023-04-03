@@ -1,0 +1,43 @@
+package settings
+
+import (
+	"fmt"
+	"github.com/packwiz/packwiz/core"
+	"github.com/spf13/cobra"
+	"os"
+	"strings"
+)
+
+var acceptableVersionsCommand = &cobra.Command{
+	Use:     "acceptable-versions",
+	Short:   "Manage your pack's acceptable versions. This must be a comma seperated list of Minecraft versions, e.g. 1.16.5,1.16.4,1.16.3",
+	Aliases: []string{"av"},
+	Args:    cobra.ExactArgs(1),
+	Run: func(cmd *cobra.Command, args []string) {
+		modpack, err := core.LoadPack()
+		if err != nil {
+			// Check if it's a no sucj fiole or directory error
+			if os.IsNotExist(err) {
+				fmt.Println("No pack.toml file found, run 'packwiz init' to create one!")
+				os.Exit(1)
+			}
+			fmt.Printf("Error loading pack: %s\n", err)
+			os.Exit(1)
+		}
+		acceptableVersions := args[0]
+		acceptableVersionsList := strings.Split(acceptableVersions, ",")
+		modpack.Options["acceptable-game-versions"] = acceptableVersionsList
+		err = modpack.Write()
+		if err != nil {
+			fmt.Printf("Error writing pack: %s\n", err)
+			os.Exit(1)
+		}
+		// Print success message
+		prettyList := strings.Join(acceptableVersionsList, ", ")
+		fmt.Printf("Set acceptable versions to %s\n", prettyList)
+	},
+}
+
+func init() {
+	settingsCmd.AddCommand(acceptableVersionsCommand)
+}

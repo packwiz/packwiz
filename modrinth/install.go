@@ -205,7 +205,7 @@ func installProject(project *modrinthApi.Project, versionFilename string, pack c
 		return fmt.Errorf("failed to get latest version: %v", err)
 	}
 	if latestVersion.ID == nil {
-		return errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-game-versions option to accept more) or loader")
+		return errors.New("mod not available for the configured Minecraft version(s) (use the 'packwiz settings acceptable-versions' command to accept more) or loader")
 	}
 
 	return installVersion(project, latestVersion, versionFilename, pack, index)
