@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 	"os"
 	"strings"
 )
@@ -26,14 +27,21 @@ var acceptableVersionsCommand = &cobra.Command{
 		}
 		acceptableVersions := args[0]
 		acceptableVersionsList := strings.Split(acceptableVersions, ",")
-		modpack.Options["acceptable-game-versions"] = acceptableVersionsList
+		// Dedupe the list
+		acceptableVersionsDeduped := []string(nil)
+		for i, v := range acceptableVersionsList {
+			if !slices.Contains(acceptableVersionsList[i+1:], v) {
+				acceptableVersionsDeduped = append(acceptableVersionsDeduped, v)
+			}
+		}
+		modpack.Options["acceptable-game-versions"] = acceptableVersionsDeduped
 		err = modpack.Write()
 		if err != nil {
 			fmt.Printf("Error writing pack: %s\n", err)
 			os.Exit(1)
 		}
 		// Print success message
-		prettyList := strings.Join(acceptableVersionsList, ", ")
+		prettyList := strings.Join(acceptableVersionsDeduped, ", ")
 		fmt.Printf("Set acceptable versions to %s\n", prettyList)
 	},
 }
