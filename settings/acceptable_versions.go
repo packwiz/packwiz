@@ -2,8 +2,10 @@ package settings
 
 import (
 	"fmt"
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"github.com/unascribed/FlexVer/go/flexver"
 	"golang.org/x/exp/slices"
 	"os"
 	"strings"
@@ -11,7 +13,7 @@ import (
 
 var acceptableVersionsCommand = &cobra.Command{
 	Use:     "acceptable-versions",
-	Short:   "Manage your pack's acceptable versions. This must be a comma seperated list of Minecraft versions, e.g. 1.16.5,1.16.4,1.16.3",
+	Short:   "Manage your pack's acceptable Minecraft versions. This must be a comma seperated list of Minecraft versions, e.g. 1.16.3,1.16.4,1.16.5",
 	Aliases: []string{"av"},
 	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
@@ -32,6 +34,27 @@ var acceptableVersionsCommand = &cobra.Command{
 		for i, v := range acceptableVersionsList {
 			if !slices.Contains(acceptableVersionsList[i+1:], v) {
 				acceptableVersionsDeduped = append(acceptableVersionsDeduped, v)
+			}
+		}
+		// Check if the list of versions is out of order, lowest to highest, and inform the user if it is
+		// Compare the versions one by one to the next one, if the next one is lower, then it's out of order
+		for i, v := range acceptableVersionsDeduped {
+			if flexver.Less(acceptableVersionsDeduped[i+1], v) {
+				fmt.Printf("Warning: Your acceptable versions list is out of order. ")
+				// Give a do you mean example
+				// Clone the list
+				acceptableVersionsDedupedClone := make([]string, len(acceptableVersionsDeduped))
+				copy(acceptableVersionsDedupedClone, acceptableVersionsDeduped)
+				flexver.VersionSlice(acceptableVersionsDedupedClone).Sort()
+				fmt.Printf("Did you mean %s?\n", strings.Join(acceptableVersionsDedupedClone, ", "))
+				if cmdshared.PromptYesNo("Would you like to fix this automatically? [Y/n] ") {
+					// If yes we'll just set the list to the sorted one
+					acceptableVersionsDeduped = acceptableVersionsDedupedClone
+					break
+				} else {
+					// If no we'll just continue
+					break
+				}
 			}
 		}
 		modpack.Options["acceptable-game-versions"] = acceptableVersionsDeduped
