@@ -29,9 +29,17 @@ var acceptableVersionsCommand = &cobra.Command{
 			os.Exit(1)
 		}
 		var currentVersions []string
-		// Convert the interface{} to a string slice
-		for _, v := range modpack.Options["acceptable-game-versions"].([]interface{}) {
-			currentVersions = append(currentVersions, v.(string))
+		// Check if they have no options whatsoever
+		if modpack.Options == nil {
+			// Initialize the options
+			modpack.Options = make(map[string]interface{})
+		}
+		// Check if the acceptable-game-versions is nil, which would mean their pack.toml doesn't have it set yet
+		if modpack.Options["acceptable-game-versions"] != nil {
+			// Convert the interface{} to a string slice
+			for _, v := range modpack.Options["acceptable-game-versions"].([]interface{}) {
+				currentVersions = append(currentVersions, v.(string))
+			}
 		}
 		// Check our flags to see if we're adding or removing
 		if viper.GetBool("settings.acceptable-versions.add") {
