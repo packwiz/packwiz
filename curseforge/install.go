@@ -417,7 +417,7 @@ func getLatestFile(modInfoData modInfo, mcVersions []string, fileID uint32, pack
 
 		// Possible to reach this point without obtaining file info; particularly from GameVersionLatestFiles
 		if fileID == 0 {
-			return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the acceptable-game-versions option to accept more) or loader")
+			return modFileInfo{}, errors.New("mod not available for the configured Minecraft version(s) (use the 'packwiz settings acceptable-versions' command to accept more) or loader")
 		}
 	}
 
