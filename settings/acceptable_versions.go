@@ -73,7 +73,8 @@ var acceptableVersionsCommand = &cobra.Command{
 				os.Exit(1)
 			}
 			// Remove the version from the list
-			currentVersions = slices.Delete(currentVersions, slices.Index(currentVersions, acceptableVersion), 1)
+			i := slices.Index(currentVersions, acceptableVersion)
+			currentVersions = slices.Delete(currentVersions, i, i+1)
 			// Sort it just in case it's out of order
 			flexver.VersionSlice(currentVersions).Sort()
 			// Set the new list
