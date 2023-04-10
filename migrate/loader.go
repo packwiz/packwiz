@@ -43,24 +43,15 @@ var loaderCommand = &cobra.Command{
 			fmt.Println("Updating to latest loader version")
 			// We'll be updating to the latest loader version
 			for _, loader := range currentLoader {
-				loader, ok := core.ModLoaders[loader]
-				if !ok {
-					fmt.Printf("Unknown loader %s\n", loader)
-					continue
-				}
-				_, latest, err := loader.VersionListGetter(mcVersion)
-				if err != nil {
-					fmt.Printf("Error getting version list for %s: %s\n", loader.Name, err)
-					continue
-				}
+				_, latest, gottenLoader := getVersionsForLoader(loader, mcVersion)
 				// Check if the latest version is already set
-				if latest == modpack.Versions[loader.Name] {
-					fmt.Printf("Loader %s is already up to date!\n", loader.Name)
+				if latest == modpack.Versions[gottenLoader.Name] {
+					fmt.Printf("Loader %s is already up to date!\n", gottenLoader.Name)
 					continue
 				}
 				// Set the latest version
-				modpack.Versions[loader.Name] = latest
-				fmt.Printf("Updated loader %s to version %s\n", loader.Name, latest)
+				modpack.Versions[gottenLoader.Name] = latest
+				fmt.Printf("Updated loader %s to version %s\n", gottenLoader.Name, latest)
 				// Write the pack to disk
 				err = modpack.Write()
 				if err != nil {
@@ -77,6 +68,33 @@ var loaderCommand = &cobra.Command{
 			// Check if they're using quilt as we'll have 2 versions to update and will need to prompt for the versions
 			if slices.Contains(currentLoader, "quilt") {
 				// TODO: Prompt for the loader versions
+			} else {
+				// This one is easy :D
+				versions, _, loader := getVersionsForLoader(currentLoader[0], mcVersion)
+				// Check if the loader happens to be Forge, since there's two version formats
+				if loader.Name == "forge" {
+					// TODO: Handle both mcVersion-loaderVersion and loaderVersion
+				} else if loader.Name == "liteloader" {
+					// These are weird and just have a MC version
+					fmt.Println("LiteLoader only has 1 version per Minecraft version so we're unable to update!")
+					os.Exit(0)
+				} else {
+					// We're on Fabric
+					// Check if the given version is in the list
+					if !slices.Contains(versions, args[0]) {
+						fmt.Printf("Version %s is not a valid version for %s\n", args[0], loader.Name)
+						os.Exit(1)
+					}
+					// Set the version
+					modpack.Versions[loader.Name] = args[0]
+					fmt.Printf("Updated loader %s to version %s\n", loader.Name, args[0])
+					// Write the pack to disk
+					err = modpack.Write()
+					if err != nil {
+						fmt.Printf("Error writing pack.toml: %s\n", err)
+						os.Exit(1)
+					}
+				}
 			}
 		}
 	},
@@ -84,4 +102,18 @@ var loaderCommand = &cobra.Command{
 
 func init() {
 	migrateCmd.AddCommand(loaderCommand)
+}
+
+func getVersionsForLoader(loader, mcVersion string) ([]string, string, core.ModLoaderComponent) {
+	gottenLoader, ok := core.ModLoaders[loader]
+	if !ok {
+		fmt.Printf("Unknown loader %s\n", loader)
+		os.Exit(1)
+	}
+	versions, latestVersion, err := gottenLoader.VersionListGetter(mcVersion)
+	if err != nil {
+		fmt.Printf("Error getting version list for %s: %s\n", gottenLoader.Name, err)
+		os.Exit(1)
+	}
+	return versions, latestVersion, gottenLoader
 }
