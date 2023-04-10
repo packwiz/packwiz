@@ -96,7 +96,7 @@ func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersi
 		}
 		// Sort list to get largest version
 		flexver.VersionSlice(out.Versioning.Versions.Version).Sort()
-		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
+		return allowedVersions, allowedVersions[0], nil
 	}
 }
 
