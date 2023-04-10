@@ -33,6 +33,10 @@ var loaderCommand = &cobra.Command{
 		} else if !slices.Contains(currentLoader, "quilt") && len(currentLoader) > 1 {
 			fmt.Println("You have multiple loaders set in your pack.toml, this is not supported!")
 			os.Exit(1)
+		} else if slices.Contains(currentLoader, "quilt") {
+			// We have quilt, so we need to remove fabric from the loaders list
+			fabricIndex := slices.Index(currentLoader, "fabric")
+			currentLoader = slices.Delete(currentLoader, fabricIndex, fabricIndex+1)
 		}
 		// Get the Minecraft version for the pack
 		mcVersion, err := modpack.GetMCVersion()
@@ -61,35 +65,29 @@ var loaderCommand = &cobra.Command{
 			os.Exit(1)
 		} else {
 			fmt.Println("Updating to explicit loader version")
-			// Check if they're using quilt as we'll have 2 versions to update and will need to prompt for the versions
-			if slices.Contains(currentLoader, "quilt") {
-				// TODO: Prompt for the loader versions
-			} else {
-				// This one is easy :D
-				versions, _, loader := getVersionsForLoader(currentLoader[0], mcVersion)
-				// Check if the loader happens to be Forge, since there's two version formats
-				if loader.Name == "forge" {
-					// TODO: Handle both mcVersion-loaderVersion and loaderVersion
-					var wantedVersion string
-					// Check if we have a "-" in the version
-					if strings.Contains(args[0], "-") {
-						// We have a mcVersion-loaderVersion format
-						// Strip the mcVersion
-						wantedVersion = strings.Split(args[0], "-")[1]
-					} else {
-						wantedVersion = args[0]
-					}
-					validateVersion(versions, wantedVersion, loader)
-					_ = updatePackToVersion(wantedVersion, modpack, loader)
-				} else if loader.Name == "liteloader" {
-					// These are weird and just have a MC version
-					fmt.Println("LiteLoader only has 1 version per Minecraft version so we're unable to update!")
-					os.Exit(0)
+			// This one is easy :D
+			versions, _, loader := getVersionsForLoader(currentLoader[0], mcVersion)
+			// Check if the loader happens to be Forge, since there's two version formats
+			if loader.Name == "forge" {
+				var wantedVersion string
+				// Check if we have a "-" in the version
+				if strings.Contains(args[0], "-") {
+					// We have a mcVersion-loaderVersion format
+					// Strip the mcVersion
+					wantedVersion = strings.Split(args[0], "-")[1]
 				} else {
-					// We're on Fabric
-					validateVersion(versions, args[0], loader)
-					_ = updatePackToVersion(args[0], modpack, loader)
+					wantedVersion = args[0]
 				}
+				validateVersion(versions, wantedVersion, loader)
+				_ = updatePackToVersion(wantedVersion, modpack, loader)
+			} else if loader.Name == "liteloader" {
+				// These are weird and just have a MC version
+				fmt.Println("LiteLoader only has 1 version per Minecraft version so we're unable to update!")
+				os.Exit(0)
+			} else {
+				// We're on Fabric or quilt
+				validateVersion(versions, args[0], loader)
+				_ = updatePackToVersion(args[0], modpack, loader)
 			}
 			// Write the pack to disk
 			err = modpack.Write()
