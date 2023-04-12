@@ -122,15 +122,15 @@ var loaderPreferenceList = []string{
 	"minecraft",
 }
 
-func getMinLoaderIdx(loaders []string) (minIdx int) {
-	minIdx = math.MaxInt
-	for _, v := range loaders {
-		idx := slices.Index(loaderPreferenceList, v)
-		if idx != -1 && idx < minIdx {
-			minIdx = idx
-		}
-	}
-	return minIdx
+// Groups of loaders that should be treated the same as the key, if both versions support the key
+// i.e. the key is a more "generic" loader; support for it implies support for the whole group
+// e.g. [quilt, fabric] should compare equal to [fabric] (but less than [quilt] as Quilt support doesn't imply Fabric support)
+// This is useful when authors forget to add Quilt/Purpur etc. to all versions
+// TODO: make abstracted from source backend
+var loaderCompatGroups = map[string][]string{
+	"fabric":     {"quilt"},
+	"bukkit":     {"purpur", "paper", "spigot"},
+	"bungeecord": {"waterfall"},
 }
 
 func getProjectTypeFolder(projectType string, fileLoaders []string, packLoaders []string) (string, error) {
@@ -228,12 +228,50 @@ func parseSlugOrUrl(input string, slug *string, version *string, versionID *stri
 	return
 }
 
+func compareLoaderLists(a []string, b []string) int32 {
+	var compat []string
+	for k, v := range loaderCompatGroups {
+		if slices.Contains(a, k) && slices.Contains(b, k) {
+			// Prerequisite loader is in both lists; add compat group
+			compat = append(compat, v...)
+		}
+	}
+	// Prefer loaders; principally Quilt over Fabric, mods over datapacks (Modrinth backend handles filtering)
+	minIdxA := math.MaxInt
+	for _, v := range a {
+		if slices.Contains(compat, v) {
+			// Ignore loaders in compat groups for comparison
+			continue
+		}
+		idx := slices.Index(loaderPreferenceList, v)
+		if idx != -1 && idx < minIdxA {
+			minIdxA = idx
+		}
+	}
+	minIdxB := math.MaxInt
+	for _, v := range b {
+		if slices.Contains(compat, v) {
+			// Ignore loaders in compat groups for comparison
+			continue
+		}
+		idx := slices.Index(loaderPreferenceList, v)
+		if idx < minIdxA {
+			return 1 // B has more preferable loaders
+		}
+		if idx != -1 && idx < minIdxB {
+			minIdxB = idx
+		}
+	}
+	if minIdxA < minIdxB {
+		return -1 // A has more preferable loaders
+	}
+	return 0
+}
+
 func findLatestVersion(versions []*modrinthApi.Version, gameVersions []string, useFlexVer bool) *modrinthApi.Version {
 	latestValidVersion := versions[0]
-	latestValidLoaderIdx := getMinLoaderIdx(versions[0].Loaders)
 	bestGameVersion := core.HighestSliceIndex(gameVersions, versions[0].GameVersions)
 	for _, v := range versions[1:] {
-		loaderIdx := getMinLoaderIdx(v.Loaders)
 		gameVersionIdx := core.HighestSliceIndex(gameVersions, v.GameVersions)
 
 		var compare int32
@@ -247,8 +285,7 @@ func findLatestVersion(versions []*modrinthApi.Version, gameVersions []string, u
 			compare = int32(gameVersionIdx - bestGameVersion)
 		}
 		if compare == 0 {
-			// Prefer loaders; principally Quilt over Fabric, mods over datapacks (Modrinth backend handles filtering)
-			compare = int32(latestValidLoaderIdx - loaderIdx)
+			compare = compareLoaderLists(latestValidVersion.Loaders, v.Loaders)
 		}
 		if compare == 0 {
 			// Other comparisons are equal, compare date instead
@@ -258,7 +295,6 @@ func findLatestVersion(versions []*modrinthApi.Version, gameVersions []string, u
 		}
 		if compare > 0 {
 			latestValidVersion = v
-			latestValidLoaderIdx = loaderIdx
 			bestGameVersion = gameVersionIdx
 		}
 	}
