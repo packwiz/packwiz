@@ -11,7 +11,7 @@ import (
 
 var loaderCommand = &cobra.Command{
 	Use:   "loader",
-	Short: "Migrate your loader versions to newer versions.",
+	Short: "Migrate your modloader version to newer versions.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		modpack, err := core.LoadPack()
@@ -24,19 +24,24 @@ var loaderCommand = &cobra.Command{
 			fmt.Printf("Error loading pack: %s\n", err)
 			os.Exit(1)
 		}
-		// Get our current loader
-		currentLoader := modpack.GetLoaders()
+		// Get our current loader, would use the modpack.GetLoaders function
+		// but, it supplements Quilt with Fabric, which isn't needed for this
+		var currentLoaders []string
+		// Add all the keys from modpack.Versions
+		for key := range modpack.Versions {
+			// Ignore the "minecraft" loader
+			if key == "minecraft" {
+				continue
+			}
+			currentLoaders = append(currentLoaders, key)
+		}
 		// Do some sanity checks on the current loader slice
-		if len(currentLoader) == 0 {
+		if len(currentLoaders) == 0 {
 			fmt.Println("No loader is currently set in your pack.toml!")
 			os.Exit(1)
-		} else if !slices.Contains(currentLoader, "quilt") && len(currentLoader) > 1 {
+		} else if (!slices.Contains(currentLoaders, "quilt") && len(currentLoaders) > 1) || (slices.Contains(currentLoaders, "quilt") && len(currentLoaders) > 2) {
 			fmt.Println("You have multiple loaders set in your pack.toml, this is not supported!")
 			os.Exit(1)
-		} else if slices.Contains(currentLoader, "quilt") {
-			// We have quilt, so we need to remove fabric from the loaders list
-			fabricIndex := slices.Index(currentLoader, "fabric")
-			currentLoader = slices.Delete(currentLoader, fabricIndex, fabricIndex+1)
 		}
 		// Get the Minecraft version for the pack
 		mcVersion, err := modpack.GetMCVersion()
@@ -47,7 +52,7 @@ var loaderCommand = &cobra.Command{
 		if args[0] == "latest" {
 			fmt.Println("Updating to latest loader version")
 			// We'll be updating to the latest loader version
-			for _, loader := range currentLoader {
+			for _, loader := range currentLoaders {
 				_, latest, gottenLoader := getVersionsForLoader(loader, mcVersion)
 				if !updatePackToVersion(latest, modpack, gottenLoader) {
 					continue
@@ -62,7 +67,7 @@ var loaderCommand = &cobra.Command{
 		} else if args[0] == "recommended" {
 			// TODO: Figure out a way to get the recommended version, this is Forge only
 			// Ensure we're on Forge
-			if !slices.Contains(currentLoader, "forge") {
+			if !slices.Contains(currentLoaders, "forge") {
 				fmt.Println("The recommended loader version is only available on Forge!")
 				os.Exit(1)
 			}
@@ -75,10 +80,16 @@ var loaderCommand = &cobra.Command{
 			if ok := updatePackToVersion(recommendedVer, modpack, core.ModLoaders["forge"]); !ok {
 				os.Exit(1)
 			}
+			// Write the pack to disk
+			err = modpack.Write()
+			if err != nil {
+				fmt.Printf("Error writing pack.toml: %s", err)
+				os.Exit(1)
+			}
 		} else {
 			fmt.Println("Updating to explicit loader version")
 			// This one is easy :D
-			versions, _, loader := getVersionsForLoader(currentLoader[0], mcVersion)
+			versions, _, loader := getVersionsForLoader(currentLoaders[0], mcVersion)
 			// Check if the loader happens to be Forge, since there's two version formats
 			if loader.Name == "forge" {
 				var wantedVersion string
