@@ -1,8 +1,10 @@
 package core
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"errors"
+	"fmt"
 	"github.com/unascribed/FlexVer/go/flexver"
 	"strings"
 )
@@ -157,4 +159,35 @@ func HighestSliceIndex(slice []string, values []string) int {
 		}
 	}
 	return highest
+}
+
+type ForgeRecommended struct {
+	Homepage string            `json:"homepage"`
+	Versions map[string]string `json:"promos"`
+}
+
+// GetForgeRecommended gets the recommended version of Forge for the given Minecraft version
+func GetForgeRecommended(mcVersion string) string {
+	res, err := GetWithUA("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", "application/json")
+	if err != nil {
+		return ""
+	}
+	dec := json.NewDecoder(res.Body)
+	out := ForgeRecommended{}
+	err = dec.Decode(&out)
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	// Get mcVersion-recommended, if it doesn't exist then get mcVersion-latest
+	// If neither exist, return empty string
+	recommendedString := fmt.Sprintf("%s-recommended", mcVersion)
+	if out.Versions[recommendedString] != "" {
+		return out.Versions[recommendedString]
+	}
+	latestString := fmt.Sprintf("%s-latest", mcVersion)
+	if out.Versions[latestString] != "" {
+		return out.Versions[latestString]
+	}
+	return ""
 }

@@ -61,8 +61,20 @@ var loaderCommand = &cobra.Command{
 			}
 		} else if args[0] == "recommended" {
 			// TODO: Figure out a way to get the recommended version, this is Forge only
-			fmt.Println("Currently updating to the recommended loader version is not supported!")
-			os.Exit(1)
+			// Ensure we're on Forge
+			if !slices.Contains(currentLoader, "forge") {
+				fmt.Println("The recommended loader version is only available on Forge!")
+				os.Exit(1)
+			}
+			// We'll be updating to the recommended loader version
+			recommendedVer := core.GetForgeRecommended(mcVersion)
+			if recommendedVer == "" {
+				fmt.Println("Error getting recommended Forge version!")
+				os.Exit(1)
+			}
+			if ok := updatePackToVersion(recommendedVer, modpack, core.ModLoaders["forge"]); !ok {
+				os.Exit(1)
+			}
 		} else {
 			fmt.Println("Updating to explicit loader version")
 			// This one is easy :D
@@ -87,7 +99,9 @@ var loaderCommand = &cobra.Command{
 			} else {
 				// We're on Fabric or quilt
 				validateVersion(versions, args[0], loader)
-				_ = updatePackToVersion(args[0], modpack, loader)
+				if ok := updatePackToVersion(args[0], modpack, loader); !ok {
+					os.Exit(1)
+				}
 			}
 			// Write the pack to disk
 			err = modpack.Write()
