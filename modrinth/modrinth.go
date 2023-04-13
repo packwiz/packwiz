@@ -426,3 +426,11 @@ func resolveVersion(project *modrinthApi.Project, version string) (*modrinthApi.
 	}
 	return nil, fmt.Errorf("unable to find version %s", version)
 }
+
+func mapDepOverride(depID string, isQuilt bool) string {
+	if isQuilt && (depID == "P7dR8mSH" || depID == "fabric-api") {
+		// Transform FAPI dependencies to QFAPI/QSL dependencies when using Quilt
+		return "qvIfYCYJ"
+	}
+	return depID
+}

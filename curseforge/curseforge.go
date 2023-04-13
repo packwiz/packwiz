@@ -589,3 +589,11 @@ func (m *cfDownloadMetadata) DownloadFile() (io.ReadCloser, error) {
 	}
 	return resp.Body, nil
 }
+
+func mapDepOverride(depID uint32, isQuilt bool) uint32 {
+	if isQuilt && depID == 306612 {
+		// Transform FAPI dependencies to QFAPI/QSL dependencies when using Quilt
+		return 634179
+	}
+	return depID
+}

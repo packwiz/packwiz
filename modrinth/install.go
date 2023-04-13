@@ -227,6 +227,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 	if len(version.Dependencies) > 0 {
 		// TODO: could get installed version IDs, and compare to install the newest - i.e. preferring pinned versions over getting absolute latest?
 		installedProjects := getInstalledProjectIDs(index)
+		isQuilt := slices.Contains(pack.GetLoaders(), "quilt")
 
 		var depMetadata []depMetadataStore
 		var depProjectIDPendingQueue []string
@@ -236,7 +237,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 			// TODO: recommend optional dependencies?
 			if dep.DependencyType != nil && *dep.DependencyType == "required" {
 				if dep.ProjectID != nil {
-					depProjectIDPendingQueue = append(depProjectIDPendingQueue, *dep.ProjectID)
+					depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*dep.ProjectID, isQuilt))
 				}
 				if dep.VersionID != nil {
 					depVersionIDPendingQueue = append(depVersionIDPendingQueue, *dep.VersionID)
@@ -255,7 +256,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 					if err == nil {
 						for _, v := range depVersions {
 							// Add project ID to queue
-							depProjectIDPendingQueue = append(depProjectIDPendingQueue, *v.ProjectID)
+							depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*v.ProjectID, isQuilt))
 						}
 					} else {
 						fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
@@ -304,7 +305,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 						// TODO: recommend optional dependencies?
 						if dep.DependencyType != nil && *dep.DependencyType == "required" {
 							if dep.ProjectID != nil {
-								depProjectIDPendingQueue = append(depProjectIDPendingQueue, *dep.ProjectID)
+								depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*dep.ProjectID, isQuilt))
 							}
 							if dep.VersionID != nil {
 								depVersionIDPendingQueue = append(depVersionIDPendingQueue, *dep.VersionID)

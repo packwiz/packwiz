@@ -122,11 +122,13 @@ var installCmd = &cobra.Command{
 		}
 
 		if len(fileInfoData.Dependencies) > 0 {
+			isQuilt := slices.Contains(pack.GetLoaders(), "quilt")
+
 			var depsInstallable []installableDep
 			var depIDPendingQueue []uint32
 			for _, dep := range fileInfoData.Dependencies {
 				if dep.Type == dependencyTypeRequired {
-					depIDPendingQueue = append(depIDPendingQueue, dep.ModID)
+					depIDPendingQueue = append(depIDPendingQueue, mapDepOverride(dep.ModID, isQuilt))
 				}
 			}
 
@@ -190,7 +192,7 @@ var installCmd = &cobra.Command{
 
 						for _, dep := range depFileInfo.Dependencies {
 							if dep.Type == dependencyTypeRequired {
-								depIDPendingQueue = append(depIDPendingQueue, dep.ModID)
+								depIDPendingQueue = append(depIDPendingQueue, mapDepOverride(dep.ModID, isQuilt))
 							}
 						}
 
