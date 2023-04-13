@@ -2,19 +2,16 @@ package cmd
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
-	"os"
-	"path/filepath"
-	"sort"
-	"strings"
-	"time"
-
 	"github.com/fatih/camelcase"
 	"github.com/igorsobreira/titlecase"
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 // initCmd represents the init command
@@ -59,7 +56,7 @@ var initCmd = &cobra.Command{
 			version = initReadValue("Version [1.0.0]: ", "1.0.0")
 		}
 
-		mcVersions, err := getValidMCVersions()
+		mcVersions, err := cmdshared.GetValidMCVersions()
 		if err != nil {
 			fmt.Printf("Failed to get latest minecraft versions: %s\n", err)
 			os.Exit(1)
@@ -79,7 +76,7 @@ var initCmd = &cobra.Command{
 				mcVersion = initReadValue("Minecraft version ["+latestVersion+"]: ", latestVersion)
 			}
 		}
-		mcVersions.checkValid(mcVersion)
+		mcVersions.CheckValid(mcVersion)
 
 		modLoaderName := strings.ToLower(viper.GetString("init.modloader"))
 		if len(modLoaderName) == 0 {
@@ -238,46 +235,4 @@ func initReadValue(prompt string, def string) string {
 		return value
 	}
 	return def
-}
-
-type mcVersionManifest struct {
-	Latest struct {
-		Release  string `json:"release"`
-		Snapshot string `json:"snapshot"`
-	} `json:"latest"`
-	Versions []struct {
-		ID          string    `json:"id"`
-		Type        string    `json:"type"`
-		URL         string    `json:"url"`
-		Time        time.Time `json:"time"`
-		ReleaseTime time.Time `json:"releaseTime"`
-	} `json:"versions"`
-}
-
-func (m mcVersionManifest) checkValid(version string) {
-	for _, v := range m.Versions {
-		if v.ID == version {
-			return
-		}
-	}
-	fmt.Println("Given version is not a valid Minecraft version!")
-	os.Exit(1)
-}
-
-func getValidMCVersions() (mcVersionManifest, error) {
-	res, err := core.GetWithUA("https://launchermeta.mojang.com/mc/game/version_manifest.json", "application/json")
-	if err != nil {
-		return mcVersionManifest{}, err
-	}
-	dec := json.NewDecoder(res.Body)
-	out := mcVersionManifest{}
-	err = dec.Decode(&out)
-	if err != nil {
-		return mcVersionManifest{}, err
-	}
-	// Sort by newest to oldest
-	sort.Slice(out.Versions, func(i, j int) bool {
-		return out.Versions[i].ReleaseTime.Before(out.Versions[j].ReleaseTime)
-	})
-	return out, nil
 }

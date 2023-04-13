@@ -9,8 +9,8 @@ import (
 	"os"
 )
 
-// updateCmd represents the update command
-var updateCmd = &cobra.Command{
+// UpdateCmd represents the update command
+var UpdateCmd = &cobra.Command{
 	Use:     "update [name]",
 	Short:   "Update an external file (or all external files) in the modpack",
 	Aliases: []string{"upgrade"},
@@ -210,8 +210,8 @@ var updateCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(UpdateCmd)
 
-	updateCmd.Flags().BoolP("all", "a", false, "Update all external files")
-	_ = viper.BindPFlag("update.all", updateCmd.Flags().Lookup("all"))
+	UpdateCmd.Flags().BoolP("all", "a", false, "Update all external files")
+	_ = viper.BindPFlag("update.all", UpdateCmd.Flags().Lookup("all"))
 }
