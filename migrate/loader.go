@@ -10,8 +10,8 @@ import (
 )
 
 var loaderCommand = &cobra.Command{
-	Use:   "loader",
-	Short: "Migrate your modloader version to newer versions.",
+	Use:   "loader [version|latest|recommended]",
+	Short: "Migrate your modloader version to a newer version.",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		modpack, err := core.LoadPack()

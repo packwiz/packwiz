@@ -7,7 +7,7 @@ import (
 
 // migrateCmd represents the base command when called without any subcommands
 var migrateCmd = &cobra.Command{
-	Use:   "migrate",
+	Use:   "migrate [minecraft|loader]",
 	Short: "Migrate your Minecraft and loader versions to newer versions.",
 }
 

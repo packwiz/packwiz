@@ -11,7 +11,7 @@ import (
 )
 
 var minecraftCommand = &cobra.Command{
-	Use:     "minecraft",
+	Use:     "minecraft [version]",
 	Short:   "Migrate your Minecraft version to a newer version.",
 	Aliases: []string{"mc"},
 	Args:    cobra.ExactArgs(1),
