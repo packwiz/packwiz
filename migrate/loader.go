@@ -2,11 +2,11 @@ package migrate
 
 import (
 	"fmt"
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
 	"os"
-	"strings"
 )
 
 var loaderCommand = &cobra.Command{
@@ -29,8 +29,8 @@ var loaderCommand = &cobra.Command{
 		var currentLoaders []string
 		// Add all the keys from modpack.Versions
 		for key := range modpack.Versions {
-			// Ignore the "minecraft" loader
-			if key == "minecraft" {
+			// If it ain't in core.ModLoaders, we don't want it
+			if _, ok := core.ModLoaders[key]; !ok {
 				continue
 			}
 			currentLoaders = append(currentLoaders, key)
@@ -39,7 +39,7 @@ var loaderCommand = &cobra.Command{
 		if len(currentLoaders) == 0 {
 			fmt.Println("No loader is currently set in your pack.toml!")
 			os.Exit(1)
-		} else if (!slices.Contains(currentLoaders, "quilt") && len(currentLoaders) > 1) || (slices.Contains(currentLoaders, "quilt") && len(currentLoaders) > 2) {
+		} else if len(currentLoaders) > 1 {
 			fmt.Println("You have multiple loaders set in your pack.toml, this is not supported!")
 			os.Exit(1)
 		}
@@ -92,15 +92,7 @@ var loaderCommand = &cobra.Command{
 			versions, _, loader := getVersionsForLoader(currentLoaders[0], mcVersion)
 			// Check if the loader happens to be Forge, since there's two version formats
 			if loader.Name == "forge" {
-				var wantedVersion string
-				// Check if we have a "-" in the version
-				if strings.Contains(args[0], "-") {
-					// We have a mcVersion-loaderVersion format
-					// Strip the mcVersion
-					wantedVersion = strings.Split(args[0], "-")[1]
-				} else {
-					wantedVersion = args[0]
-				}
+				wantedVersion := cmdshared.GetRawForgeVersion(args[0])
 				validateVersion(versions, wantedVersion, loader)
 				_ = updatePackToVersion(wantedVersion, modpack, loader)
 			} else if loader.Name == "liteloader" {
