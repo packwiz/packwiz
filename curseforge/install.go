@@ -44,6 +44,11 @@ var installCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
+		primaryMCVersion, err := pack.GetMCVersion()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
 
 		game := gameFlag
 		category := categoryFlag
@@ -128,7 +133,7 @@ var installCmd = &cobra.Command{
 			var depIDPendingQueue []uint32
 			for _, dep := range fileInfoData.Dependencies {
 				if dep.Type == dependencyTypeRequired {
-					depIDPendingQueue = append(depIDPendingQueue, mapDepOverride(dep.ModID, isQuilt))
+					depIDPendingQueue = append(depIDPendingQueue, mapDepOverride(dep.ModID, isQuilt, primaryMCVersion))
 				}
 			}
 
@@ -192,7 +197,7 @@ var installCmd = &cobra.Command{
 
 						for _, dep := range depFileInfo.Dependencies {
 							if dep.Type == dependencyTypeRequired {
-								depIDPendingQueue = append(depIDPendingQueue, mapDepOverride(dep.ModID, isQuilt))
+								depIDPendingQueue = append(depIDPendingQueue, mapDepOverride(dep.ModID, isQuilt, primaryMCVersion))
 							}
 						}
 

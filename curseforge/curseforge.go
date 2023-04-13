@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/spf13/viper"
+	"github.com/unascribed/FlexVer/go/flexver"
 	"golang.org/x/exp/slices"
 	"io"
 	"path/filepath"
@@ -590,10 +591,17 @@ func (m *cfDownloadMetadata) DownloadFile() (io.ReadCloser, error) {
 	return resp.Body, nil
 }
 
-func mapDepOverride(depID uint32, isQuilt bool) uint32 {
+// mapDepOverride transforms manual dependency overrides (which will likely be removed when packwiz is able to determine provided mods)
+func mapDepOverride(depID uint32, isQuilt bool, mcVersion string) uint32 {
 	if isQuilt && depID == 306612 {
 		// Transform FAPI dependencies to QFAPI/QSL dependencies when using Quilt
 		return 634179
+	}
+	if isQuilt && depID == 308769 {
+		// Transform FLK dependencies to QKL dependencies when using Quilt >=1.19.2 non-snapshot
+		if flexver.Less("1.19.1", mcVersion) && flexver.Less(mcVersion, "2.0.0") {
+			return 720410
+		}
 	}
 	return depID
 }

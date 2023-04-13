@@ -427,10 +427,17 @@ func resolveVersion(project *modrinthApi.Project, version string) (*modrinthApi.
 	return nil, fmt.Errorf("unable to find version %s", version)
 }
 
-func mapDepOverride(depID string, isQuilt bool) string {
+// mapDepOverride transforms manual dependency overrides (which will likely be removed when packwiz is able to determine provided mods)
+func mapDepOverride(depID string, isQuilt bool, mcVersion string) string {
 	if isQuilt && (depID == "P7dR8mSH" || depID == "fabric-api") {
 		// Transform FAPI dependencies to QFAPI/QSL dependencies when using Quilt
 		return "qvIfYCYJ"
+	}
+	if isQuilt && (depID == "Ha28R6CL" || depID == "fabric-language-kotlin") {
+		// Transform FLK dependencies to QKL dependencies when using Quilt >=1.19.2 non-snapshot
+		if flexver.Less("1.19.1", mcVersion) && flexver.Less(mcVersion, "2.0.0") {
+			return "lwVhp9o5"
+		}
 	}
 	return depID
 }

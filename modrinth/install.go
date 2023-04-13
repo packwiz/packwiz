@@ -228,6 +228,10 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 		// TODO: could get installed version IDs, and compare to install the newest - i.e. preferring pinned versions over getting absolute latest?
 		installedProjects := getInstalledProjectIDs(index)
 		isQuilt := slices.Contains(pack.GetLoaders(), "quilt")
+		mcVersion, err := pack.GetMCVersion()
+		if err != nil {
+			return err
+		}
 
 		var depMetadata []depMetadataStore
 		var depProjectIDPendingQueue []string
@@ -237,7 +241,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 			// TODO: recommend optional dependencies?
 			if dep.DependencyType != nil && *dep.DependencyType == "required" {
 				if dep.ProjectID != nil {
-					depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*dep.ProjectID, isQuilt))
+					depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*dep.ProjectID, isQuilt, mcVersion))
 				}
 				if dep.VersionID != nil {
 					depVersionIDPendingQueue = append(depVersionIDPendingQueue, *dep.VersionID)
@@ -256,7 +260,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 					if err == nil {
 						for _, v := range depVersions {
 							// Add project ID to queue
-							depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*v.ProjectID, isQuilt))
+							depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*v.ProjectID, isQuilt, mcVersion))
 						}
 					} else {
 						fmt.Printf("Error retrieving dependency data: %s\n", err.Error())
@@ -305,7 +309,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 						// TODO: recommend optional dependencies?
 						if dep.DependencyType != nil && *dep.DependencyType == "required" {
 							if dep.ProjectID != nil {
-								depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*dep.ProjectID, isQuilt))
+								depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*dep.ProjectID, isQuilt, mcVersion))
 							}
 							if dep.VersionID != nil {
 								depVersionIDPendingQueue = append(depVersionIDPendingQueue, *dep.VersionID)
