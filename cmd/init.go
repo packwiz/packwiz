@@ -9,6 +9,7 @@ import (
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 	"os"
 	"path/filepath"
 	"strings"
@@ -100,18 +101,15 @@ var initCmd = &cobra.Command{
 						componentVersion = initReadValue(loader.FriendlyName+" version ["+latestVersion+"]: ", latestVersion)
 					}
 				}
-				found := false
-				for _, v := range versions {
-					if componentVersion == v {
-						found = true
-						break
-					}
+				v := componentVersion
+				if loader.Name == "forge" {
+					v = cmdshared.GetRawForgeVersion(componentVersion)
 				}
-				if !found {
+				if !slices.Contains(versions, v) {
 					fmt.Println("Given " + loader.FriendlyName + " version cannot be found!")
 					os.Exit(1)
 				}
-				modLoaderVersions[loader.Name] = componentVersion
+				modLoaderVersions[loader.Name] = v
 			} else {
 				fmt.Println("Given mod loader is not supported! Use \"none\" to specify no modloader, or to configure one manually.")
 				fmt.Print("The following mod loaders are supported: ")
