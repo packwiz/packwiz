@@ -419,8 +419,8 @@ func (u cfUpdater) CheckUpdate(mods []core.Mod, pack core.Pack) ([]core.UpdateCh
 		project := projectRaw.(cfUpdateData)
 
 		fileID, fileInfoData, fileName := findLatestFile(modInfos[i], mcVersions, packLoaders)
-		if fileID > project.FileID && fileID != 0 {
-			// Update available!
+		if fileID != project.FileID && fileID != 0 {
+			// Update (or downgrade, if changing to an older version) available!
 			results[i] = core.UpdateCheck{
 				UpdateAvailable: true,
 				UpdateString:    v.FileName + " -> " + fileName,
