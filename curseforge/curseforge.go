@@ -306,11 +306,11 @@ func findLatestFile(modInfoData modInfo, mcVersions []string, packLoaders []stri
 		compare := int32(mcVerIdx - bestMcVer)
 		if compare == 0 {
 			// Prefer higher loader indexes
-			compare = int32(loaderIdx - bestLoaderType)
+			compare = int32(loaderIdx) - int32(bestLoaderType)
 		}
 		if compare == 0 {
 			// Other comparisons are equal, compare by ID instead
-			compare = int32(v.ID - fileID)
+			compare = int32(int64(v.ID) - int64(fileID))
 		}
 		if compare > 0 {
 			fileID = v.ID
@@ -333,11 +333,11 @@ func findLatestFile(modInfoData modInfo, mcVersions []string, packLoaders []stri
 		compare := int32(mcVerIdx - bestMcVer)
 		if compare == 0 {
 			// Prefer higher loader indexes
-			compare = int32(loaderIdx - bestLoaderType)
+			compare = int32(loaderIdx) - int32(bestLoaderType)
 		}
 		if compare == 0 {
 			// Other comparisons are equal, compare by ID instead
-			compare = int32(v.ID - fileID)
+			compare = int32(int64(v.ID) - int64(fileID))
 		}
 		if compare > 0 {
 			fileID = v.ID
