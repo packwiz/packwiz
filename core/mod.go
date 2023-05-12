@@ -15,6 +15,7 @@ import (
 type Mod struct {
 	metaFile string      // The file for the metadata file, used as an ID
 	Name     string      `toml:"name"`
+	Version  string      `toml:"version"`
 	FileName string      `toml:"filename"`
 	Side     string      `toml:"side,omitempty"`
 	Pin      bool        `toml:"pin,omitempty"`
