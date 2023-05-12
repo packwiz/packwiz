@@ -1,15 +1,16 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
-	"github.com/packwiz/packwiz/cmdshared"
-	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
 	"os"
 	"path/filepath"
 	"strings"
+
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
+	"github.com/packwiz/packwiz/cmdshared"
+	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
@@ -415,6 +416,7 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 
 	modMeta := core.Mod{
 		Name:     *project.Title,
+		Version:  *version.VersionNumber,
 		FileName: *file.Filename,
 		Side:     side,
 		Download: core.ModDownload{

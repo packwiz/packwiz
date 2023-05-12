@@ -3,14 +3,15 @@ package curseforge
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
-	"github.com/unascribed/FlexVer/go/flexver"
-	"golang.org/x/exp/slices"
 	"io"
 	"path/filepath"
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
+	"github.com/unascribed/FlexVer/go/flexver"
+	"golang.org/x/exp/slices"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/packwiz/packwiz/cmd"
@@ -199,6 +200,7 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 
 	modMeta := core.Mod{
 		Name:     modInfo.Name,
+		Version:  fileInfo.FriendlyName,
 		FileName: fileInfo.FileName,
 		Side:     core.UniversalSide,
 		Download: core.ModDownload{
@@ -453,6 +455,7 @@ func (u cfUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 
 		v.FileName = fileInfoData.FileName
 		v.Name = modState.Name
+		v.Version = fileInfoData.FriendlyName
 		hash, hashFormat := fileInfoData.getBestHash()
 		v.Download = core.ModDownload{
 			HashFormat: hashFormat,

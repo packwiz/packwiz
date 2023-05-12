@@ -2,18 +2,20 @@ package core
 
 import (
 	"errors"
-	"github.com/BurntSushi/toml"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 // Mod stores metadata about a mod. This is written to a TOML file for each mod.
 type Mod struct {
 	metaFile string      // The file for the metadata file, used as an ID
 	Name     string      `toml:"name"`
+	Version  string      `toml:"version"`
 	FileName string      `toml:"filename"`
 	Side     string      `toml:"side,omitempty"`
 	Download ModDownload `toml:"download"`

@@ -6,6 +6,7 @@ import (
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
 )
 
 // listCmd represents the list command
@@ -37,12 +38,25 @@ var listCmd = &cobra.Command{
 		}
 
 		// Print mods
-		for _, mod := range mods {
-			fmt.Println(mod.Name)
+		if viper.GetBool("list.version") {
+			for _, mod := range mods {
+				if mod.Version == "" {
+					fmt.Println(mod.Name)
+				} else {
+					fmt.Printf("%s\t[%s]\n", mod.Name, mod.Version)
+				}
+			}
+		} else {
+			for _, mod := range mods {
+				fmt.Println(mod.Name)
+			}
 		}
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(listCmd)
+
+	listCmd.Flags().BoolP("version", "v", false, "Print name and version")
+	_ = viper.BindPFlag("list.version", listCmd.Flags().Lookup("version"))
 }

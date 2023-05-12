@@ -1,9 +1,10 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
+
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/packwiz/packwiz/core"
@@ -100,6 +101,7 @@ func (u mrUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 		}
 
 		mod.FileName = *file.Filename
+		mod.Version = *version.VersionNumber
 		mod.Download = core.ModDownload{
 			URL:        *file.URL,
 			HashFormat: algorithm,
