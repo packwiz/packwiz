@@ -419,9 +419,10 @@ func resolveVersion(project *modrinthApi.Project, version string) (*modrinthApi.
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch version list for %s: %v", *project.ID, err)
 	}
-	for _, v := range versionsList {
-		if *v.VersionNumber == version {
-			return v, nil
+	// Traverse in reverse order: Modrinth knossos always gives the oldest file precedence over having the version number path
+	for i := len(versionsList) - 1; i >= 0; i-- {
+		if *versionsList[i].VersionNumber == version {
+			return versionsList[i], nil
 		}
 	}
 	return nil, fmt.Errorf("unable to find version %s", version)
