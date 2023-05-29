@@ -57,9 +57,9 @@ var installCmd = &cobra.Command{
 			}
 		}
 
-		hash, err := getSha1(args[1])
+		hash, err := getHash(args[1])
 		if err != nil {
-			fmt.Println("Failed to retrieve SHA1 hash for file", err)
+			fmt.Println("Failed to retrieve SHA256 hash for file", err)
 			os.Exit(1)
 		}
 
@@ -75,7 +75,7 @@ var installCmd = &cobra.Command{
 			FileName: filename,
 			Download: core.ModDownload{
 				URL:        args[1],
-				HashFormat: "sha1",
+				HashFormat: "sha256",
 				Hash:       hash,
 			},
 		}
@@ -123,9 +123,8 @@ var installCmd = &cobra.Command{
 		fmt.Printf("Successfully added %s (%s) from: %s\n", args[0], destPath, args[1])
 	}}
 
-func getSha1(url string) (string, error) {
-	// TODO: hook up to existing cache system? might not be that useful
-	mainHasher, err := core.GetHashImpl("sha1")
+func getHash(url string) (string, error) {
+	mainHasher, err := core.GetHashImpl("sha256")
 	if err != nil {
 		return "", err
 	}
