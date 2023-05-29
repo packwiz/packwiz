@@ -285,9 +285,8 @@ var importCmd = &cobra.Command{
 		}
 
 		successes = 0
-		packRoot := index.GetPackRoot()
 		for _, v := range filesList {
-			filePath := filepath.Join(packRoot, filepath.FromSlash(v.Name()))
+			filePath := index.ResolveIndexPath(v.Name())
 			filePathAbs, err := filepath.Abs(filePath)
 			if err == nil {
 				found := false

@@ -110,9 +110,6 @@ func (pack *Pack) UpdateIndexHash() error {
 
 	fileNative := filepath.FromSlash(pack.Index.File)
 	indexFile := filepath.Join(filepath.Dir(viper.GetString("pack-file")), fileNative)
-	if filepath.IsAbs(pack.Index.File) {
-		indexFile = pack.Index.File
-	}
 
 	f, err := os.Open(indexFile)
 	if err != nil {

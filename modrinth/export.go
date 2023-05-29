@@ -9,7 +9,6 @@ import (
 	"golang.org/x/exp/slices"
 	"net/url"
 	"os"
-	"path/filepath"
 	"strconv"
 
 	"github.com/packwiz/packwiz/core"
@@ -54,9 +53,6 @@ var exportCmd = &cobra.Command{
 			fmt.Println(err)
 			return
 		}
-
-		// TODO: should index just expose indexPath itself, through a function?
-		indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
 
 		fmt.Println("Reading external files...")
 		mods, err := index.LoadAllMods()
@@ -113,14 +109,12 @@ var exportCmd = &cobra.Command{
 					fmt.Printf("Warning for %s (%s): %v\n", dl.Mod.Name, dl.Mod.FileName, warning)
 				}
 
-				pathForward, err := filepath.Rel(filepath.Dir(indexPath), dl.Mod.GetDestFilePath())
+				path, err := index.RelIndexPath(dl.Mod.GetDestFilePath())
 				if err != nil {
 					fmt.Printf("Error resolving external file: %s\n", err.Error())
 					// TODO: exit(1)?
 					continue
 				}
-
-				path := filepath.ToSlash(pathForward)
 
 				hashes := make(map[string]string)
 				hashes["sha1"] = dl.Hashes["sha1"]
@@ -170,11 +164,11 @@ var exportCmd = &cobra.Command{
 				fmt.Printf("%s (%s) added to manifest\n", dl.Mod.Name, dl.Mod.FileName)
 			} else {
 				if dl.Mod.Side == core.ClientSide {
-					_ = cmdshared.AddToZip(dl, exp, "client-overrides", indexPath)
+					_ = cmdshared.AddToZip(dl, exp, "client-overrides", &index)
 				} else if dl.Mod.Side == core.ServerSide {
-					_ = cmdshared.AddToZip(dl, exp, "server-overrides", indexPath)
+					_ = cmdshared.AddToZip(dl, exp, "server-overrides", &index)
 				} else {
-					_ = cmdshared.AddToZip(dl, exp, "overrides", indexPath)
+					_ = cmdshared.AddToZip(dl, exp, "overrides", &index)
 				}
 			}
 		}
@@ -233,29 +227,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		for _, v := range index.Files {
-			if !v.MetaFile {
-				// Save all non-metadata files into the zip
-				path, err := filepath.Rel(filepath.Dir(indexPath), index.GetFilePath(v))
-				if err != nil {
-					fmt.Printf("Error resolving file: %s\n", err.Error())
-					// TODO: exit(1)?
-					continue
-				}
-				file, err := exp.Create(filepath.ToSlash(filepath.Join("overrides", path)))
-				if err != nil {
-					fmt.Printf("Error creating file: %s\n", err.Error())
-					// TODO: exit(1)?
-					continue
-				}
-				err = index.SaveFile(v, file)
-				if err != nil {
-					fmt.Printf("Error copying file: %s\n", err.Error())
-					// TODO: exit(1)?
-					continue
-				}
-			}
-		}
+		cmdshared.AddNonMetafileOverrides(&index, exp)
 
 		err = exp.Close()
 		if err != nil {

@@ -6,6 +6,7 @@ import (
 	"github.com/packwiz/packwiz/core"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 )
 
@@ -29,7 +30,7 @@ func ListManualDownloads(session core.DownloadSession) {
 	}
 }
 
-func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, indexPath string) bool {
+func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, index *core.Index) bool {
 	if dl.Error != nil {
 		fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
 		return false
@@ -38,29 +39,60 @@ func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, indexPath 
 		fmt.Printf("Warning for %s (%s): %v\n", dl.Mod.Name, dl.Mod.FileName, warning)
 	}
 
-	path, err := filepath.Rel(filepath.Dir(indexPath), dl.Mod.GetDestFilePath())
+	p, err := index.RelIndexPath(dl.Mod.GetDestFilePath())
 	if err != nil {
 		fmt.Printf("Error resolving external file: %v\n", err)
 		return false
 	}
-	modFile, err := exp.Create(filepath.ToSlash(filepath.Join(dir, path)))
+	modFile, err := exp.Create(path.Join(dir, p))
 	if err != nil {
-		fmt.Printf("Error creating metadata file %s: %v\n", path, err)
+		fmt.Printf("Error creating metadata file %s: %v\n", p, err)
 		return false
 	}
 	_, err = io.Copy(modFile, dl.File)
 	if err != nil {
-		fmt.Printf("Error copying file %s: %v\n", path, err)
+		fmt.Printf("Error copying file %s: %v\n", p, err)
 		return false
 	}
 	err = dl.File.Close()
 	if err != nil {
-		fmt.Printf("Error closing file %s: %v\n", path, err)
+		fmt.Printf("Error closing file %s: %v\n", p, err)
 		return false
 	}
 
 	fmt.Printf("%s (%s) added to zip\n", dl.Mod.Name, dl.Mod.FileName)
 	return true
+}
+
+// AddNonMetafileOverrides saves all non-metadata files into an overrides folder in the zip
+func AddNonMetafileOverrides(index *core.Index, exp *zip.Writer) {
+	for p, v := range index.Files {
+		if !v.IsMetaFile() {
+			file, err := exp.Create(path.Join("overrides", p))
+			if err != nil {
+				fmt.Printf("Error creating file: %s\n", err.Error())
+				// TODO: exit(1)?
+				continue
+			}
+			// Attempt to read the file from disk, without checking hashes (assumed to have no errors)
+			src, err := os.Open(index.ResolveIndexPath(p))
+			if err != nil {
+				_ = src.Close()
+				fmt.Printf("Error reading file: %s\n", err.Error())
+				// TODO: exit(1)?
+				continue
+			}
+			_, err = io.Copy(file, src)
+			if err != nil {
+				_ = src.Close()
+				fmt.Printf("Error copying file: %s\n", err.Error())
+				// TODO: exit(1)?
+				continue
+			}
+
+			_ = src.Close()
+		}
+	}
 }
 
 func PrintDisclaimer(isCf bool) {

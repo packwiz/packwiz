@@ -145,9 +145,11 @@ var installCmd = &cobra.Command{
 				for len(depIDPendingQueue) > 0 && cycles < maxCycles {
 					if installedIDList == nil {
 						// Get modids of all mods
-						for _, modPath := range index.GetAllMods() {
-							mod, err := core.LoadMod(modPath)
-							if err == nil {
+						mods, err := index.LoadAllMods()
+						if err != nil {
+							fmt.Printf("Failed to determine existing projects: %v\n", err)
+						} else {
+							for _, mod := range mods {
 								data, ok := mod.GetParsedUpdateData("curseforge")
 								if ok {
 									updateData, ok := data.(cfUpdateData)

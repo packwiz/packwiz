@@ -33,27 +33,26 @@ var UpdateCmd = &cobra.Command{
 
 		var singleUpdatedName string
 		if viper.GetBool("update.all") {
-			updaterMap := make(map[string][]core.Mod)
+			filesWithUpdater := make(map[string][]*core.Mod)
 			fmt.Println("Reading metadata files...")
-			for _, v := range index.GetAllMods() {
-				modData, err := core.LoadMod(v)
-				if err != nil {
-					fmt.Printf("Error reading metadata file: %s\n", err.Error())
-					continue
-				}
-
+			mods, err := index.LoadAllMods()
+			if err != nil {
+				fmt.Printf("Failed to update all files: %v\n", err)
+				os.Exit(1)
+			}
+			for _, modData := range mods {
 				updaterFound := false
 				for k := range modData.Update {
-					slice, ok := updaterMap[k]
+					slice, ok := filesWithUpdater[k]
 					if !ok {
 						_, ok = core.Updaters[k]
 						if !ok {
 							continue
 						}
-						slice = []core.Mod{}
+						slice = []*core.Mod{}
 					}
 					updaterFound = true
-					updaterMap[k] = append(slice, modData)
+					filesWithUpdater[k] = append(slice, modData)
 				}
 				if !updaterFound {
 					fmt.Printf("A supported update system for \"%s\" cannot be found.\n", modData.Name)
@@ -62,9 +61,9 @@ var UpdateCmd = &cobra.Command{
 
 			fmt.Println("Checking for updates...")
 			updatesFound := false
-			updaterPointerMap := make(map[string][]*core.Mod)
+			updatableFiles := make(map[string][]*core.Mod)
 			updaterCachedStateMap := make(map[string][]interface{})
-			for k, v := range updaterMap {
+			for k, v := range filesWithUpdater {
 				checks, err := core.Updaters[k].CheckUpdate(v, pack)
 				if err != nil {
 					// TODO: do we return err code 1?
@@ -83,7 +82,7 @@ var UpdateCmd = &cobra.Command{
 							updatesFound = true
 						}
 						fmt.Printf("%s: %s\n", v[i].Name, check.UpdateString)
-						updaterPointerMap[k] = append(updaterPointerMap[k], &v[i])
+						updatableFiles[k] = append(updatableFiles[k], v[i])
 						updaterCachedStateMap[k] = append(updaterCachedStateMap[k], check.CachedState)
 					}
 				}
@@ -99,7 +98,7 @@ var UpdateCmd = &cobra.Command{
 				return
 			}
 
-			for k, v := range updaterPointerMap {
+			for k, v := range updatableFiles {
 				err := core.Updaters[k].DoUpdate(v, updaterCachedStateMap[k])
 				if err != nil {
 					// TODO: do we return err code 1?
@@ -143,7 +142,7 @@ var UpdateCmd = &cobra.Command{
 				}
 				updaterFound = true
 
-				check, err := updater.CheckUpdate([]core.Mod{modData}, pack)
+				check, err := updater.CheckUpdate([]*core.Mod{&modData}, pack)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)

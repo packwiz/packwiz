@@ -386,9 +386,12 @@ func getBestHash(v *modrinthApi.File) (string, string) {
 
 func getInstalledProjectIDs(index *core.Index) []string {
 	var installedProjects []string
-	for _, modPath := range index.GetAllMods() {
-		mod, err := core.LoadMod(modPath)
-		if err == nil {
+	// Get modids of all mods
+	mods, err := index.LoadAllMods()
+	if err != nil {
+		fmt.Printf("Failed to determine existing projects: %v\n", err)
+	} else {
+		for _, mod := range mods {
 			data, ok := mod.GetParsedUpdateData("modrinth")
 			if ok {
 				updateData, ok := data.(mrUpdateData)

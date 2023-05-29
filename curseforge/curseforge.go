@@ -375,7 +375,7 @@ type cachedStateStore struct {
 	fileInfo *modFileInfo
 }
 
-func (u cfUpdater) CheckUpdate(mods []core.Mod, pack core.Pack) ([]core.UpdateCheck, error) {
+func (u cfUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateCheck, error) {
 	results := make([]core.UpdateCheck, len(mods))
 	modIDs := make([]uint32, len(mods))
 	modInfos := make([]modInfo, len(mods))
