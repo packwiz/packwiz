@@ -1,9 +1,11 @@
 package core
 
 import (
+	"encoding/json"
 	"encoding/xml"
 	"errors"
-	"net/http"
+	"fmt"
+	"github.com/unascribed/FlexVer/go/flexver"
 	"strings"
 )
 
@@ -42,7 +44,7 @@ var ModLoaders = map[string]ModLoaderComponent{
 	"liteloader": {
 		Name:              "liteloader",
 		FriendlyName:      "LiteLoader",
-		VersionListGetter: FetchMavenVersionPrefixedList("http://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
+		VersionListGetter: FetchMavenVersionPrefixedList("https://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
 	},
 	"quilt": {
 		Name:              "quilt",
@@ -53,7 +55,7 @@ var ModLoaders = map[string]ModLoaderComponent{
 
 func FetchMavenVersionList(url string) func(mcVersion string) ([]string, string, error) {
 	return func(mcVersion string) ([]string, string, error) {
-		res, err := http.Get(url)
+		res, err := GetWithUA(url, "application/xml")
 		if err != nil {
 			return []string{}, "", err
 		}
@@ -69,7 +71,7 @@ func FetchMavenVersionList(url string) func(mcVersion string) ([]string, string,
 
 func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
 	return func(mcVersion string) ([]string, string, error) {
-		res, err := http.Get(url)
+		res, err := GetWithUA(url, "application/xml")
 		if err != nil {
 			return []string{}, "", err
 		}
@@ -94,6 +96,8 @@ func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersi
 		if hasPrefixSplitDash(out.Versioning.Latest, mcVersion) {
 			return allowedVersions, out.Versioning.Latest, nil
 		}
+		// Sort list to get largest version
+		flexver.VersionSlice(allowedVersions).Sort()
 		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
 	}
 }
@@ -142,4 +146,48 @@ func ComponentToFriendlyName(component string) string {
 	} else {
 		return component
 	}
+}
+
+// HighestSliceIndex returns the highest index of the given values in the slice (-1 if no value is found in the slice)
+func HighestSliceIndex(slice []string, values []string) int {
+	highest := -1
+	for _, val := range values {
+		for i, v := range slice {
+			if v == val && i > highest {
+				highest = i
+			}
+		}
+	}
+	return highest
+}
+
+type ForgeRecommended struct {
+	Homepage string            `json:"homepage"`
+	Versions map[string]string `json:"promos"`
+}
+
+// GetForgeRecommended gets the recommended version of Forge for the given Minecraft version
+func GetForgeRecommended(mcVersion string) string {
+	res, err := GetWithUA("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", "application/json")
+	if err != nil {
+		return ""
+	}
+	dec := json.NewDecoder(res.Body)
+	out := ForgeRecommended{}
+	err = dec.Decode(&out)
+	if err != nil {
+		fmt.Println(err)
+		return ""
+	}
+	// Get mcVersion-recommended, if it doesn't exist then get mcVersion-latest
+	// If neither exist, return empty string
+	recommendedString := fmt.Sprintf("%s-recommended", mcVersion)
+	if out.Versions[recommendedString] != "" {
+		return out.Versions[recommendedString]
+	}
+	latestString := fmt.Sprintf("%s-latest", mcVersion)
+	if out.Versions[latestString] != "" {
+		return out.Versions[latestString]
+	}
+	return ""
 }

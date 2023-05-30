@@ -8,15 +8,15 @@ type cursePackMeta struct {
 		ModLoaders []modLoaderDef `json:"modLoaders"`
 	} `json:"minecraft"`
 	ManifestType    string `json:"manifestType"`
-	ManifestVersion int    `json:"manifestVersion"`
+	ManifestVersion uint32 `json:"manifestVersion"`
 	NameInternal    string `json:"name"`
 	Version         string `json:"version"`
 	Author          string `json:"author"`
-	ProjectID       int    `json:"projectID"`
+	ProjectID       uint32 `json:"projectID"`
 	Files           []struct {
-		ProjectID int  `json:"projectID"`
-		FileID    int  `json:"fileID"`
-		Required  bool `json:"required"`
+		ProjectID uint32 `json:"projectID"`
+		FileID    uint32 `json:"fileID"`
+		Required  bool   `json:"required"`
 	} `json:"files"`
 	Overrides string `json:"overrides"`
 	importSrc ImportPackSource

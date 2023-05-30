@@ -1,7 +1,10 @@
 package cmd
 
 import (
+	"bytes"
+	_ "embed"
 	"fmt"
+	"html/template"
 	"io"
 	"net/http"
 	"os"
@@ -18,6 +21,9 @@ import (
 
 var refreshMutex sync.RWMutex
 
+//go:embed serve-templates/index.html
+var indexPage string
+
 // serveCmd represents the serve command
 var serveCmd = &cobra.Command{
 	Use:     "serve",
@@ -26,6 +32,8 @@ var serveCmd = &cobra.Command{
 	Aliases: []string{"server"},
 	Args:    cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		port := strconv.Itoa(viper.GetInt("serve.port"))
+
 		if viper.GetBool("serve.basic") {
 			http.Handle("/", http.FileServer(http.Dir(".")))
 		} else {
@@ -40,111 +48,98 @@ var serveCmd = &cobra.Command{
 				fmt.Println(err)
 				os.Exit(1)
 			}
-			indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
-			indexDir := filepath.Dir(indexPath)
+			packServeDir := filepath.Dir(viper.GetString("pack-file"))
+			packFileName := filepath.Base(viper.GetString("pack-file"))
+
+			t, err := template.New("index-page").Parse(indexPage)
+			if err != nil {
+				fmt.Println(err)
+				os.Exit(1)
+			}
+
+			indexPageBuf := new(bytes.Buffer)
+			err = t.Execute(indexPageBuf, struct{ Port string }{Port: port})
+			if err != nil {
+				panic(fmt.Errorf("failed to compile index page template: %w", err))
+			}
+
+			// Force-disable no-internal-hashes mode (equiv to --build flag in refresh) for serving over HTTP
+			if viper.GetBool("no-internal-hashes") {
+				fmt.Println("Note: no-internal-hashes mode is set; still writing hashes for use with packwiz-installer - run packwiz refresh to remove them.")
+				viper.Set("no-internal-hashes", false)
+			}
 
 			http.HandleFunc("/", func(w http.ResponseWriter, req *http.Request) {
-				urlPath := strings.TrimPrefix(path.Clean("/"+strings.TrimPrefix(req.URL.Path, "/")), "/")
-				indexRelPath, err := filepath.Rel(indexDir, filepath.FromSlash(urlPath))
-				if err != nil {
-					fmt.Println(err)
+				if req.URL.Path == "/" {
+					_, _ = w.Write(indexPageBuf.Bytes())
 					return
 				}
-				indexRelPathSlash := path.Clean(filepath.ToSlash(indexRelPath))
-				var destPath string
 
-				found := false
-				if urlPath == filepath.ToSlash(indexPath) {
-					found = true
-					destPath = indexPath
+				// Relative to pack.toml
+				urlPath := strings.TrimPrefix(path.Clean("/"+strings.TrimPrefix(req.URL.Path, "/")), "/")
+				// Convert to absolute
+				destPath := filepath.Join(packServeDir, filepath.FromSlash(urlPath))
+				// Relativisation needs to be done using filepath, as path doesn't have Rel!
+				// (now using index util function)
+				// Relative to index.toml ("pack root")
+				indexRelPath, err := index.RelIndexPath(destPath)
+				if err != nil {
+					fmt.Println("Failed to parse path", err)
+					return
+				}
+
+				if urlPath == path.Clean(pack.Index.File) {
 					// Must be done here, to ensure all paths gain the lock at some point
 					refreshMutex.RLock()
-				} else if urlPath == filepath.ToSlash(viper.GetString("pack-file")) {
-					found = true
+				} else if urlPath == packFileName { // Only need to compare name - already relative to pack.toml
 					if viper.GetBool("serve.refresh") {
 						// Get write lock, to do a refresh
 						refreshMutex.Lock()
 						// Reload pack and index (might have changed on disk)
-						pack, err = core.LoadPack()
+						err = doServeRefresh(&pack, &index)
 						if err != nil {
-							fmt.Println(err)
+							fmt.Println("Failed to refresh pack", err)
 							return
 						}
-						index, err = pack.LoadIndex()
-						if err != nil {
-							fmt.Println(err)
-							return
-						}
-						err = index.Refresh()
-						if err != nil {
-							fmt.Println(err)
-							return
-						}
-						err = index.Write()
-						if err != nil {
-							fmt.Println(err)
-							return
-						}
-						err = pack.UpdateIndexHash()
-						if err != nil {
-							fmt.Println(err)
-							return
-						}
-						err = pack.Write()
-						if err != nil {
-							fmt.Println(err)
-							return
-						}
-						fmt.Println("Index refreshed!")
 
 						// Downgrade to a read lock
 						refreshMutex.Unlock()
 					}
 					refreshMutex.RLock()
-					destPath = viper.GetString("pack-file")
 				} else {
 					refreshMutex.RLock()
 					// Only allow indexed files
-					for _, v := range index.Files {
-						if indexRelPathSlash == v.File {
-							found = true
-							break
-						}
-					}
-					if found {
-						destPath = filepath.FromSlash(urlPath)
-					}
-				}
-				defer refreshMutex.RUnlock()
-				if found {
-					f, err := os.Open(destPath)
-					if err != nil {
-						fmt.Printf("Error reading file \"%s\": %s\n", destPath, err)
+					if _, found := index.Files[indexRelPath]; !found {
+						fmt.Printf("File not found: %s\n", destPath)
+						refreshMutex.RUnlock()
 						w.WriteHeader(404)
 						_, _ = w.Write([]byte("File not found"))
 						return
 					}
-					_, err = io.Copy(w, f)
-					err2 := f.Close()
-					if err == nil {
-						err = err2
-					}
-					if err != nil {
-						fmt.Printf("Error reading file \"%s\": %s\n", destPath, err)
-						w.WriteHeader(500)
-						_, _ = w.Write([]byte("Failed to read file"))
-						return
-					}
-				} else {
-					fmt.Printf("File not found: %s\n", destPath)
+				}
+				defer refreshMutex.RUnlock()
+
+				f, err := os.Open(destPath)
+				if err != nil {
+					fmt.Printf("Error reading file \"%s\": %s\n", destPath, err)
 					w.WriteHeader(404)
 					_, _ = w.Write([]byte("File not found"))
+					return
+				}
+				_, err = io.Copy(w, f)
+				err2 := f.Close()
+				if err == nil {
+					err = err2
+				}
+				if err != nil {
+					fmt.Printf("Error reading file \"%s\": %s\n", destPath, err)
+					w.WriteHeader(500)
+					_, _ = w.Write([]byte("Failed to read file"))
 					return
 				}
 			})
 		}
 
-		port := strconv.Itoa(viper.GetInt("serve.port"))
 		fmt.Println("Running on port " + port)
 		err := http.ListenAndServe(":"+port, nil)
 		if err != nil {
@@ -152,6 +147,37 @@ var serveCmd = &cobra.Command{
 			os.Exit(1)
 		}
 	},
+}
+
+func doServeRefresh(pack *core.Pack, index *core.Index) error {
+	var err error
+	*pack, err = core.LoadPack()
+	if err != nil {
+		return err
+	}
+	*index, err = pack.LoadIndex()
+	if err != nil {
+		return err
+	}
+	err = index.Refresh()
+	if err != nil {
+		return err
+	}
+	err = index.Write()
+	if err != nil {
+		return err
+	}
+	err = pack.UpdateIndexHash()
+	if err != nil {
+		return err
+	}
+	err = pack.Write()
+	if err != nil {
+		return err
+	}
+	fmt.Println("Index refreshed!")
+
+	return nil
 }
 
 func init() {

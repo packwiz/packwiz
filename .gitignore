@@ -15,4 +15,7 @@
 # I use GoLand now
 .idea/
 
+# Nix build output
+result
+
 dist/

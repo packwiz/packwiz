@@ -5,7 +5,6 @@ import (
 	"github.com/aviddiviner/go-murmur"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,8 +31,8 @@ var detectCmd = &cobra.Command{
 		}
 
 		// Walk files in the mods folder
-		var hashes []int
-		modPaths := make(map[int]string)
+		var hashes []uint32
+		modPaths := make(map[uint32]string)
 		err = filepath.Walk("mods", func(path string, info os.FileInfo, err error) error {
 			if err != nil {
 				return err
@@ -46,13 +45,13 @@ var detectCmd = &cobra.Command{
 				return nil
 			}
 			fmt.Println("Hashing " + path)
-			bytes, err := ioutil.ReadFile(path)
+			bytes, err := os.ReadFile(path)
 			if err != nil {
 				return err
 			}
 			hash := getByteArrayHash(bytes)
-			hashes = append(hashes, int(hash))
-			modPaths[int(hash)] = path
+			hashes = append(hashes, hash)
+			modPaths[hash] = path
 			return nil
 		})
 		if err != nil {
@@ -80,15 +79,25 @@ var detectCmd = &cobra.Command{
 				fmt.Printf("%s (%d)\n", modPaths[v], v)
 			}
 		}
-		fmt.Println("Installing...")
-		for _, v := range res.ExactMatches {
-			modInfoData, err := cfDefaultClient.getModInfo(v.ID)
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
 
-			err = createModFile(modInfoData, v.File, &index, false)
+		fmt.Println("Retrieving metadata...")
+		ids := make([]uint32, len(res.ExactMatches))
+		for i, v := range res.ExactMatches {
+			ids[i] = v.ID
+		}
+		modInfos, err := cfDefaultClient.getModInfoMultiple(ids)
+		if err != nil {
+			fmt.Printf("Failed to retrieve metadata: %v", err)
+			os.Exit(1)
+		}
+		modInfosMap := make(map[uint32]modInfo)
+		for _, v := range modInfos {
+			modInfosMap[v.ID] = v
+		}
+
+		fmt.Println("Creating metadata files...")
+		for _, v := range res.ExactMatches {
+			err = createModFile(modInfosMap[v.ID], v.File, &index, false)
 			if err != nil {
 				fmt.Println(err)
 				os.Exit(1)
@@ -103,7 +112,7 @@ var detectCmd = &cobra.Command{
 				}
 			}
 		}
-		fmt.Println("Installation done")
+		fmt.Println("Detection complete!")
 
 		err = index.Refresh()
 		if err != nil {
@@ -132,8 +141,8 @@ func init() {
 	curseforgeCmd.AddCommand(detectCmd)
 }
 
-func getByteArrayHash(bytes []byte) uint64 {
-	return uint64(murmur.MurmurHash2(computeNormalizedArray(bytes), 1))
+func getByteArrayHash(bytes []byte) uint32 {
+	return murmur.MurmurHash2(computeNormalizedArray(bytes), 1)
 }
 
 func computeNormalizedArray(bytes []byte) []byte {

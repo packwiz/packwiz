@@ -1,25 +1,20 @@
 package modrinth
 
 import (
-	"encoding/json"
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
-	"io/ioutil"
-	"net/http"
-	"net/url"
-	"time"
-
-	"github.com/Masterminds/semver/v3"
 	"github.com/packwiz/packwiz/cmd"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"github.com/unascribed/FlexVer/go/flexver"
+	"golang.org/x/exp/slices"
+	"math"
+	"net/http"
+	"net/url"
+	"regexp"
 )
-
-const modrinthApiUrl = "https://api.modrinth.com/api/v1/"
-
-var modrinthApiUrlParsed, _ = url.Parse(modrinthApiUrl)
 
 var modrinthCmd = &cobra.Command{
 	Use:     "modrinth",
@@ -27,299 +22,324 @@ var modrinthCmd = &cobra.Command{
 	Short:   "Manage modrinth-based mods",
 }
 
+var mrDefaultClient = modrinthApi.NewClient(&http.Client{})
+
 func init() {
 	cmd.Add(modrinthCmd)
 	core.Updaters["modrinth"] = mrUpdater{}
+
+	mrDefaultClient.UserAgent = core.UserAgent
 }
 
-type License struct {
-	Id   string `json:"id"`   //The license id of a mod, retrieved from the licenses get route
-	Name string `json:"name"` //The long for name of a license
-	Url  string `json:"url"`  //The URL to this license
-}
-
-type Mod struct {
-	ID          string   `json:"id"`          //The ID of the mod, encoded as a base62 string
-	Slug        string   `json:"slug"`        //The slug of a mod, used for vanity URLs
-	Team        string   `json:"team"`        //The id of the team that has ownership of this mod
-	Title       string   `json:"title"`       //The title or name of the mod
-	Description string   `json:"description"` //A short description of the mod
-	Body        string   `json:"body"`        //A long form description of the mod.
-	BodyUrl     string   `json:"body_url"`    //DEPRECATED The link to the long description of the mod (Optional)
-	Published   string   `json:"published"`   //The date at which the mod was first published
-	Updated     string   `json:"updated"`     //The date at which the mod was updated
-	Status      string   `json:"status"`      //The status of the mod - approved, rejected, draft, unlisted, processing, or unknown
-	License     struct { //The license of the mod
-		ID   string `json:"id"`
-		Name string `json:"name"`
-		URL  string `json:"url"`
-	} `json:"license"`
-	ClientSide string   `json:"client_side"` //The support range for the client mod - required, optional, unsupported, or unknown
-	ServerSide string   `json:"server_side"` //The support range for the server mod - required, optional, unsupported, or unknown
-	Downloads  int      `json:"downloads"`   //The total number of downloads the mod has
-	Categories []string `json:"categories"`  //A list of the categories that the mod is in
-	Versions   []string `json:"versions"`    //A list of ids for versions of the mod
-	IconUrl    string   `json:"icon_url"`    //The URL of the icon of the mod (Optional)
-	IssuesUrl  string   `json:"issues_url"`  //An optional link to where to submit bugs or issues with the mod (Optional)
-	SourceUrl  string   `json:"source_url"`  //An optional link to the source code for the mod (Optional)
-	WikiUrl    string   `json:"wiki_url"`    //An optional link to the mod's wiki page or other relevant information (Optional)
-	DiscordUrl string   `json:"discord_url"` //An optional link to the mod's discord (Optional)
-}
-
-type ModResult struct {
-	ModID         string   `json:"mod_id"`         //The id of the mod; prefixed with local-
-	ProjectType   string   `json:"project_id"`     //The project type of the mod
-	Author        string   `json:"author"`         //The username of the author of the mod
-	Title         string   `json:"title"`          //The name of the mod
-	Description   string   `json:"description"`    //A short description of the mod
-	Categories    []string `json:"categories"`     //A list of the categories the mod is in
-	Versions      []string `json:"versions"`       //A list of the minecraft versions supported by the mod
-	Downloads     int      `json:"downloads"`      //The total number of downloads for the mod
-	PageUrl       string   `json:"page_url"`       //A link to the mod's main page;
-	IconUrl       string   `json:"icon_url"`       //The url of the mod's icon
-	AuthorUrl     string   `json:"author_url"`     //The url of the mod's author
-	DateCreated   string   `json:"date_created"`   //The date that the mod was originally created
-	DateModified  string   `json:"date_modified"`  //The date that the mod was last modified
-	LatestVersion string   `json:"latest_version"` //The latest version of minecraft that this mod supports
-	License       string   `json:"license"`        //The id of the license this mod follows
-	ClientSide    string   `json:"client_side"`    //The side type id that this mod is on the client
-	ServerSide    string   `json:"server_side"`    //The side type id that this mod is on the server
-	Host          string   `json:"host"`           //The host that this mod is from, always modrinth
-}
-
-type ModSearchResult struct {
-	Hits      []ModResult `json:"hits"`       //The list of results
-	Offset    int         `json:"offset"`     //The number of results that were skipped by the query
-	Limit     int         `json:"limit"`      //The number of mods returned by the query
-	TotalHits int         `json:"total_hits"` //The total number of mods that the query found
-}
-
-type Version struct {
-	ID            string        `json:"id"`             //The ID of the version, encoded as a base62 string
-	ModID         string        `json:"mod_id"`         //The ID of the mod this version is for
-	AuthorId      string        `json:"author_id"`      //The ID of the author who published this version
-	Featured      bool          `json:"featured"`       //Whether the version is featured or not
-	Name          string        `json:"name"`           //The name of this version
-	VersionNumber string        `json:"version_number"` //The version number. Ideally will follow semantic versioning
-	Changelog     string        `json:"changelog"`      //The changelog for this version of the mod. (Optional)
-	DatePublished string        `json:"date_published"` //The date that this version was published
-	Downloads     int           `json:"downloads"`      //The number of downloads this specific version has
-	VersionType   string        `json:"version_type"`   //The type of the release - alpha, beta, or release
-	Files         []VersionFile `json:"files"`          //A list of files available for download for this version
-	//Dependencies  []string      `json:"dependencies"`   //A list of specific versions of mods that this version depends on
-	GameVersions []string `json:"game_versions"` //A list of versions of Minecraft that this version of the mod supports
-	Loaders      []string `json:"loaders"`       //The mod loaders that this version supports
-}
-
-type VersionFile struct {
-	Hashes   map[string]string //A map of hashes of the file. The key is the hashing algorithm and the value is the string version of the hash.
-	Url      string            //A direct link to the file
-	Filename string            //The name of the file
-	Primary  bool              // Is the file the primary file?
-}
-
-func getModIdsViaSearch(query string, versions []string) ([]ModResult, error) {
-	baseUrl := *modrinthApiUrlParsed
-	baseUrl.Path += "mod"
-
-	params := url.Values{}
-	params.Add("limit", "5")
-	params.Add("index", "relevance")
+func getProjectIdsViaSearch(query string, versions []string) ([]*modrinthApi.SearchResult, error) {
 	facets := make([]string, 0)
 	for _, v := range versions {
 		facets = append(facets, "versions:"+v)
 	}
-	facetsEncoded, err := json.Marshal(facets)
+
+	res, err := mrDefaultClient.Projects.Search(&modrinthApi.SearchOptions{
+		Limit:  5,
+		Index:  "relevance",
+		Facets: [][]string{facets},
+		Query:  query,
+	})
+
 	if err != nil {
-		return []ModResult{}, err
+		return nil, err
 	}
-	params.Add("facets", "["+string(facetsEncoded)+"]")
-	params.Add("query", query)
-
-	baseUrl.RawQuery = params.Encode()
-
-	resp, err := http.Get(baseUrl.String())
-	if err != nil {
-		return []ModResult{}, err
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return []ModResult{}, err
-	}
-
-	var result ModSearchResult
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return []ModResult{}, err
-	}
-
-	if result.TotalHits <= 0 {
-		return []ModResult{}, errors.New("Couldn't find that mod. Is it available for this version?")
-	}
-
-	return result.Hits, nil
+	return res.Hits, nil
 }
 
-func getLatestVersion(modID string, pack core.Pack) (Version, error) {
-	mcVersion, err := pack.GetMCVersion()
-	if err != nil {
-		return Version{}, err
-	}
-	gameVersions := append([]string{mcVersion}, viper.GetStringSlice("acceptable-game-versions")...)
-	gameVersionsEncoded, err := json.Marshal(gameVersions)
-	if err != nil {
-		return Version{}, err
-	}
+// "Loaders" that are supported regardless of the configured mod loaders
+var defaultMRLoaders = []string{
+	// TODO: check if Canvas/Iris/Optifine are installed? suggest installing them?
+	"canvas",
+	"iris",
+	"optifine",
+	"vanilla",   // Core shaders
+	"minecraft", // Resource packs
+}
 
-	loadersEncoded, err := json.Marshal(pack.GetLoaders())
-	if err != nil {
-		return Version{}, err
-	}
+var withDatapackPathMRLoaders = []string{
+	"canvas",
+	"iris",
+	"optifine",
+	"vanilla",   // Core shaders
+	"minecraft", // Resource packs
+	// TODO: check if a datapack loader is installed; suggest installing one?
+	"datapack", // Datapacks (requires a datapack loader)
+}
 
-	baseUrl := *modrinthApiUrlParsed
-	baseUrl.Path += "mod/"
-	baseUrl.Path += modID
-	baseUrl.Path += "/version"
+var loaderFolders = map[string]string{
+	"quilt":      "mods",
+	"fabric":     "mods",
+	"forge":      "mods",
+	"liteloader": "mods",
+	"modloader":  "mods",
+	"rift":       "mods",
+	"bukkit":     "plugins",
+	"spigot":     "plugins",
+	"paper":      "plugins",
+	"purpur":     "plugins",
+	"sponge":     "plugins",
+	"bungeecord": "plugins",
+	"waterfall":  "plugins",
+	"velocity":   "plugins",
+	"canvas":     "resourcepacks",
+	"iris":       "shaderpacks",
+	"optifine":   "shaderpacks",
+	"vanilla":    "resourcepacks",
+}
 
-	params := url.Values{}
-	params.Add("game_versions", string(gameVersionsEncoded))
-	params.Add("loaders", string(loadersEncoded))
+// Preference list for loader types, for comparing files where the version is the same - more preferred is lower
+var loaderPreferenceList = []string{
+	// Prefer quilt versions over fabric versions
+	"quilt",
+	"fabric",
+	"forge",
+	"liteloader",
+	"modloader",
+	"rift",
+	// Prefer mods to plugins
+	"sponge",
+	// Prefer newer Bukkit forks
+	"purpur",
+	"paper",
+	"spigot",
+	"bukkit",
+	"velocity",
+	// Prefer newer BungeeCord forks
+	"waterfall",
+	"bungeecord",
+	// Prefer Canvas shaders to Iris shaders to Optifine shaders to core shaders
+	"canvas",
+	"iris",
+	"optifine",
+	"vanilla",
+	// Prefer mods to datapacks
+	"datapack",
+	// Prefer mods to resource packs?! Idk this is just here for completeness
+	"minecraft",
+}
 
-	baseUrl.RawQuery = params.Encode()
+// Groups of loaders that should be treated the same as the key, if both versions support the key
+// i.e. the key is a more "generic" loader; support for it implies support for the whole group
+// e.g. [quilt, fabric] should compare equal to [fabric] (but less than [quilt] as Quilt support doesn't imply Fabric support)
+// This is useful when authors forget to add Quilt/Purpur etc. to all versions
+// TODO: make abstracted from source backend
+var loaderCompatGroups = map[string][]string{
+	"fabric":     {"quilt"},
+	"bukkit":     {"purpur", "paper", "spigot"},
+	"bungeecord": {"waterfall"},
+}
 
-	resp, err := http.Get(baseUrl.String())
-	if err != nil {
-		return Version{}, err
-	}
-
-	if resp.StatusCode == 404 {
-		return Version{}, fmt.Errorf("mod not found (for URL %v)", baseUrl)
-	}
-
-	if resp.StatusCode != 200 {
-		return Version{}, fmt.Errorf("invalid response status %v for URL %v", resp.Status, baseUrl)
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return Version{}, err
-	}
-
-	var result []Version
-	err = json.Unmarshal(body, &result)
-	if err != nil {
-		return Version{}, err
-	}
-
-	if len(result) == 0 {
-		return Version{}, errors.New("no valid versions found")
-	}
-
-	latestValidVersion := result[0]
-	for _, v := range result[1:] {
-		currVersion, err1 := semver.NewVersion(v.VersionNumber)
-		latestVersion, err2 := semver.NewVersion(latestValidVersion.VersionNumber)
-		var semverCompare = 0
-		// Only compare with semver if both are valid semver - otherwise compare by release date
-		if err1 == nil && err2 == nil {
-			semverCompare = currVersion.Compare(latestVersion)
+func getProjectTypeFolder(projectType string, fileLoaders []string, packLoaders []string) (string, error) {
+	if projectType == "modpack" {
+		return "", errors.New("this command should not be used to add Modrinth modpacks, and importing of Modrinth modpacks is not yet supported")
+	} else if projectType == "resourcepack" {
+		return "resourcepacks", nil
+	} else if projectType == "shader" {
+		bestLoaderIdx := math.MaxInt
+		for _, v := range fileLoaders {
+			idx := slices.Index(loaderPreferenceList, v)
+			if idx != -1 && idx < bestLoaderIdx {
+				bestLoaderIdx = idx
+			}
+		}
+		if bestLoaderIdx > -1 && bestLoaderIdx < math.MaxInt {
+			return loaderFolders[loaderPreferenceList[bestLoaderIdx]], nil
+		}
+		return "shaderpacks", nil
+	} else if projectType == "mod" {
+		// Look up pack loaders in the list of loaders (note this is currently filtered to quilt/fabric/forge)
+		bestLoaderIdx := math.MaxInt
+		for _, v := range fileLoaders {
+			if slices.Contains(packLoaders, v) {
+				idx := slices.Index(loaderPreferenceList, v)
+				if idx != -1 && idx < bestLoaderIdx {
+					bestLoaderIdx = idx
+				}
+			}
+		}
+		if bestLoaderIdx > -1 && bestLoaderIdx < math.MaxInt {
+			return loaderFolders[loaderPreferenceList[bestLoaderIdx]], nil
 		}
 
-		if semverCompare == 0 {
-			// Prefer Quilt over Fabric (Modrinth backend handles filtering)
-			if slices.Contains(v.Loaders, "quilt") && !slices.Contains(latestValidVersion.Loaders, "quilt") {
-				latestValidVersion = v
-				continue
+		// Datapack loader is "datapack"
+		if slices.Contains(fileLoaders, "datapack") {
+			if viper.GetString("datapack-folder") != "" {
+				return viper.GetString("datapack-folder"), nil
+			} else {
+				return "", errors.New("set the datapack-folder option to use datapacks")
 			}
+		}
+		// Default to "mods" for mod type
+		return "mods", nil
+	} else {
+		return "", fmt.Errorf("unknown project type %s", projectType)
+	}
+}
 
-			//Semver is equal, compare date instead
-			vDate, _ := time.Parse(time.RFC3339Nano, v.DatePublished)
-			latestDate, _ := time.Parse(time.RFC3339Nano, latestValidVersion.DatePublished)
-			if vDate.After(latestDate) {
-				latestValidVersion = v
+var urlRegexes = [...]*regexp.Regexp{
+	// Slug/version number regex from https://github.com/modrinth/labrinth/blob/1679a3f844497d756d0cf272c5374a5236eabd42/src/util/validate.rs#L8
+	regexp.MustCompile("^https?://modrinth\\.com/(?P<urlCategory>[^/]+)/(?P<slug>[a-zA-Z0-9!@$()`.+,_\"-]{3,64})(?:/version/(?P<version>[a-zA-Z0-9!@$()`.+,_\"-]{1,32}))?"),
+	// Version/project IDs are more restrictive: [a-zA-Z0-9]+ (base62)
+	regexp.MustCompile("^https?://cdn\\.modrinth\\.com/data/(?P<slug>[a-zA-Z0-9]+)/versions/(?P<versionID>[a-zA-Z0-9]+)/(?P<filename>[^/]+)$"),
+	regexp.MustCompile("^(?P<slug>[a-zA-Z0-9!@$()`.+,_\"-]{3,64})$"),
+}
+
+const slugRegexIdx = 2
+
+var urlCategories = []string{
+	"mod", "plugin", "datapack", "shader", "resourcepack", "modpack",
+}
+
+func parseSlugOrUrl(input string, slug *string, version *string, versionID *string, filename *string) (parsedSlug bool, err error) {
+	for regexIdx, r := range urlRegexes {
+		matches := r.FindStringSubmatch(input)
+		if matches != nil {
+			if i := r.SubexpIndex("urlCategory"); i >= 0 {
+				if !slices.Contains(urlCategories, matches[i]) {
+					err = errors.New("unknown project type: " + matches[i])
+					return
+				}
 			}
-		} else if semverCompare == 1 {
+			if i := r.SubexpIndex("slug"); i >= 0 {
+				*slug = matches[i]
+			}
+			if i := r.SubexpIndex("version"); i >= 0 {
+				*version = matches[i]
+			}
+			if i := r.SubexpIndex("versionID"); i >= 0 {
+				*versionID = matches[i]
+			}
+			if i := r.SubexpIndex("filename"); i >= 0 {
+				var parsed string
+				parsed, err = url.PathUnescape(matches[i])
+				if err != nil {
+					return
+				}
+				*filename = parsed
+			}
+			parsedSlug = regexIdx == slugRegexIdx
+			return
+		}
+	}
+	return
+}
+
+func compareLoaderLists(a []string, b []string) int32 {
+	var compat []string
+	for k, v := range loaderCompatGroups {
+		if slices.Contains(a, k) && slices.Contains(b, k) {
+			// Prerequisite loader is in both lists; add compat group
+			compat = append(compat, v...)
+		}
+	}
+	// Prefer loaders; principally Quilt over Fabric, mods over datapacks (Modrinth backend handles filtering)
+	minIdxA := math.MaxInt
+	for _, v := range a {
+		if slices.Contains(compat, v) {
+			// Ignore loaders in compat groups for comparison
+			continue
+		}
+		idx := slices.Index(loaderPreferenceList, v)
+		if idx != -1 && idx < minIdxA {
+			minIdxA = idx
+		}
+	}
+	minIdxB := math.MaxInt
+	for _, v := range b {
+		if slices.Contains(compat, v) {
+			// Ignore loaders in compat groups for comparison
+			continue
+		}
+		idx := slices.Index(loaderPreferenceList, v)
+		if idx < minIdxA {
+			return 1 // B has more preferable loaders
+		}
+		if idx != -1 && idx < minIdxB {
+			minIdxB = idx
+		}
+	}
+	if minIdxA < minIdxB {
+		return -1 // A has more preferable loaders
+	}
+	return 0
+}
+
+func findLatestVersion(versions []*modrinthApi.Version, gameVersions []string, useFlexVer bool) *modrinthApi.Version {
+	latestValidVersion := versions[0]
+	bestGameVersion := core.HighestSliceIndex(gameVersions, versions[0].GameVersions)
+	for _, v := range versions[1:] {
+		gameVersionIdx := core.HighestSliceIndex(gameVersions, v.GameVersions)
+
+		var compare int32
+		if useFlexVer {
+			// Use FlexVer to compare versions
+			compare = flexver.Compare(*v.VersionNumber, *latestValidVersion.VersionNumber)
+		}
+
+		if compare == 0 {
+			// Prefer later specified game versions (main version specified last)
+			compare = int32(gameVersionIdx - bestGameVersion)
+		}
+		if compare == 0 {
+			compare = compareLoaderLists(latestValidVersion.Loaders, v.Loaders)
+		}
+		if compare == 0 {
+			// Other comparisons are equal, compare date instead
+			if v.DatePublished.After(*latestValidVersion.DatePublished) {
+				compare = 1
+			}
+		}
+		if compare > 0 {
 			latestValidVersion = v
+			bestGameVersion = gameVersionIdx
 		}
 	}
 
-	return latestValidVersion, nil
+	return latestValidVersion
 }
 
-func fetchMod(modID string) (Mod, error) {
-	var mod Mod
-
-	resp, err := http.Get(modrinthApiUrl + "mod/" + modID)
+func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthApi.Version, error) {
+	gameVersions, err := pack.GetSupportedMCVersions()
 	if err != nil {
-		return mod, err
+		return nil, err
+	}
+	var loaders []string
+	if viper.GetString("datapack-folder") != "" {
+		loaders = append(pack.GetLoaders(), withDatapackPathMRLoaders...)
+	} else {
+		loaders = append(pack.GetLoaders(), defaultMRLoaders...)
 	}
 
-	if resp.StatusCode == 404 {
-		return mod, fmt.Errorf("mod not found (for URL %v)", modrinthApiUrl+"mod/"+modID)
-	}
-
-	if resp.StatusCode != 200 {
-		return mod, fmt.Errorf("invalid response status %v for URL %v", resp.Status, modrinthApiUrl+"mod/"+modID)
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	result, err := mrDefaultClient.Versions.ListVersions(projectID, modrinthApi.ListVersionsOptions{
+		GameVersions: gameVersions,
+		Loaders:      loaders,
+	})
 	if err != nil {
-		return mod, err
+		return nil, fmt.Errorf("failed to fetch latest version: %w", err)
+	}
+	if len(result) == 0 {
+		// TODO: retry with datapack specified, to determine what the issue is? or just request all and filter afterwards
+		return nil, errors.New("no valid versions found\n\tUse the 'packwiz settings acceptable-versions' command to accept more game versions\n\tTo use datapacks, add a datapack loader mod and specify the datapack-folder option with the folder this mod loads datapacks from")
 	}
 
-	err = json.Unmarshal(body, &mod)
-	if err != nil {
-		return mod, err
+	// TODO: option to always compare using flexver?
+	// TODO: ask user which one to use?
+	flexverLatest := findLatestVersion(result, gameVersions, true)
+	releaseDateLatest := findLatestVersion(result, gameVersions, false)
+	if flexverLatest != releaseDateLatest && releaseDateLatest.VersionNumber != nil && flexverLatest.VersionNumber != nil {
+		fmt.Printf("Warning: Modrinth versions for %s inconsistent between latest version number and newest release date (%s vs %s)\n", name, *flexverLatest.VersionNumber, *releaseDateLatest.VersionNumber)
 	}
 
-	if mod.ID == "" {
-		return mod, errors.New("invalid json whilst fetching mod: " + modID)
-	}
-
-	return mod, nil
+	return releaseDateLatest, nil
 }
 
-func fetchVersion(versionId string) (Version, error) {
-	var version Version
-
-	resp, err := http.Get(modrinthApiUrl + "version/" + versionId)
-	if err != nil {
-		return version, err
-	}
-
-	if resp.StatusCode == 404 {
-		return version, fmt.Errorf("version not found (for URL %v)", modrinthApiUrl+"version/"+versionId)
-	}
-
-	if resp.StatusCode != 200 {
-		return version, fmt.Errorf("invalid response status %v for URL %v", resp.Status, modrinthApiUrl+"version/"+versionId)
-	}
-
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return version, err
-	}
-
-	err = json.Unmarshal(body, &version)
-	if err != nil {
-		return version, err
-	}
-
-	if version.ID == "" {
-		return version, errors.New("invalid json whilst fetching version: " + versionId)
-	}
-
-	return version, nil
-}
-
-func (mod Mod) getSide() string {
-	server := shouldDownloadOnSide(mod.ServerSide)
-	client := shouldDownloadOnSide(mod.ClientSide)
+func getSide(mod *modrinthApi.Project) string {
+	server := shouldDownloadOnSide(*mod.ServerSide)
+	client := shouldDownloadOnSide(*mod.ClientSide)
 
 	if server && client {
 		return core.UniversalSide
@@ -336,7 +356,7 @@ func shouldDownloadOnSide(side string) bool {
 	return side == "required" || side == "optional"
 }
 
-func (v VersionFile) getBestHash() (string, string) {
+func getBestHash(v *modrinthApi.File) (string, string) {
 	// Try preferred hashes first; SHA1 is first as it is required for Modrinth pack exporting
 	val, exists := v.Hashes["sha1"]
 	if exists {
@@ -362,4 +382,66 @@ func (v VersionFile) getBestHash() (string, string) {
 
 	//No hashes were present
 	return "", ""
+}
+
+func getInstalledProjectIDs(index *core.Index) []string {
+	var installedProjects []string
+	// Get modids of all mods
+	mods, err := index.LoadAllMods()
+	if err != nil {
+		fmt.Printf("Failed to determine existing projects: %v\n", err)
+	} else {
+		for _, mod := range mods {
+			data, ok := mod.GetParsedUpdateData("modrinth")
+			if ok {
+				updateData, ok := data.(mrUpdateData)
+				if ok {
+					if len(updateData.ProjectID) > 0 {
+						installedProjects = append(installedProjects, updateData.ProjectID)
+					}
+				}
+			}
+		}
+	}
+	return installedProjects
+}
+
+func resolveVersion(project *modrinthApi.Project, version string) (*modrinthApi.Version, error) {
+	// If it exists in the version list, it is already a version ID (and doesn't need querying further)
+	if slices.Contains(project.Versions, version) {
+		versionData, err := mrDefaultClient.Versions.Get(version)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch version %s: %v", version, err)
+		}
+		return versionData, nil
+	}
+
+	// Look up all versions
+	// TODO: PR a version number filter to Modrinth?
+	versionsList, err := mrDefaultClient.Versions.ListVersions(*project.ID, modrinthApi.ListVersionsOptions{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch version list for %s: %v", *project.ID, err)
+	}
+	// Traverse in reverse order: Modrinth knossos always gives the oldest file precedence over having the version number path
+	for i := len(versionsList) - 1; i >= 0; i-- {
+		if *versionsList[i].VersionNumber == version {
+			return versionsList[i], nil
+		}
+	}
+	return nil, fmt.Errorf("unable to find version %s", version)
+}
+
+// mapDepOverride transforms manual dependency overrides (which will likely be removed when packwiz is able to determine provided mods)
+func mapDepOverride(depID string, isQuilt bool, mcVersion string) string {
+	if isQuilt && (depID == "P7dR8mSH" || depID == "fabric-api") {
+		// Transform FAPI dependencies to QFAPI/QSL dependencies when using Quilt
+		return "qvIfYCYJ"
+	}
+	if isQuilt && (depID == "Ha28R6CL" || depID == "fabric-language-kotlin") {
+		// Transform FLK dependencies to QKL dependencies when using Quilt >=1.19.2 non-snapshot
+		if flexver.Less("1.19.1", mcVersion) && flexver.Less(mcVersion, "2.0.0") {
+			return "lwVhp9o5"
+		}
+	}
+	return depID
 }

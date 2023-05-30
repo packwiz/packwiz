@@ -6,6 +6,8 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
+	"strings"
 )
 
 // Mod stores metadata about a mod. This is written to a TOML file for each mod.
@@ -23,8 +25,8 @@ type Mod struct {
 }
 
 const (
-	modeURL string = "url"
-	modeCF  string = "metadata:curseforge"
+	ModeURL string = "url"
+	ModeCF  string = "metadata:curseforge"
 )
 
 // ModDownload specifies how to download the mod file
@@ -43,12 +45,12 @@ type ModOption struct {
 	Default     bool   `toml:"default,omitempty"`
 }
 
-// The three possible values of Side (the side that the mod is on) are "server", "client", and "both".
-//noinspection GoUnusedConst
+// The four possible values of Side (the side that the mod is on) are "server", "client", "both", and "" (equivalent to "both")
 const (
 	ServerSide    = "server"
 	ClientSide    = "client"
 	UniversalSide = "both"
+	EmptySide     = ""
 )
 
 // LoadMod attempts to load a mod file from a path
@@ -128,4 +130,20 @@ func (m Mod) GetFilePath() string {
 // GetDestFilePath returns the path of the destination file of the mod
 func (m Mod) GetDestFilePath() string {
 	return filepath.Join(filepath.Dir(m.metaFile), filepath.FromSlash(m.FileName))
+}
+
+var slugifyRegex1 = regexp.MustCompile(`\(.*\)`)
+var slugifyRegex2 = regexp.MustCompile(` - .+`)
+var slugifyRegex3 = regexp.MustCompile(`[^a-z\d]`)
+var slugifyRegex4 = regexp.MustCompile(`-+`)
+var slugifyRegex5 = regexp.MustCompile(`^-|-$`)
+
+func SlugifyName(name string) string {
+	lower := strings.ToLower(name)
+	noBrackets := slugifyRegex1.ReplaceAllString(lower, "")
+	noSuffix := slugifyRegex2.ReplaceAllString(noBrackets, "")
+	limitedChars := slugifyRegex3.ReplaceAllString(noSuffix, "-")
+	noDuplicateDashes := slugifyRegex4.ReplaceAllString(limitedChars, "-")
+	noLeadingTrailingDashes := slugifyRegex5.ReplaceAllString(noDuplicateDashes, "")
+	return noLeadingTrailingDashes
 }

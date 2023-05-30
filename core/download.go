@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -13,6 +12,18 @@ import (
 
 	"golang.org/x/exp/slices"
 )
+
+const UserAgent = "packwiz/packwiz"
+
+func GetWithUA(url string, contentType string) (resp *http.Response, err error) {
+	req, err := http.NewRequest("GET", url, nil)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("User-Agent", UserAgent)
+	req.Header.Set("Accept", contentType)
+	return http.DefaultClient.Do(req)
+}
 
 const DownloadCacheImportFolder = "import"
 
@@ -97,7 +108,7 @@ func (d *downloadSessionInternal) SaveIndex() error {
 	if err != nil {
 		return fmt.Errorf("failed to serialise index: %w", err)
 	}
-	err = ioutil.WriteFile(filepath.Join(d.cacheFolder, "index.json"), data, 0644)
+	err = os.WriteFile(filepath.Join(d.cacheFolder, "index.json"), data, 0644)
 	if err != nil {
 		return fmt.Errorf("failed to write index: %w", err)
 	}
@@ -135,7 +146,7 @@ func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, m
 
 func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []string, index *CacheIndex) (CompletedDownload, error) {
 	// Create temp file to download to
-	tempFile, err := ioutil.TempFile(filepath.Join(cacheFolder, "temp"), "download-tmp")
+	tempFile, err := os.CreateTemp(filepath.Join(cacheFolder, "temp"), "download-tmp")
 	if err != nil {
 		return CompletedDownload{}, fmt.Errorf("failed to create temporary file for download: %w", err)
 	}
@@ -144,8 +155,7 @@ func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []st
 	if len(hashesToObtain) > 0 {
 		var data io.ReadCloser
 		if task.url != "" {
-			resp, err := http.Get(task.url)
-			// TODO: content type, user-agent?
+			resp, err := GetWithUA(task.url, "application/octet-stream")
 			if err != nil {
 				return CompletedDownload{}, fmt.Errorf("failed to download %s: %w", task.url, err)
 			}
@@ -259,7 +269,7 @@ func teeHashes(hashesToObtain []string, hashes map[string]string,
 	calculatedHash := mainHasher.HashToString(mainHasher.Sum(nil))
 
 	// Check if the hash of the downloaded file matches the expected hash
-	if calculatedHash != validateHash {
+	if strings.ToLower(calculatedHash) != strings.ToLower(validateHash) {
 		return fmt.Errorf(
 			"%s hash of downloaded file does not match with expected hash!\n download hash: %s\n expected hash: %s\n",
 			validateHashFormat, calculatedHash, validateHash)
@@ -300,7 +310,7 @@ func (c *CacheIndex) getHashesMap(i int) map[string]string {
 func (c *CacheIndex) GetHandleFromHash(hashFormat string, hash string) *CacheIndexHandle {
 	storedHashFmtList, hasStoredHashFmt := c.Hashes[hashFormat]
 	if hasStoredHashFmt {
-		hashIdx := slices.Index(storedHashFmtList, hash)
+		hashIdx := slices.Index(storedHashFmtList, strings.ToLower(hash))
 		if hashIdx > -1 {
 			return &CacheIndexHandle{
 				index:   c,
@@ -323,7 +333,7 @@ func (c *CacheIndex) GetHandleFromHashForce(hashFormat string, hash string) (*Ca
 		c.Hashes[hashFormat] = storedHashFmtList
 		// Rehash every file that doesn't have this hash with this hash
 		for hashIdx, curHash := range storedHashFmtList {
-			if curHash == hash {
+			if strings.EqualFold(curHash, hash) {
 				return &CacheIndexHandle{
 					index:   c,
 					hashIdx: hashIdx,
@@ -335,7 +345,7 @@ func (c *CacheIndex) GetHandleFromHashForce(hashFormat string, hash string) (*Ca
 				if err != nil {
 					return nil, fmt.Errorf("failed to rehash %s: %w", c.Hashes[cacheHashFormat][hashIdx], err)
 				}
-				if storedHashFmtList[hashIdx] == hash {
+				if strings.EqualFold(storedHashFmtList[hashIdx], hash) {
 					return &CacheIndexHandle{
 						index:   c,
 						hashIdx: hashIdx,
@@ -354,7 +364,7 @@ func (c *CacheIndex) GetHandleFromHashForce(hashFormat string, hash string) (*Ca
 			if err != nil {
 				return nil, fmt.Errorf("failed to rehash %s: %w", cacheHash, err)
 			}
-			if storedHashFmtList[hashIdx] == hash {
+			if strings.EqualFold(storedHashFmtList[hashIdx], hash) {
 				return &CacheIndexHandle{
 					index:   c,
 					hashIdx: hashIdx,
@@ -400,7 +410,7 @@ func (c *CacheIndex) NewHandleFromHashes(hashes map[string]string) (*CacheIndexH
 		if handle != nil {
 			// Add hashes to handle
 			for hashFormat2, hash2 := range hashes {
-				handle.Hashes[hashFormat2] = hash2
+				handle.Hashes[hashFormat2] = strings.ToLower(hash2)
 			}
 			return handle, true
 		}
@@ -541,7 +551,7 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 	if err != nil {
 		return nil, fmt.Errorf("failed to create cache temp directory: %w", err)
 	}
-	cacheIndexData, err := ioutil.ReadFile(filepath.Join(cachePath, "index.json"))
+	cacheIndexData, err := os.ReadFile(filepath.Join(cachePath, "index.json"))
 	if err != nil {
 		if !os.IsNotExist(err) {
 			return nil, fmt.Errorf("failed to read cache index file: %w", err)
@@ -586,7 +596,7 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 
 	// Get necessary metadata for all files
 	for _, mod := range mods {
-		if mod.Download.Mode == "url" || mod.Download.Mode == "" {
+		if mod.Download.Mode == ModeURL || mod.Download.Mode == "" {
 			downloadSession.downloadTasks = append(downloadSession.downloadTasks, downloadTask{
 				mod:        mod,
 				url:        mod.Download.URL,
@@ -597,14 +607,14 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 			dlID := strings.TrimPrefix(mod.Download.Mode, "metadata:")
 			pendingMetadata[dlID] = append(pendingMetadata[dlID], mod)
 		} else {
-			return nil, fmt.Errorf("unknown download mode %s for mod %s", mod.Download.Mode, mod.Name)
+			return nil, fmt.Errorf("unknown download mode %s for %s", mod.Download.Mode, mod.Name)
 		}
 	}
 
 	for dlID, mods := range pendingMetadata {
 		downloader, ok := MetaDownloaders[dlID]
 		if !ok {
-			return nil, fmt.Errorf("unknown download mode %s for mod %s", mods[0].Download.Mode, mods[0].Name)
+			return nil, fmt.Errorf("unknown download mode %s for %s", mods[0].Download.Mode, mods[0].Name)
 		}
 		meta, err := downloader.GetFilesMetadata(mods)
 		if err != nil {

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/packwiz/packwiz/curseforge/packinterop"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -21,8 +20,8 @@ import (
 
 // importCmd represents the import command
 var importCmd = &cobra.Command{
-	Use:   "import [modpack]",
-	Short: "Import a curseforge modpack, from a download URL or a downloaded pack zip, or an installed metadata json file",
+	Use:   "import [modpack path]",
+	Short: "Import a curseforge modpack from a downloaded pack zip or an installed metadata json file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		inputFile := args[0]
@@ -97,7 +96,7 @@ var importCmd = &cobra.Command{
 			// Check if file is a zip
 			if string(header) == "PK" {
 				// Read the whole file (as bufio doesn't work for zips)
-				zipData, err := ioutil.ReadAll(buf)
+				zipData, err := io.ReadAll(buf)
 				if err != nil {
 					fmt.Printf("Error reading file: %s\n", err)
 					os.Exit(1)
@@ -142,7 +141,7 @@ var importCmd = &cobra.Command{
 			_, err = os.Stat(indexFilePath)
 			if os.IsNotExist(err) {
 				// Create file
-				err = ioutil.WriteFile(indexFilePath, []byte{}, 0644)
+				err = os.WriteFile(indexFilePath, []byte{}, 0644)
 				if err != nil {
 					fmt.Printf("Error creating index file: %s\n", err)
 					os.Exit(1)
@@ -185,36 +184,36 @@ var importCmd = &cobra.Command{
 		}
 
 		modsList := packImport.Mods()
-		modIDs := make([]int, len(modsList))
+		modIDs := make([]uint32, len(modsList))
 		for i, v := range modsList {
 			modIDs[i] = v.ProjectID
 		}
 
-		fmt.Println("Querying Curse API for mod info...")
+		fmt.Println("Querying Curse API for dependency info...")
 
 		modInfos, err := cfDefaultClient.getModInfoMultiple(modIDs)
 		if err != nil {
-			fmt.Printf("Failed to obtain mod information: %s\n", err)
+			fmt.Printf("Failed to obtain project information: %s\n", err)
 			os.Exit(1)
 		}
 
-		modInfosMap := make(map[int]modInfo)
+		modInfosMap := make(map[uint32]modInfo)
 		for _, v := range modInfos {
 			modInfosMap[v.ID] = v
 		}
 
 		// TODO: multithreading????
 
-		modFileInfosMap := make(map[int]modFileInfo)
+		modFileInfosMap := make(map[uint32]modFileInfo)
 		referencedModPaths := make([]string, 0, len(modsList))
 		successes := 0
-		remainingFileIDs := make([]int, 0, len(modsList))
+		remainingFileIDs := make([]uint32, 0, len(modsList))
 
 		// 1st pass: query mod metadata for every CurseForge file
 		for _, v := range modsList {
 			modInfoValue, ok := modInfosMap[v.ProjectID]
 			if !ok {
-				fmt.Printf("Failed to obtain mod information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
+				fmt.Printf("Failed to obtain information for project/file IDs %d/%d\n", v.ProjectID, v.FileID)
 				continue
 			}
 
@@ -238,7 +237,7 @@ var importCmd = &cobra.Command{
 
 		modFileInfos, err := cfDefaultClient.getFileInfoMultiple(remainingFileIDs)
 		if err != nil {
-			fmt.Printf("Failed to obtain mod file information: %s\n", err)
+			fmt.Printf("Failed to obtain project file information: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -250,19 +249,19 @@ var importCmd = &cobra.Command{
 		for _, v := range modsList {
 			modInfoValue, ok := modInfosMap[v.ProjectID]
 			if !ok {
-				fmt.Printf("Failed to obtain mod information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
+				fmt.Printf("Failed to obtain project information for project/file IDs %d/%d\n", v.ProjectID, v.FileID)
 				continue
 			}
 
 			modFileInfoValue, ok := modFileInfosMap[v.FileID]
 			if !ok {
-				fmt.Printf("Failed to obtain mod file information for addon/file IDs %d/%d\n", v.ProjectID, v.FileID)
+				fmt.Printf("Failed to obtain project file information for project/file IDs %d/%d\n", v.ProjectID, v.FileID)
 				continue
 			}
 
 			err = createModFile(modInfoValue, modFileInfoValue, &index, v.OptionalDisabled)
 			if err != nil {
-				fmt.Printf("Failed to save mod \"%s\": %s\n", modInfoValue.Name, err)
+				fmt.Printf("Failed to save project \"%s\": %s\n", modInfoValue.Name, err)
 				os.Exit(1)
 			}
 
@@ -272,11 +271,11 @@ var importCmd = &cobra.Command{
 				referencedModPaths = append(referencedModPaths, ref)
 			}
 
-			fmt.Printf("Imported mod \"%s\" successfully!\n", modInfoValue.Name)
+			fmt.Printf("Imported dependency \"%s\" successfully!\n", modInfoValue.Name)
 			successes++
 		}
 
-		fmt.Printf("Successfully imported %d/%d mods!\n", successes, len(modsList))
+		fmt.Printf("Successfully imported %d/%d dependencies!\n", successes, len(modsList))
 
 		fmt.Println("Reading override files...")
 		filesList, err := packImport.GetFiles()
@@ -286,9 +285,8 @@ var importCmd = &cobra.Command{
 		}
 
 		successes = 0
-		packRoot := index.GetPackRoot()
 		for _, v := range filesList {
-			filePath := filepath.Join(packRoot, filepath.FromSlash(v.Name()))
+			filePath := index.ResolveIndexPath(v.Name())
 			filePathAbs, err := filepath.Abs(filePath)
 			if err == nil {
 				found := false

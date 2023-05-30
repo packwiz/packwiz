@@ -17,10 +17,10 @@ type twitchInstalledPackMeta struct {
 	} `json:"baseModLoader"`
 	ModpackOverrides []string `json:"modpackOverrides"`
 	ModsInternal     []struct {
-		ID   int `json:"addonID"`
+		ID   uint32 `json:"addonID"`
 		File struct {
 			// I've given up on using this cached data, just going to re-request it
-			ID int `json:"id"`
+			ID uint32 `json:"id"`
 			// Used to determine if the mod is optional-disabled
 			FileNameOnDisk string
 		} `json:"installedFile"`

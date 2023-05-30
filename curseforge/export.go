@@ -10,7 +10,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"os"
-	"path/filepath"
 	"strconv"
 )
 
@@ -59,9 +58,6 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		// TODO: should index just expose indexPath itself, through a function?
-		indexPath := filepath.Join(filepath.Dir(viper.GetString("pack-file")), filepath.FromSlash(pack.Index.File))
-
 		fmt.Println("Reading external files...")
 		mods, err := index.LoadAllMods()
 		if err != nil {
@@ -72,7 +68,7 @@ var exportCmd = &cobra.Command{
 		// Filter mods by side
 		// TODO: opt-in optional disabled filtering?
 		for _, mod := range mods {
-			if len(mod.Side) == 0 || mod.Side == side || mod.Side == "both" || side == "both" {
+			if mod.Side == side || mod.Side == core.EmptySide || mod.Side == core.UniversalSide || side == core.UniversalSide {
 				mods[i] = mod
 				i++
 			}
@@ -139,7 +135,7 @@ var exportCmd = &cobra.Command{
 			cmdshared.ListManualDownloads(session)
 
 			for dl := range session.StartDownloads() {
-				_ = cmdshared.AddToZip(dl, exp, "overrides", indexPath)
+				_ = cmdshared.AddToZip(dl, exp, "overrides", &index)
 			}
 
 			err = session.SaveIndex()
@@ -173,31 +169,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		i = 0
-		for _, v := range index.Files {
-			if !v.MetaFile {
-				// Save all non-metadata files into the zip
-				path, err := filepath.Rel(filepath.Dir(indexPath), index.GetFilePath(v))
-				if err != nil {
-					fmt.Printf("Error resolving file: %s\n", err.Error())
-					// TODO: exit(1)?
-					continue
-				}
-				file, err := exp.Create(filepath.ToSlash(filepath.Join("overrides", path)))
-				if err != nil {
-					fmt.Printf("Error creating file: %s\n", err.Error())
-					// TODO: exit(1)?
-					continue
-				}
-				err = index.SaveFile(v, file)
-				if err != nil {
-					fmt.Printf("Error copying file: %s\n", err.Error())
-					// TODO: exit(1)?
-					continue
-				}
-				i++
-			}
-		}
+		cmdshared.AddNonMetafileOverrides(&index, exp)
 
 		err = exp.Close()
 		if err != nil {
@@ -238,7 +210,7 @@ func createModlist(zw *zip.Writer, mods []*core.Mod) error {
 			continue
 		}
 		project := projectRaw.(cfUpdateData)
-		_, err = w.WriteString("<li><a href=\"https://www.curseforge.com/projects/" + strconv.Itoa(project.ProjectID) + "\">" + mod.Name + "</a></li>\r\n")
+		_, err = w.WriteString("<li><a href=\"https://www.curseforge.com/projects/" + strconv.FormatUint(uint64(project.ProjectID), 10) + "\">" + mod.Name + "</a></li>\r\n")
 		if err != nil {
 			return err
 		}

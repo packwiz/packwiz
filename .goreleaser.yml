@@ -1,6 +1,6 @@
 before:
   hooks:
-    - go mod download
+    - go mod tidy
 builds:
   - env:
       - CGO_ENABLED=0
@@ -21,7 +21,7 @@ archives:
 checksum:
   name_template: 'checksums.txt'
 snapshot:
-  name_template: "{{ .Tag }}-next"
+  name_template: "{{ incpatch .Version }}-devel"
 changelog:
   sort: asc
   filters:

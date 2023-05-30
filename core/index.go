@@ -1,13 +1,12 @@
 package core
 
 import (
-	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
-	"sort"
 	"strings"
 	"time"
 
@@ -20,103 +19,59 @@ import (
 
 // Index is a representation of the index.toml file for referencing all the files in a pack.
 type Index struct {
-	HashFormat string      `toml:"hash-format"`
-	Files      []IndexFile `toml:"files"`
+	HashFormat string
+	Files      IndexFiles
 	indexFile  string
+	packRoot   string
 }
 
-// IndexFile is a file in the index
-type IndexFile struct {
-	// Files are stored in forward-slash format relative to the index file
-	File           string `toml:"file"`
-	Hash           string `toml:"hash,omitempty"`
-	HashFormat     string `toml:"hash-format,omitempty"`
-	Alias          string `toml:"alias,omitempty"`
-	MetaFile       bool   `toml:"metafile,omitempty"` // True when it is a .toml metadata file
-	Preserve       bool   `toml:"preserve,omitempty"` // Don't overwrite the file when updating
-	fileExistsTemp bool
+// indexTomlRepresentation is the TOML representation of Index (Files must be converted)
+type indexTomlRepresentation struct {
+	HashFormat string                       `toml:"hash-format"`
+	Files      indexFilesTomlRepresentation `toml:"files"`
 }
 
 // LoadIndex attempts to load the index file from a path
 func LoadIndex(indexFile string) (Index, error) {
-	var index Index
-	if _, err := toml.DecodeFile(indexFile, &index); err != nil {
+	// Decode as indexTomlRepresentation then convert to Index
+	var rep indexTomlRepresentation
+	if _, err := toml.DecodeFile(indexFile, &rep); err != nil {
 		return Index{}, err
 	}
-	index.indexFile = indexFile
-	if len(index.HashFormat) == 0 {
-		index.HashFormat = "sha256"
+	if len(rep.HashFormat) == 0 {
+		rep.HashFormat = "sha256"
+	}
+	index := Index{
+		HashFormat: rep.HashFormat,
+		Files:      rep.Files.toMemoryRep(),
+		indexFile:  indexFile,
+		packRoot:   filepath.Dir(indexFile),
 	}
 	return index, nil
 }
 
-// RemoveFile removes a file from the index.
+// RemoveFile removes a file from the index, given a file path
 func (in *Index) RemoveFile(path string) error {
-	relPath, err := filepath.Rel(filepath.Dir(in.indexFile), path)
+	relPath, err := in.RelIndexPath(path)
 	if err != nil {
 		return err
 	}
-
-	i := 0
-	for _, file := range in.Files {
-		if filepath.Clean(filepath.FromSlash(file.File)) != relPath {
-			// Keep file, as it doesn't match
-			in.Files[i] = file
-			i++
-		}
-	}
-	in.Files = in.Files[:i]
+	delete(in.Files, relPath)
 	return nil
 }
 
-// resortIndex sorts Files by file name
-func (in *Index) resortIndex() {
-	sort.SliceStable(in.Files, func(i, j int) bool {
-		// TODO: Compare by alias if names are equal?
-		// TODO: Remove duplicated entries? (compound key on file/alias?)
-		return in.Files[i].File < in.Files[j].File
-	})
-}
+func (in *Index) updateFileHashGiven(path, format, hash string, markAsMetaFile bool) error {
+	// Remove format if equal to index hash format
+	if in.HashFormat == format {
+		format = ""
+	}
 
-func (in *Index) updateFileHashGiven(path, format, hash string, mod bool) error {
 	// Find in index
-	found := false
-	relPath, err := filepath.Rel(filepath.Dir(in.indexFile), path)
+	relPath, err := in.RelIndexPath(path)
 	if err != nil {
 		return err
 	}
-	for k, v := range in.Files {
-		if filepath.Clean(filepath.FromSlash(v.File)) == relPath {
-			found = true
-			// Update hash
-			in.Files[k].Hash = hash
-			if in.HashFormat == format {
-				in.Files[k].HashFormat = ""
-			} else {
-				in.Files[k].HashFormat = format
-			}
-			// Mark this file as found
-			in.Files[k].fileExistsTemp = true
-			// Clean up path if it's untidy
-			in.Files[k].File = filepath.ToSlash(relPath)
-			// Don't break out of loop, as there may be aliased versions that
-			// also need to be updated
-		}
-	}
-	if !found {
-		newFile := IndexFile{
-			File:           filepath.ToSlash(relPath),
-			Hash:           hash,
-			fileExistsTemp: true,
-		}
-		// Override hash format for this file, if the whole index isn't sha256
-		if in.HashFormat != format {
-			newFile.HashFormat = format
-		}
-		newFile.MetaFile = mod
-
-		in.Files = append(in.Files, newFile)
-	}
+	in.Files.updateFileEntry(relPath, format, hash, markAsMetaFile)
 	return nil
 }
 
@@ -150,17 +105,27 @@ func (in *Index) updateFile(path string) error {
 		hashString = h.HashToString(h.Sum(nil))
 	}
 
-	mod := false
-	// If the file has an extension of pw.toml, set mod to true
+	markAsMetaFile := false
+	// If the file has an extension of pw.toml, set markAsMetaFile to true
 	if strings.HasSuffix(filepath.Base(path), MetaExtension) {
-		mod = true
+		markAsMetaFile = true
 	}
 
-	return in.updateFileHashGiven(path, "sha256", hashString, mod)
+	return in.updateFileHashGiven(path, "sha256", hashString, markAsMetaFile)
 }
 
-func (in Index) GetPackRoot() string {
-	return filepath.Dir(in.indexFile)
+// ResolveIndexPath turns a path from the index into a file path on disk
+func (in Index) ResolveIndexPath(p string) string {
+	return filepath.Join(in.packRoot, filepath.FromSlash(p))
+}
+
+// RelIndexPath turns a file path on disk into a path from the index
+func (in Index) RelIndexPath(p string) (string, error) {
+	rel, err := filepath.Rel(in.packRoot, p)
+	if err != nil {
+		return "", err
+	}
+	return filepath.ToSlash(rel), nil
 }
 
 var ignoreDefaults = []string{
@@ -170,6 +135,9 @@ var ignoreDefaults = []string{
 	".git/**",
 	".gitattributes",
 	".gitignore",
+
+	// Exclude macOS metadata
+	".DS_Store",
 
 	// Exclude exported CurseForge zip files
 	"/*.zip",
@@ -183,7 +151,7 @@ var ignoreDefaults = []string{
 }
 
 func readGitignore(path string) (*gitignore.GitIgnore, bool) {
-	data, err := ioutil.ReadFile(path)
+	data, err := os.ReadFile(path)
 	if err != nil {
 		// TODO: check for read errors (and present them)
 		return gitignore.CompileIgnoreLines(ignoreDefaults...), false
@@ -205,25 +173,32 @@ func (in *Index) Refresh() error {
 	pathPF, _ := filepath.Abs(viper.GetString("pack-file"))
 	pathIndex, _ := filepath.Abs(in.indexFile)
 
-	packRoot := in.GetPackRoot()
-	ignoreExists := true
-	pathIgnore, _ := filepath.Abs(filepath.Join(packRoot, ".packwizignore"))
-	ignore, ignoreExists := readGitignore(filepath.Join(packRoot, ".packwizignore"))
+	pathIgnore, _ := filepath.Abs(filepath.Join(in.packRoot, ".packwizignore"))
+	ignore, ignoreExists := readGitignore(pathIgnore)
 
 	var fileList []string
-	err := filepath.Walk(packRoot, func(path string, info os.FileInfo, err error) error {
+	err := filepath.WalkDir(in.packRoot, func(path string, info os.DirEntry, err error) error {
 		if err != nil {
 			// TODO: Handle errors on individual files properly
 			return err
 		}
 
+		// Never ignore pack root itself (gitignore doesn't allow ignoring the root)
+		if path == in.packRoot {
+			return nil
+		}
+
+		if info.IsDir() {
+			// Don't traverse ignored directories (consistent with Git handling of ignored dirs)
+			if ignore.MatchesPath(path) {
+				return fs.SkipDir
+			}
+			// Don't add directories to the file list
+			return nil
+		}
 		// Exit if the files are the same as the pack/index files
 		absPath, _ := filepath.Abs(path)
 		if absPath == pathPF || absPath == pathIndex {
-			return nil
-		}
-		// Exit if this is a directory
-		if info.IsDir() {
 			return nil
 		}
 		if ignoreExists {
@@ -274,32 +249,23 @@ func (in *Index) Refresh() error {
 	progressContainer.Wait()
 
 	// Check all the files exist, remove them if they don't
-	i := 0
-	for _, file := range in.Files {
-		if file.fileExistsTemp {
-			// Keep file if it exists (already checked in updateFile)
-			in.Files[i] = file
-			i++
+	for p, file := range in.Files {
+		if !file.markedFound() {
+			delete(in.Files, p)
 		}
 	}
-	in.Files = in.Files[:i]
 
-	in.resortIndex()
-	return nil
-}
-
-// RefreshFile calculates the hash for a given path and updates it in the index (also sorts the index)
-func (in *Index) RefreshFile(path string) error {
-	err := in.updateFile(path)
-	if err != nil {
-		return err
-	}
-	in.resortIndex()
 	return nil
 }
 
 // Write saves the index file
 func (in Index) Write() error {
+	// Convert to indexTomlRepresentation
+	rep := indexTomlRepresentation{
+		HashFormat: in.HashFormat,
+		Files:      in.Files.toTomlRep(),
+	}
+
 	// TODO: calculate and provide hash while writing?
 	f, err := os.Create(in.indexFile)
 	if err != nil {
@@ -309,7 +275,7 @@ func (in Index) Write() error {
 	enc := toml.NewEncoder(f)
 	// Disable indentation
 	enc.Indent = ""
-	err = enc.Encode(in)
+	err = enc.Encode(rep)
 	if err != nil {
 		_ = f.Close()
 		return err
@@ -317,40 +283,34 @@ func (in Index) Write() error {
 	return f.Close()
 }
 
-// RefreshFileWithHash updates a file in the index, given a file hash and whether it is a mod or not
-func (in *Index) RefreshFileWithHash(path, format, hash string, mod bool) error {
+// RefreshFileWithHash updates a file in the index, given a file hash and whether it should be marked as metafile or not
+func (in *Index) RefreshFileWithHash(path, format, hash string, markAsMetaFile bool) error {
 	if viper.GetBool("no-internal-hashes") {
 		hash = ""
 	}
-	err := in.updateFileHashGiven(path, format, hash, mod)
-	if err != nil {
-		return err
-	}
-	in.resortIndex()
-	return nil
+	return in.updateFileHashGiven(path, format, hash, markAsMetaFile)
 }
 
-// FindMod finds a mod in the index and returns it's path and whether it has been found
+// FindMod finds a mod in the index and returns its path and whether it has been found
 func (in Index) FindMod(modName string) (string, bool) {
-	for _, v := range in.Files {
-		if v.MetaFile {
-			_, file := filepath.Split(v.File)
-			fileTrimmed := strings.TrimSuffix(strings.TrimSuffix(file, MetaExtension), MetaExtensionOld)
+	for p, v := range in.Files {
+		if v.IsMetaFile() {
+			_, fileName := path.Split(p)
+			fileTrimmed := strings.TrimSuffix(strings.TrimSuffix(fileName, MetaExtension), MetaExtensionOld)
 			if fileTrimmed == modName {
-				return filepath.Join(filepath.Dir(in.indexFile), filepath.FromSlash(v.File)), true
+				return in.ResolveIndexPath(p), true
 			}
 		}
 	}
 	return "", false
 }
 
-// GetAllMods finds paths to every metadata file (Mod) in the index
-func (in Index) GetAllMods() []string {
+// getAllMods finds paths to every metadata file (Mod) in the index
+func (in Index) getAllMods() []string {
 	var list []string
-	baseDir := filepath.Dir(in.indexFile)
-	for _, v := range in.Files {
-		if v.MetaFile {
-			list = append(list, filepath.Join(baseDir, filepath.FromSlash(v.File)))
+	for p, v := range in.Files {
+		if v.IsMetaFile() {
+			list = append(list, in.ResolveIndexPath(p))
 		}
 	}
 	return list
@@ -358,7 +318,7 @@ func (in Index) GetAllMods() []string {
 
 // LoadAllMods reads all metadata files into Mod structs
 func (in Index) LoadAllMods() ([]*Mod, error) {
-	modPaths := in.GetAllMods()
+	modPaths := in.getAllMods()
 	mods := make([]*Mod, len(modPaths))
 	for i, v := range modPaths {
 		modData, err := LoadMod(v)
@@ -368,41 +328,4 @@ func (in Index) LoadAllMods() ([]*Mod, error) {
 		mods[i] = &modData
 	}
 	return mods, nil
-}
-
-// GetFilePath attempts to get the path of the destination index file as it is stored on disk
-func (in Index) GetFilePath(f IndexFile) string {
-	return filepath.Join(filepath.Dir(in.indexFile), filepath.FromSlash(f.File))
-}
-
-// SaveFile attempts to read the file from disk
-func (in Index) SaveFile(f IndexFile, dest io.Writer) error {
-	hashFormat := f.HashFormat
-	if hashFormat == "" {
-		hashFormat = in.HashFormat
-	}
-	src, err := os.Open(in.GetFilePath(f))
-	defer func(src *os.File) {
-		_ = src.Close()
-	}(src)
-	if err != nil {
-		return err
-	}
-	h, err := GetHashImpl(hashFormat)
-	if err != nil {
-		return err
-	}
-
-	w := io.MultiWriter(h, dest)
-	_, err = io.Copy(w, src)
-	if err != nil {
-		return err
-	}
-
-	calculatedHash := h.HashToString(h.Sum(nil))
-	if calculatedHash != f.Hash && !viper.GetBool("no-internal-hashes") {
-		return errors.New("hash of saved file is invalid")
-	}
-
-	return nil
 }

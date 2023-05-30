@@ -3,6 +3,7 @@ package core
 import (
 	"errors"
 	"fmt"
+	"golang.org/x/exp/slices"
 	"io"
 	"os"
 	"path/filepath"
@@ -109,9 +110,6 @@ func (pack *Pack) UpdateIndexHash() error {
 
 	fileNative := filepath.FromSlash(pack.Index.File)
 	indexFile := filepath.Join(filepath.Dir(viper.GetString("pack-file")), fileNative)
-	if filepath.IsAbs(pack.Index.File) {
-		indexFile = pack.Index.File
-	}
 
 	f, err := os.Open(indexFile)
 	if err != nil {
@@ -162,6 +160,25 @@ func (pack Pack) GetMCVersion() (string, error) {
 		return "", errors.New("no minecraft version specified in modpack")
 	}
 	return mcVersion, nil
+}
+
+// GetSupportedMCVersions gets the versions of Minecraft this pack allows in downloaded mods, ordered by preference (highest = most desirable)
+func (pack Pack) GetSupportedMCVersions() ([]string, error) {
+	mcVersion, ok := pack.Versions["minecraft"]
+	if !ok {
+		return nil, errors.New("no minecraft version specified in modpack")
+	}
+	allVersions := append(append([]string(nil), viper.GetStringSlice("acceptable-game-versions")...), mcVersion)
+	// Deduplicate values
+	allVersionsDeduped := []string(nil)
+	for i, v := range allVersions {
+		// If another copy of this value exists past this point in the array, don't insert
+		// (i.e. prefer a later copy over an earlier copy, so the main version is last)
+		if !slices.Contains(allVersions[i+1:], v) {
+			allVersionsDeduped = append(allVersionsDeduped, v)
+		}
+	}
+	return allVersionsDeduped, nil
 }
 
 func (pack Pack) GetPackName() string {

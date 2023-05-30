@@ -1,25 +1,23 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
-	"github.com/spf13/viper"
-	"os"
-	"strings"
-
+	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"github.com/spf13/viper"
+	"os"
 )
 
-// updateCmd represents the update command
-var updateCmd = &cobra.Command{
-	Use:     "update [mod]",
-	Short:   "Update a mod (or all mods) in the modpack",
+// UpdateCmd represents the update command
+var UpdateCmd = &cobra.Command{
+	Use:     "update [name]",
+	Short:   "Update an external file (or all external files) in the modpack",
 	Aliases: []string{"upgrade"},
 	Args:    cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		// TODO: --check flag?
-		// TODO: specify multiple mods to update at once?
+		// TODO: specify multiple files to update at once?
 
 		fmt.Println("Loading modpack...")
 		pack, err := core.LoadPack()
@@ -32,35 +30,29 @@ var updateCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
-		mcVersion, err := pack.GetMCVersion()
-		if err != nil {
-			fmt.Println(err)
-			os.Exit(1)
-		}
 
 		var singleUpdatedName string
 		if viper.GetBool("update.all") {
-			updaterMap := make(map[string][]core.Mod)
-			fmt.Println("Reading mod files...")
-			for _, v := range index.GetAllMods() {
-				modData, err := core.LoadMod(v)
-				if err != nil {
-					fmt.Printf("Error reading mod file: %s\n", err.Error())
-					continue
-				}
-
+			filesWithUpdater := make(map[string][]*core.Mod)
+			fmt.Println("Reading metadata files...")
+			mods, err := index.LoadAllMods()
+			if err != nil {
+				fmt.Printf("Failed to update all files: %v\n", err)
+				os.Exit(1)
+			}
+			for _, modData := range mods {
 				updaterFound := false
 				for k := range modData.Update {
-					slice, ok := updaterMap[k]
+					slice, ok := filesWithUpdater[k]
 					if !ok {
 						_, ok = core.Updaters[k]
 						if !ok {
 							continue
 						}
-						slice = []core.Mod{}
+						slice = []*core.Mod{}
 					}
 					updaterFound = true
-					updaterMap[k] = append(slice, modData)
+					filesWithUpdater[k] = append(slice, modData)
 				}
 				if !updaterFound {
 					fmt.Printf("A supported update system for \"%s\" cannot be found.\n", modData.Name)
@@ -69,10 +61,10 @@ var updateCmd = &cobra.Command{
 
 			fmt.Println("Checking for updates...")
 			updatesFound := false
-			updaterPointerMap := make(map[string][]*core.Mod)
+			updatableFiles := make(map[string][]*core.Mod)
 			updaterCachedStateMap := make(map[string][]interface{})
-			for k, v := range updaterMap {
-				checks, err := core.Updaters[k].CheckUpdate(v, mcVersion, pack)
+			for k, v := range filesWithUpdater {
+				checks, err := core.Updaters[k].CheckUpdate(v, pack)
 				if err != nil {
 					// TODO: do we return err code 1?
 					fmt.Printf("Failed to check updates for %s: %s\n", k, err.Error())
@@ -90,31 +82,23 @@ var updateCmd = &cobra.Command{
 							updatesFound = true
 						}
 						fmt.Printf("%s: %s\n", v[i].Name, check.UpdateString)
-						updaterPointerMap[k] = append(updaterPointerMap[k], &v[i])
+						updatableFiles[k] = append(updatableFiles[k], v[i])
 						updaterCachedStateMap[k] = append(updaterCachedStateMap[k], check.CachedState)
 					}
 				}
 			}
 
 			if !updatesFound {
-				fmt.Println("All mods are up to date!")
+				fmt.Println("All files are up to date!")
 				return
 			}
 
-			fmt.Print("Do you want to update? [Y/n]: ")
-			answer, err := bufio.NewReader(os.Stdin).ReadString('\n')
-			if err != nil {
-				fmt.Println(err)
-				os.Exit(1)
-			}
-
-			ansNormal := strings.ToLower(strings.TrimSpace(answer))
-			if len(ansNormal) > 0 && ansNormal[0] == 'n' {
+			if !cmdshared.PromptYesNo("Do you want to update? [Y/n]: ") {
 				fmt.Println("Cancelled!")
 				return
 			}
 
-			for k, v := range updaterPointerMap {
+			for k, v := range updatableFiles {
 				err := core.Updaters[k].DoUpdate(v, updaterCachedStateMap[k])
 				if err != nil {
 					// TODO: do we return err code 1?
@@ -136,12 +120,12 @@ var updateCmd = &cobra.Command{
 			}
 		} else {
 			if len(args) < 1 || len(args[0]) == 0 {
-				fmt.Println("Must specify a valid mod, or use the --all flag!")
+				fmt.Println("Must specify a valid file, or use the --all flag!")
 				os.Exit(1)
 			}
 			modPath, ok := index.FindMod(args[0])
 			if !ok {
-				fmt.Println("You don't have this mod installed.")
+				fmt.Println("Can't find this file; please ensure you have run packwiz refresh and use the name of the .pw.toml file (defaults to the project slug)")
 				os.Exit(1)
 			}
 			modData, err := core.LoadMod(modPath)
@@ -158,7 +142,7 @@ var updateCmd = &cobra.Command{
 				}
 				updaterFound = true
 
-				check, err := updater.CheckUpdate([]core.Mod{modData}, mcVersion, pack)
+				check, err := updater.CheckUpdate([]*core.Mod{&modData}, pack)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
@@ -217,7 +201,7 @@ var updateCmd = &cobra.Command{
 			os.Exit(1)
 		}
 		if viper.GetBool("update.all") {
-			fmt.Println("Mods updated!")
+			fmt.Println("Files updated!")
 		} else {
 			fmt.Printf("\"%s\" updated!\n", singleUpdatedName)
 		}
@@ -225,8 +209,8 @@ var updateCmd = &cobra.Command{
 }
 
 func init() {
-	rootCmd.AddCommand(updateCmd)
+	rootCmd.AddCommand(UpdateCmd)
 
-	updateCmd.Flags().BoolP("all", "a", false, "Update all mods")
-	_ = viper.BindPFlag("update.all", updateCmd.Flags().Lookup("all"))
+	UpdateCmd.Flags().BoolP("all", "a", false, "Update all external files")
+	_ = viper.BindPFlag("update.all", UpdateCmd.Flags().Lookup("all"))
 }
