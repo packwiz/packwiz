@@ -20,8 +20,8 @@ import (
 
 // importCmd represents the import command
 var importCmd = &cobra.Command{
-	Use:   "import [modpack]",
-	Short: "Import a curseforge modpack, from a download URL or a downloaded pack zip, or an installed metadata json file",
+	Use:   "import [modpack path]",
+	Short: "Import a curseforge modpack from a downloaded pack zip or an installed metadata json file",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		inputFile := args[0]
