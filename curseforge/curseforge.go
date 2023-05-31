@@ -305,8 +305,13 @@ func findLatestFile(modInfoData modInfo, mcVersions []string, packLoaders []stri
 		// Compare first by Minecraft version (prefer higher indexes of mcVersions)
 		compare := int32(mcVerIdx - bestMcVer)
 		if compare == 0 {
-			// Prefer higher loader indexes
-			compare = int32(loaderIdx) - int32(bestLoaderType)
+			// Treat unmarked versions as neutral (i.e. same as others)
+			if bestLoaderType == modloaderTypeAny || loaderIdx == modloaderTypeAny {
+				compare = 0
+			} else {
+				// Prefer higher loader indexes
+				compare = int32(loaderIdx) - int32(bestLoaderType)
+			}
 		}
 		if compare == 0 {
 			// Other comparisons are equal, compare by ID instead
@@ -332,8 +337,13 @@ func findLatestFile(modInfoData modInfo, mcVersions []string, packLoaders []stri
 		// Compare first by Minecraft version (prefer higher indexes of mcVersions)
 		compare := int32(mcVerIdx - bestMcVer)
 		if compare == 0 {
-			// Prefer higher loader indexes
-			compare = int32(loaderIdx) - int32(bestLoaderType)
+			// Treat unmarked versions as neutral (i.e. same as others)
+			if bestLoaderType == modloaderTypeAny || loaderIdx == modloaderTypeAny {
+				compare = 0
+			} else {
+				// Prefer higher loader indexes
+				compare = int32(loaderIdx) - int32(bestLoaderType)
+			}
 		}
 		if compare == 0 {
 			// Other comparisons are equal, compare by ID instead
