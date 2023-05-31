@@ -4,8 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"net/http"
+	"io"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -16,48 +15,46 @@ import (
 	"github.com/spf13/viper"
 )
 
-var GithubRegex = regexp.MustCompile("https?://(?:www\\.)?github\\.com/([^/]+/[^/]+)")
+var GithubRegex = regexp.MustCompile(`^https?://(?:www\.)?github\.com/([^/]+/[^/]+)`)
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
-	Use:     "install [mod]",
-	Short:   "Install mods from github releases",
-	Aliases: []string{"add", "get"},
+	Use:     "add [URL]",
+	Short:   "Add a project from a GitHub repository URL",
+	Aliases: []string{"install", "get"},
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		pack, err := core.LoadPack()
-
 		if err != nil {
 			fmt.Println(err)
 			os.Exit(1)
 		}
 
 		if len(args) == 0 || len(args[0]) == 0 {
-			fmt.Println("You must specify a mod.")
+			fmt.Println("You must specify a GitHub repository URL.")
 			os.Exit(1)
 		}
 
-		//Try interpreting the arg as a modId or slug.
-		//Modrinth transparently handles slugs/mod ids in their api; we don't have to detect which one it is.
+		// Try interpreting the argument as a slug, or GitHub repository URL.
 		var slug string
 
-		//Try to see if it's a site, if extract the id/slug from the url.
-		//Otherwise, interpret the arg as a id/slug straight up
+		// Check if the argument is a valid GitHub repository URL; if so, extract the slug from the URL.
+		// Otherwise, interpret the argument as a slug directly.
 		matches := GithubRegex.FindStringSubmatch(args[0])
-		if matches != nil && len(matches) == 2 {
+		if len(matches) == 2 {
 			slug = matches[1]
 		} else {
 			slug = args[0]
 		}
 
-		mod, err := fetchMod(slug)
+		repo, err := fetchRepo(slug)
 
 		if err != nil {
 			fmt.Println("Failed to get the mod ", err)
 			os.Exit(1)
 		}
 
-		installMod(mod, pack)
+		installMod(repo, pack)
 	},
 }
 
@@ -67,10 +64,8 @@ func init() {
 
 const githubApiUrl = "https://api.github.com/"
 
-func installMod(mod Mod, pack core.Pack) error {
-	fmt.Printf("Found repo %s: '%s'.\n", mod.Slug, mod.Description)
-
-	latestVersion, err := getLatestVersion(mod.Slug, "")
+func installMod(repo Repo, pack core.Pack) error {
+	latestVersion, err := getLatestVersion(repo.FullName, "")
 	if err != nil {
 		return fmt.Errorf("failed to get latest version: %v", err)
 	}
@@ -78,28 +73,20 @@ func installMod(mod Mod, pack core.Pack) error {
 		return errors.New("mod is not available for this Minecraft version (use the acceptable-game-versions option to accept more) or mod loader")
 	}
 
-	return installVersion(mod, latestVersion, pack)
+	return installVersion(repo, latestVersion, pack)
 }
 
-func getLatestVersion(slug string, branch string) (ModReleases, error) {
-	var modReleases []ModReleases
-	var release ModReleases
+func getLatestVersion(slug string, branch string) (Release, error) {
+	var modReleases []Release
+	var release Release
 
-	resp, err := http.Get(githubApiUrl + "repos/" + slug + "/releases")
+	resp, err := ghDefaultClient.makeGet(slug)
 	if err != nil {
 		return release, err
 	}
 
-	if resp.StatusCode == 404 {
-		return release, fmt.Errorf("mod not found (for URL %v)", githubApiUrl+"repos/"+slug+"/releases")
-	}
-
-	if resp.StatusCode != 200 {
-		return release, fmt.Errorf("invalid response status %v for URL %v", resp.Status, githubApiUrl+"repos/"+slug+"/releases")
-	}
-
 	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return release, err
 	}
@@ -116,23 +103,23 @@ func getLatestVersion(slug string, branch string) (ModReleases, error) {
 	return modReleases[0], nil
 }
 
-func installVersion(mod Mod, version ModReleases, pack core.Pack) error {
-	var files = version.Assets
+func installVersion(repo Repo, release Release, pack core.Pack) error {
+	var files = release.Assets
 
 	if len(files) == 0 {
-		return errors.New("version doesn't have any files attached")
+		return errors.New("release doesn't have any files attached")
 	}
 
 	// TODO: add some way to allow users to pick which file to install?
 	var file = files[0]
-	for _, v := range version.Assets {
+	for _, v := range release.Assets {
 		if strings.HasSuffix(v.Name, ".jar") {
 			file = v
 		}
 	}
 
 	//Install the file
-	fmt.Printf("Installing %s from version %s\n", file.URL, version.Name)
+	fmt.Printf("Installing %s from release %s\n", file.Name, release.TagName)
 	index, err := pack.LoadIndex()
 	if err != nil {
 		return err
@@ -141,26 +128,26 @@ func installVersion(mod Mod, version ModReleases, pack core.Pack) error {
 	updateMap := make(map[string]map[string]interface{})
 
 	updateMap["github"], err = ghUpdateData{
-		Slug:             mod.Slug,
-		InstalledVersion: version.TagName,
-		Branch:           version.TargetCommitish,
+		Slug:   repo.FullName,
+		Tag:    release.TagName,
+		Branch: release.TargetCommitish,
 	}.ToMap()
 	if err != nil {
 		return err
 	}
 
-	hash, error := file.getSha1()
-	if error != nil || hash == "" {
-		return errors.New("file doesn't have a hash")
+	hash, err := file.getSha256()
+	if err != nil {
+		return err
 	}
 
 	modMeta := core.Mod{
-		Name:     mod.Title,
+		Name:     repo.Name,
 		FileName: file.Name,
-		Side:     "unknown",
+		Side:     core.UniversalSide,
 		Download: core.ModDownload{
 			URL:        file.BrowserDownloadURL,
-			HashFormat: "sha1",
+			HashFormat: "sha256",
 			Hash:       hash,
 		},
 		Update: updateMap,
@@ -170,7 +157,7 @@ func installVersion(mod Mod, version ModReleases, pack core.Pack) error {
 	if folder == "" {
 		folder = "mods"
 	}
-	path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, mod.Title+core.MetaExtension))
+	path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, repo.Name+core.MetaExtension))
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?
