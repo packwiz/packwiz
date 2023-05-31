@@ -10,9 +10,9 @@ import (
 )
 
 type ghUpdateData struct {
-	Slug             string `mapstructure:"slug"`
-	InstalledVersion string `mapstructure:"version"`
-	Branch           string `mapstructure:"branch"`
+	Slug   string `mapstructure:"slug"`
+	Tag    string `mapstructure:"tag"`
+	Branch string `mapstructure:"branch"`
 }
 
 type ghUpdater struct{}
@@ -25,16 +25,16 @@ func (u ghUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 
 type cachedStateStore struct {
 	ModID   string
-	Version ModReleases
+	Version Release
 }
 
-func (u ghUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack) ([]core.UpdateCheck, error) {
+func (u ghUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateCheck, error) {
 	results := make([]core.UpdateCheck, len(mods))
 
 	for i, mod := range mods {
 		rawData, ok := mod.GetParsedUpdateData("github")
 		if !ok {
-			results[i] = core.UpdateCheck{Error: errors.New("couldn't parse mod data")}
+			results[i] = core.UpdateCheck{Error: errors.New("failed to parse update metadata")}
 			continue
 		}
 
@@ -46,13 +46,13 @@ func (u ghUpdater) CheckUpdate(mods []core.Mod, mcVersion string, pack core.Pack
 			continue
 		}
 
-		if newVersion.TagName == data.InstalledVersion { //The latest version from the site is the same as the installed one
+		if newVersion.TagName == data.Tag { // The latest version from the site is the same as the installed one
 			results[i] = core.UpdateCheck{UpdateAvailable: false}
 			continue
 		}
 
 		if len(newVersion.Assets) == 0 {
-			results[i] = core.UpdateCheck{Error: errors.New("new version doesn't have any files")}
+			results[i] = core.UpdateCheck{Error: errors.New("new version doesn't have any assets")}
 			continue
 		}
 
@@ -80,18 +80,18 @@ func (u ghUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 			}
 		}
 
-		hash, error := file.getSha1()
-		if error != nil || hash == "" {
-			return errors.New("file doesn't have a hash")
+		hash, err := file.getSha256()
+		if err != nil {
+			return err
 		}
 
 		mod.FileName = file.Name
 		mod.Download = core.ModDownload{
 			URL:        file.BrowserDownloadURL,
-			HashFormat: "sha1",
+			HashFormat: "sha256",
 			Hash:       hash,
 		}
-		mod.Update["github"]["version"] = version.TagName
+		mod.Update["github"]["tag"] = version.TagName
 	}
 
 	return nil
