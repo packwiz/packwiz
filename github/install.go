@@ -19,8 +19,8 @@ var GithubRegex = regexp.MustCompile(`^https?://(?:www\.)?github\.com/([^/]+/[^/
 
 // installCmd represents the install command
 var installCmd = &cobra.Command{
-	Use:     "add [URL]",
-	Short:   "Add a project from a GitHub repository URL",
+	Use:     "add [URL|slug]",
+	Short:   "Add a project from a GitHub repository URL or slug",
 	Aliases: []string{"install", "get"},
 	Args:    cobra.ArbitraryArgs,
 	Run: func(cmd *cobra.Command, args []string) {
@@ -50,7 +50,7 @@ var installCmd = &cobra.Command{
 		repo, err := fetchRepo(slug)
 
 		if err != nil {
-			fmt.Println("Failed to get the mod ", err)
+			fmt.Printf("Failed to add project: %s\n", err)
 			os.Exit(1)
 		}
 
@@ -62,25 +62,20 @@ func init() {
 	githubCmd.AddCommand(installCmd)
 }
 
-const githubApiUrl = "https://api.github.com/"
-
 func installMod(repo Repo, pack core.Pack) error {
-	latestVersion, err := getLatestVersion(repo.FullName, "")
+	latestRelease, err := getLatestRelease(repo.FullName, "")
 	if err != nil {
-		return fmt.Errorf("failed to get latest version: %v", err)
-	}
-	if latestVersion.URL == "" {
-		return errors.New("mod is not available for this Minecraft version (use the acceptable-game-versions option to accept more) or mod loader")
+		return fmt.Errorf("failed to get latest release: %v", err)
 	}
 
-	return installVersion(repo, latestVersion, pack)
+	return installRelease(repo, latestRelease, pack)
 }
 
-func getLatestVersion(slug string, branch string) (Release, error) {
-	var modReleases []Release
+func getLatestRelease(slug string, branch string) (Release, error) {
+	var releases []Release
 	var release Release
 
-	resp, err := ghDefaultClient.makeGet(slug)
+	resp, err := ghDefaultClient.getReleases(slug)
 	if err != nil {
 		return release, err
 	}
@@ -90,20 +85,20 @@ func getLatestVersion(slug string, branch string) (Release, error) {
 	if err != nil {
 		return release, err
 	}
-	err = json.Unmarshal(body, &modReleases)
+	err = json.Unmarshal(body, &releases)
 	if err != nil {
 		return release, err
 	}
-	for _, r := range modReleases {
+	for _, r := range releases {
 		if r.TargetCommitish == branch {
 			return r, nil
 		}
 	}
 
-	return modReleases[0], nil
+	return releases[0], nil
 }
 
-func installVersion(repo Repo, release Release, pack core.Pack) error {
+func installRelease(repo Repo, release Release, pack core.Pack) error {
 	var files = release.Assets
 
 	if len(files) == 0 {
@@ -157,7 +152,7 @@ func installVersion(repo Repo, release Release, pack core.Pack) error {
 	if folder == "" {
 		folder = "mods"
 	}
-	path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, repo.Name+core.MetaExtension))
+	path = modMeta.SetMetaPath(filepath.Join(viper.GetString("meta-folder-base"), folder, core.SlugifyName(repo.Name)+core.MetaExtension))
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?
@@ -168,21 +163,5 @@ func installVersion(repo Repo, release Release, pack core.Pack) error {
 	if err != nil {
 		return err
 	}
-	err = index.RefreshFileWithHash(path, format, hash, true)
-	if err != nil {
-		return err
-	}
-	err = index.Write()
-	if err != nil {
-		return err
-	}
-	err = pack.UpdateIndexHash()
-	if err != nil {
-		return err
-	}
-	err = pack.Write()
-	if err != nil {
-		return err
-	}
-	return nil
+	return index.RefreshFileWithHash(path, format, hash, true)
 }

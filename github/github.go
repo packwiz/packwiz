@@ -3,9 +3,7 @@ package github
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
-	"net/http"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/packwiz/packwiz/cmd"
@@ -16,7 +14,7 @@ import (
 var githubCmd = &cobra.Command{
 	Use:     "github",
 	Aliases: []string{"gh"},
-	Short:   "Manage github-based mods",
+	Short:   "Manage projects released on GitHub",
 }
 
 func init() {
@@ -27,7 +25,7 @@ func init() {
 func fetchRepo(slug string) (Repo, error) {
 	var repo Repo
 
-	res, err := http.Get(githubApiUrl + "repos/" + slug)
+	res, err := ghDefaultClient.getRepo(slug)
 	if err != nil {
 		return repo, err
 	}
@@ -45,7 +43,7 @@ func fetchRepo(slug string) (Repo, error) {
 	}
 
 	if repo.FullName == "" {
-		return repo, errors.New("invalid json while fetching mod: " + slug)
+		return repo, errors.New("invalid json while fetching project: " + slug)
 	}
 
 	return repo, nil
@@ -53,14 +51,12 @@ func fetchRepo(slug string) (Repo, error) {
 
 type Repo struct {
 	ID       int    `json:"id"`
-	NodeID   string `json:"node_id"`   // TODO: use this with GH API, instead of name (to acct. for repo renames?) + store in mod.pw.toml
 	Name     string `json:"name"`      // "hello_world"
 	FullName string `json:"full_name"` // "owner/hello_world"
 }
 
 type Release struct {
 	URL             string  `json:"url"`
-	NodeID          string  `json:"node_id"` // TODO: probably also use this with GH API
 	TagName         string  `json:"tag_name"`
 	TargetCommitish string  `json:"target_commitish"` // The branch of the release
 	Name            string  `json:"name"`
@@ -87,12 +83,9 @@ func (u Asset) getSha256() (string, error) {
 		return "", err
 	}
 
-	resp, err := http.Get(u.BrowserDownloadURL)
+	resp, err := ghDefaultClient.makeGet(u.BrowserDownloadURL)
 	if err != nil {
 		return "", err
-	}
-	if resp.StatusCode != 200 {
-		return "", fmt.Errorf("invalid response status: %v", resp.StatusCode)
 	}
 
 	defer resp.Body.Close()
