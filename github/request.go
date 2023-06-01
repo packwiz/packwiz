@@ -3,6 +3,7 @@ package github
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/packwiz/packwiz/core"
 )
@@ -17,6 +18,8 @@ type ghApiClient struct {
 var ghDefaultClient = ghApiClient{&http.Client{}}
 
 func (c *ghApiClient) makeGet(url string) (*http.Response, error) {
+	ghApiToken := os.Getenv("GH_API_TOKEN")
+
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err
@@ -24,6 +27,9 @@ func (c *ghApiClient) makeGet(url string) (*http.Response, error) {
 
 	req.Header.Set("User-Agent", core.UserAgent)
 	req.Header.Set("Accept", "application/vnd.github+json")
+	if ghApiToken != "" {
+		req.Header.Set("Authorization", "Bearer " + ghApiToken)
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
