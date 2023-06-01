@@ -24,8 +24,8 @@ func (u ghUpdater) ParseUpdate(updateUnparsed map[string]interface{}) (interface
 }
 
 type cachedStateStore struct {
-	ModID   string
-	Version Release
+	Slug    string
+	Release Release
 }
 
 func (u ghUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateCheck, error) {
@@ -40,28 +40,33 @@ func (u ghUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateC
 
 		data := rawData.(ghUpdateData)
 
-		newVersion, err := getLatestVersion(data.Slug, data.Branch)
+		newRelease, err := getLatestRelease(data.Slug, data.Branch)
 		if err != nil {
-			results[i] = core.UpdateCheck{Error: fmt.Errorf("failed to get latest version: %v", err)}
+			results[i] = core.UpdateCheck{Error: fmt.Errorf("failed to get latest release: %v", err)}
 			continue
 		}
 
-		if newVersion.TagName == data.Tag { // The latest version from the site is the same as the installed one
+		if newRelease.TagName == data.Tag { // The latest release is the same as the installed one
 			results[i] = core.UpdateCheck{UpdateAvailable: false}
 			continue
 		}
 
-		if len(newVersion.Assets) == 0 {
-			results[i] = core.UpdateCheck{Error: errors.New("new version doesn't have any assets")}
+		if len(newRelease.Assets) == 0 {
+			results[i] = core.UpdateCheck{Error: errors.New("new release doesn't have any assets")}
 			continue
 		}
 
-		newFilename := newVersion.Assets[0].Name
+		newFile := newRelease.Assets[0]
+		for _, v := range newRelease.Assets {
+			if strings.HasSuffix(v.Name, ".jar") {
+				newFile = v
+			}
+		}
 
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,
-			UpdateString:    mod.FileName + " -> " + newFilename,
-			CachedState:     cachedStateStore{data.Slug, newVersion},
+			UpdateString:    mod.FileName + " -> " + newFile.Name,
+			CachedState:     cachedStateStore{data.Slug, newRelease},
 		}
 	}
 
@@ -71,10 +76,11 @@ func (u ghUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateC
 func (u ghUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 	for i, mod := range mods {
 		modState := cachedState[i].(cachedStateStore)
-		var version = modState.Version
+		var release = modState.Release
 
-		var file = version.Assets[0]
-		for _, v := range version.Assets {
+		// yes, this is duplicated - i guess we should just cache asset + tag instead of entire release...?
+		var file = release.Assets[0]
+		for _, v := range release.Assets {
 			if strings.HasSuffix(v.Name, ".jar") {
 				file = v
 			}
@@ -91,7 +97,7 @@ func (u ghUpdater) DoUpdate(mods []*core.Mod, cachedState []interface{}) error {
 			HashFormat: "sha256",
 			Hash:       hash,
 		}
-		mod.Update["github"]["tag"] = version.TagName
+		mod.Update["github"]["tag"] = release.TagName
 	}
 
 	return nil
