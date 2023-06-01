@@ -85,14 +85,19 @@ func getLatestRelease(slug string, branch string) (Release, error) {
 	if err != nil {
 		return release, err
 	}
+
 	err = json.Unmarshal(body, &releases)
 	if err != nil {
 		return release, err
 	}
-	for _, r := range releases {
-		if r.TargetCommitish == branch {
-			return r, nil
+
+	if branch != "" {
+		for _, r := range releases {
+			if r.TargetCommitish == branch {
+				return r, nil
+			}
 		}
+		return release, fmt.Errorf("failed to find release for branch %v", branch)
 	}
 
 	return releases[0], nil
@@ -113,7 +118,7 @@ func installRelease(repo Repo, release Release, pack core.Pack) error {
 		}
 	}
 
-	//Install the file
+	// Install the file
 	fmt.Printf("Installing %s from release %s\n", file.Name, release.TagName)
 	index, err := pack.LoadIndex()
 	if err != nil {
@@ -125,7 +130,7 @@ func installRelease(repo Repo, release Release, pack core.Pack) error {
 	updateMap["github"], err = ghUpdateData{
 		Slug:   repo.FullName,
 		Tag:    release.TagName,
-		Branch: release.TargetCommitish,
+		Branch: release.TargetCommitish, // TODO: if no branch is specified by the user, we shouldn't record it - in order to remain branch-agnostic in getLatestRelease()
 	}.ToMap()
 	if err != nil {
 		return err
