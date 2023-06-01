@@ -7,6 +7,7 @@ import (
 	"github.com/packwiz/packwiz/core"
 )
 
+// TODO: allow setting github api key via env variable
 const ghApiServer = "api.github.com"
 
 type ghApiClient struct {
