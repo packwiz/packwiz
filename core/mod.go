@@ -2,12 +2,13 @@ package core
 
 import (
 	"errors"
-	"github.com/BurntSushi/toml"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/BurntSushi/toml"
 )
 
 // Mod stores metadata about a mod. This is written to a TOML file for each mod.
@@ -16,6 +17,7 @@ type Mod struct {
 	Name     string      `toml:"name"`
 	FileName string      `toml:"filename"`
 	Side     string      `toml:"side,omitempty"`
+	Pin      bool        `toml:"pin,omitempty"`
 	Download ModDownload `toml:"download"`
 	// Update is a map of map of stuff, so you can store arbitrary values on string keys to define updating
 	Update     map[string]map[string]interface{} `toml:"update"`

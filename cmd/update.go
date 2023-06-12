@@ -2,11 +2,12 @@ package cmd
 
 import (
 	"fmt"
+	"os"
+
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
 )
 
 // UpdateCmd represents the update command
@@ -77,6 +78,11 @@ var UpdateCmd = &cobra.Command{
 						continue
 					}
 					if check.UpdateAvailable {
+						if v[i].Pin {
+							fmt.Printf("Update skipped for pinned mod %s\n", v[i].Name)
+							continue
+						}
+
 						if !updatesFound {
 							fmt.Println("Updates found:")
 							updatesFound = true
@@ -131,6 +137,10 @@ var UpdateCmd = &cobra.Command{
 			modData, err := core.LoadMod(modPath)
 			if err != nil {
 				fmt.Println(err)
+				os.Exit(1)
+			}
+			if modData.Pin {
+				fmt.Println("Version is pinned; run the unpin command to allow updating")
 				os.Exit(1)
 			}
 			singleUpdatedName = modData.Name
