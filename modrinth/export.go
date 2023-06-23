@@ -105,7 +105,7 @@ var exportCmd = &cobra.Command{
 					fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
 					continue
 				}
-				for warning := range dl.Warnings {
+				for _, warning := range dl.Warnings {
 					fmt.Printf("Warning for %s (%s): %v\n", dl.Mod.Name, dl.Mod.FileName, warning)
 				}
 

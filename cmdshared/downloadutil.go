@@ -35,7 +35,7 @@ func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, index *cor
 		fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
 		return false
 	}
-	for warning := range dl.Warnings {
+	for _, warning := range dl.Warnings {
 		fmt.Printf("Warning for %s (%s): %v\n", dl.Mod.Name, dl.Mod.FileName, warning)
 	}
 
