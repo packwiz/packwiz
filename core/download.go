@@ -72,19 +72,21 @@ func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 			downloads <- found
 		}
 		for _, task := range d.downloadTasks {
+			warnings := make([]error, 0)
+
 			// Get handle for mod
 			cacheHandle := d.cacheIndex.GetHandleFromHash(task.hashFormat, task.hash)
 			if cacheHandle != nil {
 				download, err := reuseExistingFile(cacheHandle, d.hashesToObtain, task.mod)
 				if err != nil {
-					downloads <- CompletedDownload{
-						Error: err,
-						Mod:   task.mod,
-					}
+					// Remove handle and try again
+					cacheHandle.Remove()
+					cacheHandle = nil
+					warnings = append(warnings, fmt.Errorf("redownloading cached file: %w", err))
 				} else {
 					downloads <- download
+					continue
 				}
-				continue
 			}
 
 			download, err := downloadNewFile(&task, d.cacheFolder, d.hashesToObtain, &d.cacheIndex)
@@ -94,6 +96,7 @@ func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 					Mod:   task.mod,
 				}
 			} else {
+				download.Warnings = warnings
 				downloads <- download
 			}
 		}
@@ -533,6 +536,16 @@ func (h *CacheIndexHandle) UpdateIndex() (warnings []error) {
 			warnings = append(warnings, fmt.Errorf("inconsistent %s hash for %s overwritten - value %s (expected %s)",
 				hashFormat, h.Path(), hashList[h.hashIdx], hash))
 			hashList[h.hashIdx] = h.Hashes[hashFormat]
+		}
+	}
+	return
+}
+
+func (h *CacheIndexHandle) Remove() {
+	for hashFormat := range h.Hashes {
+		hashList := h.index.Hashes[hashFormat]
+		if h.hashIdx < len(hashList) {
+			h.index.Hashes[hashFormat] = slices.Delete(hashList, h.hashIdx, h.hashIdx+1)
 		}
 	}
 	return
