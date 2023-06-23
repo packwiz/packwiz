@@ -404,15 +404,18 @@ func (c *CacheIndex) rehashFile(cacheHash string, hashFormat string) (string, er
 }
 
 func (c *CacheIndex) NewHandleFromHashes(hashes map[string]string) (*CacheIndexHandle, bool) {
-	for hashFormat, hash := range hashes {
-		handle := c.GetHandleFromHash(hashFormat, hash)
-		if handle != nil {
-			// Add hashes to handle
-			for hashFormat2, hash2 := range hashes {
-				handle.Hashes[hashFormat2] = strings.ToLower(hash2)
-			}
-			return handle, true
+	// Ensure hashes contains the cache hash format
+	if _, ok := hashes[cacheHashFormat]; !ok {
+		panic("NewHandleFromHashes didn't get any value for " + cacheHashFormat)
+	}
+	// Only compare with the cache hash format - other hashes might be insecure or likely to collide
+	handle := c.GetHandleFromHash(cacheHashFormat, hashes[cacheHashFormat])
+	if handle != nil {
+		// Add hashes to handle
+		for hashFormat2, hash2 := range hashes {
+			handle.Hashes[hashFormat2] = strings.ToLower(hash2)
 		}
+		return handle, true
 	}
 	i := c.nextHashIdx
 	c.nextHashIdx += 1
