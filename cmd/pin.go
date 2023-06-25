@@ -8,7 +8,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-func pinMod(cmd *cobra.Command, args []string, pinned bool) {
+func pinMod(args []string, pinned bool) {
 	fmt.Println("Loading modpack...")
 	pack, err := core.LoadPack()
 	if err != nil {
@@ -66,21 +66,23 @@ func pinMod(cmd *cobra.Command, args []string, pinned bool) {
 
 // pinCmd represents the pin command
 var pinCmd = &cobra.Command{
-	Use:   "pin",
-	Short: "Pin a mod to the current version",
-	Args:  cobra.ExactArgs(1),
+	Use:     "pin",
+	Short:   "Pin a file so it does not get updated automatically",
+	Aliases: []string{"hold"},
+	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		pinMod(cmd, args, true)
+		pinMod(args, true)
 	},
 }
 
 // unpinCmd represents the unpin command
 var unpinCmd = &cobra.Command{
-	Use:   "unpin",
-	Short: "Unpin a mod from the current version",
-	Args:  cobra.ExactArgs(1),
+	Use:     "unpin",
+	Short:   "Unpin a file so it receives updates",
+	Aliases: []string{"unhold"},
+	Args:    cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
-		pinMod(cmd, args, false)
+		pinMod(args, false)
 	},
 }
 
