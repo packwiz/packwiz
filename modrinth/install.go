@@ -142,6 +142,10 @@ func installVersionById(versionId string, versionFilename string, pack core.Pack
 	return installVersion(project, version, versionFilename, pack, index)
 }
 
+func InstallVersionById(versionId string, pack core.Pack, index *core.Index) error {
+	return installVersionById(versionId, "", pack, index)
+}
+
 func installViaSearch(query string, versionFilename string, autoAcceptFirst bool, pack core.Pack, index *core.Index) error {
 	mcVersions, err := pack.GetSupportedMCVersions()
 	if err != nil {

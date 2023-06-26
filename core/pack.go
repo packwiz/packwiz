@@ -3,11 +3,12 @@ package core
 import (
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"golang.org/x/exp/slices"
 
 	"github.com/BurntSushi/toml"
 	"github.com/Masterminds/semver/v3"
@@ -32,10 +33,10 @@ type Pack struct {
 	Options  map[string]interface{}            `toml:"options"`
 }
 
-const CurrentPackFormat = "packwiz:1.1.0"
+const CurrentPackFormat = "packwiz:1.2.0"
 
 var PackFormatConstraintAccepted = mustParseConstraint("~1")
-var PackFormatConstraintSuggestUpgrade = mustParseConstraint("~1.1")
+var PackFormatConstraintSuggestUpgrade = mustParseConstraint("~1.2")
 
 func mustParseConstraint(s string) *semver.Constraints {
 	c, err := semver.NewConstraint(s)
@@ -54,13 +55,8 @@ func LoadPack() (Pack, error) {
 
 	// Check pack-format
 	if len(modpack.PackFormat) == 0 {
-		fmt.Println("Modpack manifest has no pack-format field; assuming packwiz:1.1.0")
-		modpack.PackFormat = "packwiz:1.1.0"
-	}
-	// Auto-migrate versions
-	if modpack.PackFormat == "packwiz:1.0.0" {
-		fmt.Println("Automatically migrating pack to packwiz:1.1.0 format...")
-		modpack.PackFormat = "packwiz:1.1.0"
+		fmt.Println("Modpack manifest has no pack-format field; assuming", CurrentPackFormat)
+		modpack.PackFormat = CurrentPackFormat
 	}
 	if !strings.HasPrefix(modpack.PackFormat, "packwiz:") {
 		return Pack{}, errors.New("pack-format field does not indicate a valid packwiz pack")
@@ -75,7 +71,6 @@ func LoadPack() (Pack, error) {
 	if !PackFormatConstraintSuggestUpgrade.Check(ver) {
 		fmt.Println("Modpack has a newer feature number than is supported by this version of packwiz. Update to the latest version of packwiz for new features and bugfixes!")
 	}
-	// TODO: suggest migration if necessary (primarily for 2.0.0)
 
 	// Read options into viper
 	if modpack.Options != nil {

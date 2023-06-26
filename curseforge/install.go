@@ -3,12 +3,13 @@ package curseforge
 import (
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/sahilm/fuzzy"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
-	"os"
-	"strings"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
@@ -261,6 +262,10 @@ var installCmd = &cobra.Command{
 
 		fmt.Printf("Project \"%s\" successfully added! (%s)\n", modInfoData.Name, fileInfoData.FileName)
 	},
+}
+
+func GetInstallCmd() *cobra.Command {
+	return installCmd
 }
 
 // Used to implement interface for fuzzy matching
