@@ -3,6 +3,7 @@ package cmd
 import (
 	"fmt"
 	"os"
+	"sort"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
@@ -36,6 +37,10 @@ var listCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		sort.Slice(mods, func(i, j int) bool {
+			return mods[i].Name < mods[j].Name
+		})
 
 		// Print mods
 		if viper.GetBool("list.version") {
