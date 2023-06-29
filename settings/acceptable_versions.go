@@ -104,7 +104,7 @@ var acceptableVersionsCommand = &cobra.Command{
 			// If it's only 1 element long, then it's already sorted
 			if len(acceptableVersionsDeduped) > 1 {
 				for i, v := range acceptableVersionsDeduped {
-					if flexver.Less(acceptableVersionsDeduped[i+1], v) {
+					if i+1 < len(acceptableVersionsDeduped) && flexver.Less(acceptableVersionsDeduped[i+1], v) {
 						fmt.Printf("Warning: Your acceptable versions list is out of order. ")
 						// Give a do you mean example
 						// Clone the list
