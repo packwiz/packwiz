@@ -245,11 +245,12 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 		for _, dep := range version.Dependencies {
 			// TODO: recommend optional dependencies?
 			if dep.DependencyType != nil && *dep.DependencyType == "required" {
-				if dep.ProjectID != nil {
-					depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*dep.ProjectID, isQuilt, mcVersion))
-				}
 				if dep.VersionID != nil {
 					depVersionIDPendingQueue = append(depVersionIDPendingQueue, *dep.VersionID)
+				} else {
+					if dep.ProjectID != nil {
+						depProjectIDPendingQueue = append(depProjectIDPendingQueue, mapDepOverride(*dep.ProjectID, isQuilt, mcVersion))
+					}
 				}
 			}
 		}
@@ -289,6 +290,10 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 					}
 				}
 				depProjectIDPendingQueue = depProjectIDPendingQueue[:i]
+
+				// Clean up duplicates from dep queue (from deps on both QFAPI + FAPI)
+				slices.Sort(depProjectIDPendingQueue)
+				slices.Compact(depProjectIDPendingQueue)
 
 				if len(depProjectIDPendingQueue) == 0 {
 					break
