@@ -6,6 +6,7 @@ import (
 	"github.com/spf13/pflag"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -92,7 +93,10 @@ func initConfig() {
 		viper.SetConfigName(".packwiz")
 	}
 
-	viper.AutomaticEnv() // read in environment variables that match
+	// Read in environment variables that match
+	viper.SetEnvPrefix("packwiz")
+	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
+	viper.AutomaticEnv()
 
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {

@@ -73,19 +73,21 @@ func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 			downloads <- found
 		}
 		for _, task := range d.downloadTasks {
+			warnings := make([]error, 0)
+
 			// Get handle for mod
 			cacheHandle := d.cacheIndex.GetHandleFromHash(task.hashFormat, task.hash)
 			if cacheHandle != nil {
 				download, err := reuseExistingFile(cacheHandle, d.hashesToObtain, task.mod)
 				if err != nil {
-					downloads <- CompletedDownload{
-						Error: err,
-						Mod:   task.mod,
-					}
+					// Remove handle and try again
+					cacheHandle.Remove()
+					cacheHandle = nil
+					warnings = append(warnings, fmt.Errorf("redownloading cached file: %w", err))
 				} else {
 					downloads <- download
+					continue
 				}
-				continue
 			}
 
 			download, err := downloadNewFile(&task, d.cacheFolder, d.hashesToObtain, &d.cacheIndex)
@@ -95,6 +97,7 @@ func (d *downloadSessionInternal) StartDownloads() chan CompletedDownload {
 					Mod:   task.mod,
 				}
 			} else {
+				download.Warnings = warnings
 				downloads <- download
 			}
 		}
@@ -405,15 +408,18 @@ func (c *CacheIndex) rehashFile(cacheHash string, hashFormat string) (string, er
 }
 
 func (c *CacheIndex) NewHandleFromHashes(hashes map[string]string) (*CacheIndexHandle, bool) {
-	for hashFormat, hash := range hashes {
-		handle := c.GetHandleFromHash(hashFormat, hash)
-		if handle != nil {
-			// Add hashes to handle
-			for hashFormat2, hash2 := range hashes {
-				handle.Hashes[hashFormat2] = strings.ToLower(hash2)
-			}
-			return handle, true
+	// Ensure hashes contains the cache hash format
+	if _, ok := hashes[cacheHashFormat]; !ok {
+		panic("NewHandleFromHashes didn't get any value for " + cacheHashFormat)
+	}
+	// Only compare with the cache hash format - other hashes might be insecure or likely to collide
+	handle := c.GetHandleFromHash(cacheHashFormat, hashes[cacheHashFormat])
+	if handle != nil {
+		// Add hashes to handle
+		for hashFormat2, hash2 := range hashes {
+			handle.Hashes[hashFormat2] = strings.ToLower(hash2)
 		}
+		return handle, true
 	}
 	i := c.nextHashIdx
 	c.nextHashIdx += 1
@@ -531,6 +537,16 @@ func (h *CacheIndexHandle) UpdateIndex() (warnings []error) {
 			warnings = append(warnings, fmt.Errorf("inconsistent %s hash for %s overwritten - value %s (expected %s)",
 				hashFormat, h.Path(), hashList[h.hashIdx], hash))
 			hashList[h.hashIdx] = h.Hashes[hashFormat]
+		}
+	}
+	return
+}
+
+func (h *CacheIndexHandle) Remove() {
+	for hashFormat := range h.Hashes {
+		hashList := h.index.Hashes[hashFormat]
+		if h.hashIdx < len(hashList) {
+			h.index.Hashes[hashFormat] = slices.Delete(hashList, h.hashIdx, h.hashIdx+1)
 		}
 	}
 	return
