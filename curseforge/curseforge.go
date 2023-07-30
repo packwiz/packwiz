@@ -253,7 +253,7 @@ func filterLoaderTypeIndex(packLoaders []string, modLoaderType modloaderType) (m
 		// No loaders are specified: allow all files
 		return modloaderTypeAny, true
 	} else {
-		if slices.Contains(packLoaders, modloaderIds[modLoaderType]) {
+		if int(modLoaderType) < len(modloaderIds) && slices.Contains(packLoaders, modloaderIds[modLoaderType]) {
 			// Pack contains this loader, pass through
 			return modLoaderType, true
 		} else {
