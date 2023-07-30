@@ -155,7 +155,7 @@ func getProjectTypeFolder(projectType string, fileLoaders []string, packLoaders 
 		}
 		return "shaderpacks", nil
 	} else if projectType == "mod" {
-		// Look up pack loaders in the list of loaders (note this is currently filtered to quilt/fabric/forge)
+		// Look up pack loaders in the list of loaders (note this is currently filtered to quilt/fabric/neoforge/forge)
 		bestLoaderIdx := math.MaxInt
 		for _, v := range fileLoaders {
 			if slices.Contains(packLoaders, v) {

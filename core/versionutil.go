@@ -51,6 +51,11 @@ var ModLoaders = map[string]ModLoaderComponent{
 		FriendlyName:      "Quilt loader",
 		VersionListGetter: FetchMavenVersionList("https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml"),
 	},
+	"neoforge": {
+		Name:              "neoforge",
+		FriendlyName:      "NeoForge",
+		VersionListGetter: FetchMavenVersionPrefixedListStrip("https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml", "NeoForge"),
+	},
 }
 
 func FetchMavenVersionList(url string) func(mcVersion string) ([]string, string, error) {

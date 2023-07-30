@@ -230,23 +230,19 @@ func getSearchLoaderType(pack core.Pack) modloaderType {
 	_, hasFabric := dependencies["fabric"]
 	_, hasQuilt := dependencies["quilt"]
 	_, hasForge := dependencies["forge"]
-	if (hasFabric || hasQuilt) && hasForge {
-		return modloaderTypeAny
-	} else if hasFabric || hasQuilt {
+	_, hasNeoForge := dependencies["neoforge"]
+	if hasFabric && !hasQuilt && !hasForge && !hasNeoForge {
 		return modloaderTypeFabric
-	} else if hasQuilt {
-		// Backwards-compatible with Fabric for now (could be configurable later)
-		// since we can't filter by more than one loader, just accept any and filter the response
-		return modloaderTypeAny
-	} else if hasForge {
-		return modloaderTypeForge
-	} else {
-		return modloaderTypeAny
 	}
+	if hasForge && !hasNeoForge && !hasFabric && !hasQuilt {
+		return modloaderTypeForge
+	}
+	// We can't filter by more than one loader: accept any and filter the response
+	return modloaderTypeAny
 }
 
-// Crude way of preferring Quilt to Fabric: larger types are preferred
-// so Quilt > Fabric > Forge > Any
+// Crude way of preferring Quilt to Fabric / NeoForge to Forge: larger types are preferred
+// so NeoForge > Quilt > Fabric > Forge > Any
 
 func filterLoaderTypeIndex(packLoaders []string, modLoaderType modloaderType) (modloaderType, bool) {
 	if len(packLoaders) == 0 || modLoaderType == modloaderTypeAny {
