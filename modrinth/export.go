@@ -193,6 +193,8 @@ var exportCmd = &cobra.Command{
 			dependencies["fabric-loader"] = fabricVersion
 		} else if forgeVersion, ok := pack.Versions["forge"]; ok {
 			dependencies["forge"] = forgeVersion
+		} else if neoforgeVersion, ok := pack.Versions["neoforge"]; ok {
+			dependencies["neoforge"] = neoforgeVersion
 		}
 
 		manifest := Pack{

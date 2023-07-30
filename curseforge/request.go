@@ -116,6 +116,7 @@ const (
 	modloaderTypeLiteloader
 	modloaderTypeFabric
 	modloaderTypeQuilt
+	modloaderTypeNeoForge
 )
 
 var modloaderNames = [...]string{
@@ -125,6 +126,7 @@ var modloaderNames = [...]string{
 	"Liteloader",
 	"Fabric",
 	"Quilt",
+	"NeoForge",
 }
 
 var modloaderIds = [...]string{
@@ -134,6 +136,7 @@ var modloaderIds = [...]string{
 	"liteloader",
 	"fabric",
 	"quilt",
+	"neoforge",
 }
 
 type hashAlgo uint8
