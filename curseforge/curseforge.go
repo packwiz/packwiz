@@ -414,7 +414,7 @@ func (u cfUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateC
 		}
 	}
 
-	packLoaders := pack.GetLoaders()
+	packLoaders := pack.GetCompatibleLoaders()
 
 	for i, v := range mods {
 		projectRaw, ok := v.GetParsedUpdateData("curseforge")

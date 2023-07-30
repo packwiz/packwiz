@@ -313,9 +313,9 @@ func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthA
 	}
 	var loaders []string
 	if viper.GetString("datapack-folder") != "" {
-		loaders = append(pack.GetLoaders(), withDatapackPathMRLoaders...)
+		loaders = append(pack.GetCompatibleLoaders(), withDatapackPathMRLoaders...)
 	} else {
-		loaders = append(pack.GetLoaders(), defaultMRLoaders...)
+		loaders = append(pack.GetCompatibleLoaders(), defaultMRLoaders...)
 	}
 
 	result, err := mrDefaultClient.Versions.ListVersions(projectID, modrinthApi.ListVersionsOptions{
