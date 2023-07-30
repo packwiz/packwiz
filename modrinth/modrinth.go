@@ -74,6 +74,7 @@ var loaderFolders = map[string]string{
 	"quilt":      "mods",
 	"fabric":     "mods",
 	"forge":      "mods",
+	"neoforge":   "mods",
 	"liteloader": "mods",
 	"modloader":  "mods",
 	"rift":       "mods",
@@ -96,6 +97,8 @@ var loaderPreferenceList = []string{
 	// Prefer quilt versions over fabric versions
 	"quilt",
 	"fabric",
+	// Prefer neoforge versions over forge versions
+	"neoforge",
 	"forge",
 	"liteloader",
 	"modloader",
@@ -129,6 +132,7 @@ var loaderPreferenceList = []string{
 // TODO: make abstracted from source backend
 var loaderCompatGroups = map[string][]string{
 	"fabric":     {"quilt"},
+	"forge":      {"neoforge"},
 	"bukkit":     {"purpur", "paper", "spigot"},
 	"bungeecord": {"waterfall"},
 }
