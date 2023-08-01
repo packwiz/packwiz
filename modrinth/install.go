@@ -232,7 +232,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 	if len(version.Dependencies) > 0 {
 		// TODO: could get installed version IDs, and compare to install the newest - i.e. preferring pinned versions over getting absolute latest?
 		installedProjects := getInstalledProjectIDs(index)
-		isQuilt := slices.Contains(pack.GetLoaders(), "quilt")
+		isQuilt := slices.Contains(pack.GetCompatibleLoaders(), "quilt")
 		mcVersion, err := pack.GetMCVersion()
 		if err != nil {
 			return err
@@ -438,7 +438,7 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 	var path string
 	folder := viper.GetString("meta-folder")
 	if folder == "" {
-		folder, err = getProjectTypeFolder(*project.ProjectType, version.Loaders, pack.GetLoaders())
+		folder, err = getProjectTypeFolder(*project.ProjectType, version.Loaders, pack.GetCompatibleLoaders())
 		if err != nil {
 			return err
 		}

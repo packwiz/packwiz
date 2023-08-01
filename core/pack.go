@@ -186,12 +186,31 @@ func (pack Pack) GetPackName() string {
 	}
 }
 
-func (pack Pack) GetLoaders() (loaders []string) {
+func (pack Pack) GetCompatibleLoaders() (loaders []string) {
 	if _, hasQuilt := pack.Versions["quilt"]; hasQuilt {
 		loaders = append(loaders, "quilt")
 		loaders = append(loaders, "fabric") // Backwards-compatible; for now (could be configurable later)
 	} else if _, hasFabric := pack.Versions["fabric"]; hasFabric {
 		loaders = append(loaders, "fabric")
+	}
+	if _, hasNeoForge := pack.Versions["neoforge"]; hasNeoForge {
+		loaders = append(loaders, "neoforge")
+		loaders = append(loaders, "forge") // Backwards-compatible; for now (could be configurable later)
+	} else if _, hasForge := pack.Versions["forge"]; hasForge {
+		loaders = append(loaders, "forge")
+	}
+	return
+}
+
+func (pack Pack) GetLoaders() (loaders []string) {
+	if _, hasQuilt := pack.Versions["quilt"]; hasQuilt {
+		loaders = append(loaders, "quilt")
+	}
+	if _, hasFabric := pack.Versions["fabric"]; hasFabric {
+		loaders = append(loaders, "fabric")
+	}
+	if _, hasNeoForge := pack.Versions["neoforge"]; hasNeoForge {
+		loaders = append(loaders, "neoforge")
 	}
 	if _, hasForge := pack.Versions["forge"]; hasForge {
 		loaders = append(loaders, "forge")
