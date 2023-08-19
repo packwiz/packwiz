@@ -6,7 +6,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"io"
-	"net/http"
 	"net/url"
 	"os"
 	"path"
@@ -128,7 +127,7 @@ func getHash(url string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	resp, err := http.Get(url)
+	resp, err := core.GetWithUA(url, "application/octet-stream")
 	if err != nil {
 		return "", err
 	}
