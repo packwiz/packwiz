@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"sort"
+	"strings"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
@@ -39,13 +40,13 @@ var listCmd = &cobra.Command{
 		}
 
 		sort.Slice(mods, func(i, j int) bool {
-			return mods[i].Name < mods[j].Name
+			return strings.ToLower(mods[i].Name) < strings.ToLower(mods[j].Name)
 		})
 
 		// Print mods
 		if viper.GetBool("list.version") {
 			for _, mod := range mods {
-				fmt.Printf("%s\t[%s]\n", mod.Name, mod.FileName)
+				fmt.Printf("%s (%s)\n", mod.Name, mod.FileName)
 			}
 		} else {
 			for _, mod := range mods {
