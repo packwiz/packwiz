@@ -93,6 +93,11 @@ func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projec
 			ID:      "forge-" + forgeVersion,
 			Primary: true,
 		})
+	} else if quiltVersion, ok := pack.Versions["quilt"]; ok {
+		modLoaders = append(modLoaders, modLoaderDef{
+			ID:      "quilt-" + quiltVersion,
+			Primary: true,
+		})
 	}
 
 	manifest := cursePackMeta{
