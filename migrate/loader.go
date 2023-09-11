@@ -24,17 +24,7 @@ var loaderCommand = &cobra.Command{
 			fmt.Printf("Error loading pack: %s\n", err)
 			os.Exit(1)
 		}
-		// Get our current loader, would use the modpack.GetLoaders function
-		// but, it supplements Quilt with Fabric, which isn't needed for this
-		var currentLoaders []string
-		// Add all the keys from modpack.Versions
-		for key := range modpack.Versions {
-			// If it ain't in core.ModLoaders, we don't want it
-			if _, ok := core.ModLoaders[key]; !ok {
-				continue
-			}
-			currentLoaders = append(currentLoaders, key)
-		}
+		var currentLoaders = modpack.GetLoaders()
 		// Do some sanity checks on the current loader slice
 		if len(currentLoaders) == 0 {
 			fmt.Println("No loader is currently set in your pack.toml!")
@@ -90,8 +80,8 @@ var loaderCommand = &cobra.Command{
 			fmt.Println("Updating to explicit loader version")
 			// This one is easy :D
 			versions, _, loader := getVersionsForLoader(currentLoaders[0], mcVersion)
-			// Check if the loader happens to be Forge, since there's two version formats
-			if loader.Name == "forge" {
+			// Check if the loader happens to be Forge/NeoForge, since there's two version formats
+			if loader.Name == "forge" || loader.Name == "neoforge" {
 				wantedVersion := cmdshared.GetRawForgeVersion(args[0])
 				validateVersion(versions, wantedVersion, loader)
 				_ = updatePackToVersion(wantedVersion, modpack, loader)

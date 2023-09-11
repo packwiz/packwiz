@@ -102,7 +102,7 @@ var initCmd = &cobra.Command{
 					}
 				}
 				v := componentVersion
-				if loader.Name == "forge" {
+				if loader.Name == "forge" || loader.Name == "neoforge" {
 					v = cmdshared.GetRawForgeVersion(componentVersion)
 				}
 				if !slices.Contains(versions, v) {
