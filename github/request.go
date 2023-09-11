@@ -3,9 +3,9 @@ package github
 import (
 	"fmt"
 	"net/http"
-	"os"
 
 	"github.com/packwiz/packwiz/core"
+	"github.com/spf13/viper"
 )
 
 // TODO: allow setting github api key via env variable
@@ -18,7 +18,7 @@ type ghApiClient struct {
 var ghDefaultClient = ghApiClient{&http.Client{}}
 
 func (c *ghApiClient) makeGet(url string) (*http.Response, error) {
-	ghApiToken := os.Getenv("GH_API_TOKEN")
+	ghApiToken := viper.GetString("github.token")
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
