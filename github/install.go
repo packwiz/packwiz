@@ -37,6 +37,7 @@ var installCmd = &cobra.Command{
 
 		// Try interpreting the argument as a slug, or GitHub repository URL.
 		var slug string
+		var branch string
 
 		// Check if the argument is a valid GitHub repository URL; if so, extract the slug from the URL.
 		// Otherwise, interpret the argument as a slug directly.
@@ -54,7 +55,11 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		err = installMod(repo, pack)
+		if branchFlag != "" {
+			branch = branchFlag
+		}
+
+		err = installMod(repo, branch, pack)
 		if err != nil {
 			fmt.Printf("Failed to add project: %s\n", err)
 			os.Exit(1)
@@ -62,12 +67,8 @@ var installCmd = &cobra.Command{
 	},
 }
 
-func init() {
-	githubCmd.AddCommand(installCmd)
-}
-
-func installMod(repo Repo, pack core.Pack) error {
-	latestRelease, err := getLatestRelease(repo.FullName, "")
+func installMod(repo Repo, branch string, pack core.Pack) error {
+	latestRelease, err := getLatestRelease(repo.FullName, branch)
 	if err != nil {
 		return fmt.Errorf("failed to get latest release: %v", err)
 	}
@@ -193,4 +194,11 @@ func installRelease(repo Repo, release Release, pack core.Pack) error {
 	fmt.Printf("Project \"%s\" successfully added! (%s)\n", repo.Name, file.Name)
 	return nil
 }
+
+var branchFlag string
+
+func init() {
+	githubCmd.AddCommand(installCmd)
+
+	installCmd.Flags().StringVar(&branchFlag, "branch", "", "The GitHub repository branch to retrieve releases for")
 }
