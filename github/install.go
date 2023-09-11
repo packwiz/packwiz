@@ -54,7 +54,11 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		installMod(repo, pack)
+		err = installMod(repo, pack)
+		if err != nil {
+			fmt.Printf("Failed to add project: %s\n", err)
+			os.Exit(1)
+		}
 	},
 }
 
@@ -168,5 +172,25 @@ func installRelease(repo Repo, release Release, pack core.Pack) error {
 	if err != nil {
 		return err
 	}
-	return index.RefreshFileWithHash(path, format, hash, true)
+
+	err = index.RefreshFileWithHash(path, format, hash, true)
+	if err != nil {
+		return err
+	}
+	err = index.Write()
+	if err != nil {
+		return err
+	}
+	err = pack.UpdateIndexHash()
+	if err != nil {
+		return err
+	}
+	err = pack.Write()
+	if err != nil {
+		return err
+	}
+
+	fmt.Printf("Project \"%s\" successfully added! (%s)\n", repo.Name, file.Name)
+	return nil
+}
 }
