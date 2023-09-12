@@ -39,6 +39,24 @@ var listCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		// Filter mods by side
+		if viper.IsSet("list.side") {
+			side := viper.GetString("list.side")
+			if len(side) == 0 || (side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide) {
+				fmt.Println("Invalid side!")
+				os.Exit(1)
+			}
+
+			i := 0
+			for _, mod := range mods {
+				if mod.Side == side || mod.Side == core.EmptySide || mod.Side == core.UniversalSide || side == core.UniversalSide {
+					mods[i] = mod
+					i++
+				}
+			}
+			mods = mods[:i]
+		}
+
 		sort.Slice(mods, func(i, j int) bool {
 			return strings.ToLower(mods[i].Name) < strings.ToLower(mods[j].Name)
 		})
@@ -61,4 +79,7 @@ func init() {
 
 	listCmd.Flags().BoolP("version", "v", false, "Print name and version")
 	_ = viper.BindPFlag("list.version", listCmd.Flags().Lookup("version"))
+	listCmd.Flags().StringP("side", "s", "", "Filter mods by side (e.g., client or server)")
+	_ = viper.BindPFlag("list.side", listCmd.Flags().Lookup("side"))
+
 }
