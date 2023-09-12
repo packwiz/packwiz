@@ -41,15 +41,16 @@ var listCmd = &cobra.Command{
 
 		// Filter mods by side
 		if viper.IsSet("list.side") {
+			// cobra/viper ensures this value is set if the flag is used. Maybe remove the len Check?
 			side := viper.GetString("list.side")
-			if len(side) == 0 || (side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide) {
-				fmt.Println("Invalid side!")
+			if side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide {
+				fmt.Printf("Invalid side %q, must be one of client, server, or both (default)\n", side)
 				os.Exit(1)
 			}
 
 			i := 0
 			for _, mod := range mods {
-				if mod.Side == side || mod.Side == core.EmptySide || mod.Side == core.UniversalSide || side == core.UniversalSide {
+				if len(side) == 0 || (mod.Side == side || mod.Side == core.EmptySide || mod.Side == core.UniversalSide || side == core.UniversalSide) {
 					mods[i] = mod
 					i++
 				}

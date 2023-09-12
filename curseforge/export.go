@@ -4,13 +4,14 @@ import (
 	"archive/zip"
 	"bufio"
 	"fmt"
+	"os"
+	"strconv"
+
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/packwiz/packwiz/curseforge/packinterop"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
-	"strconv"
 )
 
 // exportCmd represents the export command
@@ -19,9 +20,10 @@ var exportCmd = &cobra.Command{
 	Short: "Export the current modpack into a .zip for curseforge",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		// cobra/viper ensures this value is set if the flag is used. Maybe remove the len Check?
 		side := viper.GetString("curseforge.export.side")
 		if len(side) == 0 || (side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide) {
-			fmt.Println("Invalid side!")
+			fmt.Printf("Invalid side %q, must be one of client, server, or both (default)\n", side)
 			os.Exit(1)
 		}
 
