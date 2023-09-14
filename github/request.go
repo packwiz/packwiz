@@ -3,6 +3,7 @@ package github
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/viper"
@@ -35,8 +36,22 @@ func (c *ghApiClient) makeGet(url string) (*http.Response, error) {
 	if err != nil {
 		return nil, err
 	}
+
+	ratelimit, err := strconv.Atoi(resp.Header.Get("x-ratelimit-remaining"))
+	if err != nil {
+		return nil, err
+	}
+
+	if resp.StatusCode == 403 && ratelimit == 0 {
+		return nil, fmt.Errorf("GitHub API ratelimit exceeded; time of reset: %v", resp.Header.Get("x-ratelimit-reset"))
+	}
 	if resp.StatusCode != 200 {
 		return nil, fmt.Errorf("invalid response status: %v", resp.Status)
+	}
+
+	if ratelimit < 10 {
+		fmt.Printf("Warning: GitHub API allows %v more requests before ratelimiting\n", ratelimit)
+		fmt.Println("Specifying a token is recommended; see documentation")
 	}
 
 	return resp, nil
