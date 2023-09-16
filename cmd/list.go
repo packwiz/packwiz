@@ -50,7 +50,7 @@ var listCmd = &cobra.Command{
 
 			i := 0
 			for _, mod := range mods {
-				if len(side) == 0 || (mod.Side == side || mod.Side == core.EmptySide || mod.Side == core.UniversalSide || side == core.UniversalSide) {
+				if mod.Side == side || mod.Side == core.EmptySide || mod.Side == core.UniversalSide || side == core.UniversalSide {
 					mods[i] = mod
 					i++
 				}
