@@ -4,13 +4,14 @@ import (
 	"archive/zip"
 	"bufio"
 	"fmt"
+	"os"
+	"strconv"
+
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/packwiz/packwiz/curseforge/packinterop"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"os"
-	"strconv"
 )
 
 // exportCmd represents the export command
@@ -20,8 +21,8 @@ var exportCmd = &cobra.Command{
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
 		side := viper.GetString("curseforge.export.side")
-		if len(side) == 0 || (side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide) {
-			fmt.Println("Invalid side!")
+		if side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide {
+			fmt.Printf("Invalid side %q, must be one of client, server, or both (default)\n", side)
 			os.Exit(1)
 		}
 
