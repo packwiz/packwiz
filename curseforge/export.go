@@ -20,7 +20,6 @@ var exportCmd = &cobra.Command{
 	Short: "Export the current modpack into a .zip for curseforge",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
-		// cobra/viper ensures this value is set if the flag is used. Maybe remove the len Check?
 		side := viper.GetString("curseforge.export.side")
 		if side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide {
 			fmt.Printf("Invalid side %q, must be one of client, server, or both (default)\n", side)
