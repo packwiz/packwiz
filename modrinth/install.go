@@ -288,7 +288,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 
 				// Clean up duplicates from dep queue (from deps on both QFAPI + FAPI)
 				slices.Sort(depProjectIDPendingQueue)
-				slices.Compact(depProjectIDPendingQueue)
+				depProjectIDPendingQueue = slices.Compact(depProjectIDPendingQueue)
 
 				if len(depProjectIDPendingQueue) == 0 {
 					break
