@@ -122,6 +122,7 @@ func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, m
 	file, err := cacheHandle.Open()
 	if err == nil {
 		remainingHashes := cacheHandle.GetRemainingHashes(hashesToObtain)
+		var warnings []error
 		if len(remainingHashes) > 0 {
 			err = teeHashes(remainingHashes, cacheHandle.Hashes, io.Discard, file)
 			if err != nil {
@@ -133,13 +134,14 @@ func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, m
 				_ = file.Close()
 				return CompletedDownload{}, fmt.Errorf("failed to seek file %s in cache: %w", cacheHandle.Path(), err)
 			}
-			cacheHandle.UpdateIndex()
+			warnings = cacheHandle.UpdateIndex()
 		}
 
 		return CompletedDownload{
-			File:   file,
-			Mod:    mod,
-			Hashes: cacheHandle.Hashes,
+			File:     file,
+			Mod:      mod,
+			Hashes:   cacheHandle.Hashes,
+			Warnings: warnings,
 		}, nil
 	} else {
 		return CompletedDownload{}, fmt.Errorf("failed to read file %s from cache: %w", cacheHandle.Path(), err)
@@ -228,7 +230,10 @@ func getHashListsForDownload(hashesToObtain []string, validateHashFormat string,
 	hashes := make(map[string]string)
 	hashes[validateHashFormat] = validateHash
 
-	cl := []string{cacheHashFormat}
+	var cl []string
+	if cacheHashFormat != validateHashFormat {
+		cl = append(cl, cacheHashFormat)
+	}
 	for _, v := range hashesToObtain {
 		if v != validateHashFormat && v != cacheHashFormat {
 			cl = append(cl, v)
