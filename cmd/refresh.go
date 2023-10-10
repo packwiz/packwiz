@@ -5,7 +5,7 @@ import (
 	"github.com/spf13/viper"
 	"os"
 
-	"github.com/packwiz/packwiz/core"
+	"packwiz/core"
 	"github.com/spf13/cobra"
 )
 

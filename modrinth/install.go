@@ -4,14 +4,14 @@ import (
 	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
-	"github.com/packwiz/packwiz/cmdshared"
+	"packwiz/cmdshared"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/packwiz/packwiz/core"
+	"packwiz/core"
 	"github.com/spf13/cobra"
 	"gopkg.in/dixonwille/wmenu.v4"
 )

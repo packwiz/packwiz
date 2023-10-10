@@ -4,14 +4,13 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
-	"github.com/packwiz/packwiz/cmdshared"
+	"packwiz/cmdshared"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"net/url"
 	"os"
 	"strconv"
-
-	"github.com/packwiz/packwiz/core"
+	"packwiz/core"
 	"github.com/spf13/cobra"
 )
 
@@ -72,8 +71,20 @@ var exportCmd = &cobra.Command{
 		}
 		exp := zip.NewWriter(expFile)
 
-		// Add an overrides folder even if there are no files to go in it
+		// Add all override folders even if there are no files to go in it
 		_, err = exp.Create("overrides/")
+		if err != nil {
+			fmt.Printf("Failed to add overrides folder: %s\n", err.Error())
+			os.Exit(1)
+		}
+
+		_, err = exp.Create("client-overrides/")
+		if err != nil {
+			fmt.Printf("Failed to add overrides folder: %s\n", err.Error())
+			os.Exit(1)
+		}
+
+		_, err = exp.Create("server-overrides/")
 		if err != nil {
 			fmt.Printf("Failed to add overrides folder: %s\n", err.Error())
 			os.Exit(1)
@@ -229,7 +240,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		cmdshared.AddNonMetafileOverrides(&index, exp)
+		cmdshared.AddOverrides(&index, exp)
 
 		err = exp.Close()
 		if err != nil {

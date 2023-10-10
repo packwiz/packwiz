@@ -28,7 +28,6 @@ type Mod struct {
 
 const (
 	ModeURL string = "url"
-	ModeCF  string = "metadata:curseforge"
 )
 
 // ModDownload specifies how to download the mod file
