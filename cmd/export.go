@@ -40,7 +40,7 @@ type PackFile struct {
 var exportCmd = &cobra.Command{
 	Use:   "export",
 	Short: "Export the current modpack into a .mrpack for Modrinth",
-	Args:  cobra.NoArgs,
+	Args:  cobra.MaximumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		fmt.Println("Loading modpack...")
 		pack, err := core.LoadPack()
@@ -197,12 +197,14 @@ var exportCmd = &cobra.Command{
 				fmt.Printf("%s (%s) added to manifest\n", dl.Mod.Name, dl.Mod.FileName)
 			} else {
 				if dl.Mod.Side == core.ClientSide {
-					_ = cmdshared.AddToZip(dl, exp, "client-overrides", &index)
+					_ = cmdshared.AddToZip(dl, exp, "client-overrides/mods", &index)
 				} else if dl.Mod.Side == core.ServerSide {
-					_ = cmdshared.AddToZip(dl, exp, "server-overrides", &index)
+					_ = cmdshared.AddToZip(dl, exp, "server-overrides/mods", &index)
 				} else {
-					_ = cmdshared.AddToZip(dl, exp, "overrides", &index)
+					_ = cmdshared.AddToZip(dl, exp, "overrides/mods", &index)
 				}
+
+				fmt.Printf("%s (%s) added to overrrides\n", dl.Mod.Name, dl.Mod.FileName)
 			}
 		}
 

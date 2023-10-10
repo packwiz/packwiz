@@ -242,7 +242,7 @@ func teeHashes(hashesToObtain []string, hashes map[string]string,
 	// Select the best hash from the hashes map to validate against
 	validateHashFormat, validateHash := selectPreferredHash(hashes)
 	if validateHashFormat == "" {
-		return errors.New("failed to find preferred hash for file")
+		return errors.New("no prefered hashes found")
 	}
 
 	// Create writers for all the hashers
