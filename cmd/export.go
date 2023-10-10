@@ -1,4 +1,4 @@
-package modrinth
+package cmd
 
 import (
 	"archive/zip"
@@ -11,8 +11,30 @@ import (
 	"os"
 	"strconv"
 	"packwiz/core"
+
 	"github.com/spf13/cobra"
 )
+
+type Pack struct {
+	FormatVersion uint32            `json:"formatVersion"`
+	Game          string            `json:"game"`
+	VersionID     string            `json:"versionId"`
+	Name          string            `json:"name"`
+	Summary       string            `json:"summary,omitempty"`
+	Files         []PackFile        `json:"files"`
+	Dependencies  map[string]string `json:"dependencies"`
+}
+
+type PackFile struct {
+	Path   string            `json:"path"`
+	Hashes map[string]string `json:"hashes"`
+	Env    *struct {
+		Client string `json:"client"`
+		Server string `json:"server"`
+	} `json:"env"`
+	Downloads []string `json:"downloads"`
+	FileSize  uint32   `json:"fileSize"`
+}
 
 // exportCmd represents the export command
 var exportCmd = &cobra.Command{
@@ -80,13 +102,13 @@ var exportCmd = &cobra.Command{
 
 		_, err = exp.Create("client-overrides/")
 		if err != nil {
-			fmt.Printf("Failed to add overrides folder: %s\n", err.Error())
+			fmt.Printf("Failed to add client overrides folder: %s\n", err.Error())
 			os.Exit(1)
 		}
 
 		_, err = exp.Create("server-overrides/")
 		if err != nil {
-			fmt.Printf("Failed to add overrides folder: %s\n", err.Error())
+			fmt.Printf("Failed to add server overrides folder: %s\n", err.Error())
 			os.Exit(1)
 		}
 
@@ -281,7 +303,7 @@ func canBeIncludedDirectly(mod *core.Mod, restrictDomains bool) bool {
 }
 
 func init() {
-	modrinthCmd.AddCommand(exportCmd)
+	rootCmd.AddCommand(exportCmd)
 	exportCmd.Flags().Bool("restrictDomains", true, "Restricts domains to those allowed by modrinth.com")
 	exportCmd.Flags().StringP("output", "o", "", "The file to export the modpack to")
 	_ = viper.BindPFlag("modrinth.export.restrictDomains", exportCmd.Flags().Lookup("restrictDomains"))
