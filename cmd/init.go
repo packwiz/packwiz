@@ -139,6 +139,36 @@ var initCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		//create override folders
+		_, err = os.Stat("overrides")
+		if os.IsNotExist(err) {
+			err = os.Mkdir("overrides", os.ModePerm)
+			if err != nil {
+				fmt.Printf("Error creating overrides directory: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
+		//create server-override folders
+		_, err = os.Stat("server-overrides")
+		if os.IsNotExist(err) {
+			err = os.Mkdir("server-overrides", os.ModePerm)
+			if err != nil {
+				fmt.Printf("Error creating server-overrides directory: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
+		//create client-override folders
+		_, err = os.Stat("client-overrides")
+		if os.IsNotExist(err) {
+			err = os.Mkdir("client-overrides", os.ModePerm)
+			if err != nil {
+				fmt.Printf("Error creating client-overrides directory: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
 		// Create the pack
 		pack := core.Pack{
 			Name:       name,

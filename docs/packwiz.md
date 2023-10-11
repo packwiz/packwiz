@@ -29,4 +29,3 @@ A command line tool for creating Minecraft modpacks
 * [packwiz update](packwiz_update.md)	 - Update an external file (or all external files) in the modpack
 * [packwiz url](packwiz_url.md)	 - Add external files from a direct download link, for sites that are not directly supported by packwiz
 * [packwiz utils](packwiz_utils.md)	 - Utilities for managing packwiz itself
-

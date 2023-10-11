@@ -1,11 +1,17 @@
-## packwiz url
+## packwiz modrinth export
 
-Add external files from a direct download link, for sites that are not directly supported by packwiz
+Export the current modpack into a .mrpack for Modrinth
+
+```
+packwiz export [flags]
+```
 
 ### Options
 
 ```
-  -h, --help   help for url
+  -h, --help              help for export
+  -o, --output string     The file to export the modpack to
+      --restrictDomains   Restricts domains to those allowed by modrinth.com (default true)
 ```
 
 ### Options inherited from parent commands
@@ -21,6 +27,5 @@ Add external files from a direct download link, for sites that are not directly 
 
 ### SEE ALSO
 
-* [packwiz](packwiz.md)	 - A command line tool for creating Minecraft modpacks
-* [packwiz url add](packwiz_url_add.md)	 - Add an external file from a direct download link, for sites that are not directly supported by packwiz
+* [packwiz modrinth](packwiz_modrinth.md)	 - Manage modrinth-based mods
 

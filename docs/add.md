@@ -1,16 +1,17 @@
-## packwiz utils markdown
+## packwiz url add
 
-Generate markdown documentation (that you might be reading right now!!)
+Add an external file from a direct download link, for sites that are not directly supported by packwiz
 
 ```
-packwiz utils markdown [flags]
+packwiz add [name] [url] [flags]
 ```
 
 ### Options
 
 ```
-      --dir string   The destination directory to save docs in (default ".")
-  -h, --help         help for markdown
+      --force              Add a file even if the download URL is supported by packwiz in an alternative command (which may support dependencies and updates)
+  -h, --help               help for add
+      --meta-name string   Filename to use for the created metadata file (defaults to a name generated from the name you supply)
 ```
 
 ### Options inherited from parent commands
@@ -26,5 +27,5 @@ packwiz utils markdown [flags]
 
 ### SEE ALSO
 
-* [packwiz utils](packwiz_utils.md)	 - Utilities for managing packwiz itself
+* [packwiz url](packwiz_url.md)	 - Add external files from a direct download link, for sites that are not directly supported by packwiz
 

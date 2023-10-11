@@ -3,7 +3,7 @@
 Manage your pack's acceptable Minecraft versions. This must be a comma seperated list of Minecraft versions, e.g. 1.16.3,1.16.4,1.16.5
 
 ```
-packwiz settings acceptable-versions [flags]
+packwiz acceptable-versions [flags]
 ```
 
 ### Options
