@@ -556,6 +556,33 @@ func (h *CacheIndexHandle) Remove() {
 	return
 }
 
+func removeIndices(hashList []string, indices []int) []string {
+	i := 0
+	for _, v := range hashList {
+		if len(indices) > 0 && i == indices[0] {
+			indices = indices[1:]
+		} else {
+			hashList[i] = v
+			i++
+		}
+	}
+	return hashList[:i]
+}
+
+func removeEmpty(hashList []string) ([]string, []int) {
+	var indices []int
+	i := 0
+	for oldIdx, v := range hashList {
+		if v == "" {
+			indices = append(indices, oldIdx)
+		} else {
+			hashList[i] = v
+			i++
+		}
+	}
+	return hashList[:i], indices
+}
+
 func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSession, error) {
 	// Load cache index
 	cacheIndex := CacheIndex{Version: 1, Hashes: make(map[string][]string)}
@@ -592,6 +619,18 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 		cacheIndex.Hashes[cacheHashFormat] = make([]string, 0)
 	}
 	cacheIndex.cachePath = cachePath
+
+	// Clean up empty entries in index
+	var removedEntries []int
+	cacheIndex.Hashes[cacheHashFormat], removedEntries = removeEmpty(cacheIndex.Hashes[cacheHashFormat])
+	if len(removedEntries) > 0 {
+		for hashFormat, v := range cacheIndex.Hashes {
+			if hashFormat != cacheHashFormat {
+				cacheIndex.Hashes[hashFormat] = removeIndices(v, removedEntries)
+			}
+		}
+	}
+
 	cacheIndex.nextHashIdx = len(cacheIndex.Hashes[cacheHashFormat])
 
 	// Create import folder
