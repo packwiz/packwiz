@@ -35,6 +35,29 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		//refresh index
+		err = index.Refresh()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = index.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.UpdateIndexHash()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("Index refreshed!")
+
 		// If project/version IDs/version file name is provided in command line, use those
 		var projectID, versionID, versionFilename string
 		if projectIDFlag != "" {

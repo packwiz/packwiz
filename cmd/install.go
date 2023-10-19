@@ -47,9 +47,6 @@ var installCmd = &cobra.Command{
 			if strings.HasSuffix(dl.Host, "modrinth.com") {
 				msg = "modrinth add " + args[1]
 			}
-			if strings.HasSuffix(dl.Host, "curseforge.com") || strings.HasSuffix(dl.Host, "forgecdn.net") {
-				msg = "curseforge add " + args[1]
-			}
 			if msg != "" {
 				fmt.Println("Consider using packwiz", msg, "instead; if you know what you are doing use --force to add this file without update metadata.")
 				os.Exit(1)
@@ -67,6 +64,29 @@ var installCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		//refresh index
+		err = index.Refresh()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = index.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.UpdateIndexHash()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("Index refreshed!")
 
 		filename := path.Base(dl.Path)
 		modMeta := core.Mod{
