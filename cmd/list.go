@@ -32,6 +32,29 @@ var listCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		//refresh index
+		err = index.Refresh()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = index.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.UpdateIndexHash()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("Index refreshed!")
+
 		// Load mods
 		mods, err := index.LoadAllMods()
 		if err != nil {

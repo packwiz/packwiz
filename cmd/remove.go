@@ -26,6 +26,30 @@ var removeCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		//refresh index
+		err = index.Refresh()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = index.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.UpdateIndexHash()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("Index refreshed!")
+
 		resolvedMod, ok := index.FindMod(args[0])
 		if !ok {
 			fmt.Println("Can't find this file; please ensure you have run packwiz refresh and use the name of the .pw.toml file (defaults to the project slug)")
