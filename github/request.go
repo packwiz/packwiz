@@ -37,9 +37,15 @@ func (c *ghApiClient) makeGet(url string) (*http.Response, error) {
 		return nil, err
 	}
 
-	ratelimit, err := strconv.Atoi(resp.Header.Get("x-ratelimit-remaining"))
-	if err != nil {
-		return nil, err
+	// TODO: there is likely a better way to do this
+	ratelimit := 999
+
+	ratelimit_header := resp.Header.Get("x-ratelimit-remaining")
+	if ratelimit_header != "" {
+		ratelimit, err = strconv.Atoi(ratelimit_header)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	if resp.StatusCode == 403 && ratelimit == 0 {
