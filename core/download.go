@@ -122,6 +122,7 @@ func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, m
 	file, err := cacheHandle.Open()
 	if err == nil {
 		remainingHashes := cacheHandle.GetRemainingHashes(hashesToObtain)
+		var warnings []error
 		if len(remainingHashes) > 0 {
 			err = teeHashes(remainingHashes, cacheHandle.Hashes, io.Discard, file)
 			if err != nil {
@@ -133,13 +134,14 @@ func reuseExistingFile(cacheHandle *CacheIndexHandle, hashesToObtain []string, m
 				_ = file.Close()
 				return CompletedDownload{}, fmt.Errorf("failed to seek file %s in cache: %w", cacheHandle.Path(), err)
 			}
-			cacheHandle.UpdateIndex()
+			warnings = cacheHandle.UpdateIndex()
 		}
 
 		return CompletedDownload{
-			File:   file,
-			Mod:    mod,
-			Hashes: cacheHandle.Hashes,
+			File:     file,
+			Mod:      mod,
+			Hashes:   cacheHandle.Hashes,
+			Warnings: warnings,
 		}, nil
 	} else {
 		return CompletedDownload{}, fmt.Errorf("failed to read file %s from cache: %w", cacheHandle.Path(), err)
@@ -228,7 +230,10 @@ func getHashListsForDownload(hashesToObtain []string, validateHashFormat string,
 	hashes := make(map[string]string)
 	hashes[validateHashFormat] = validateHash
 
-	cl := []string{cacheHashFormat}
+	var cl []string
+	if cacheHashFormat != validateHashFormat {
+		cl = append(cl, cacheHashFormat)
+	}
 	for _, v := range hashesToObtain {
 		if v != validateHashFormat && v != cacheHashFormat {
 			cl = append(cl, v)
@@ -551,6 +556,33 @@ func (h *CacheIndexHandle) Remove() {
 	return
 }
 
+func removeIndices(hashList []string, indices []int) []string {
+	i := 0
+	for _, v := range hashList {
+		if len(indices) > 0 && i == indices[0] {
+			indices = indices[1:]
+		} else {
+			hashList[i] = v
+			i++
+		}
+	}
+	return hashList[:i]
+}
+
+func removeEmpty(hashList []string) ([]string, []int) {
+	var indices []int
+	i := 0
+	for oldIdx, v := range hashList {
+		if v == "" {
+			indices = append(indices, oldIdx)
+		} else {
+			hashList[i] = v
+			i++
+		}
+	}
+	return hashList[:i], indices
+}
+
 func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSession, error) {
 	// Load cache index
 	cacheIndex := CacheIndex{Version: 1, Hashes: make(map[string][]string)}
@@ -587,6 +619,18 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 		cacheIndex.Hashes[cacheHashFormat] = make([]string, 0)
 	}
 	cacheIndex.cachePath = cachePath
+
+	// Clean up empty entries in index
+	var removedEntries []int
+	cacheIndex.Hashes[cacheHashFormat], removedEntries = removeEmpty(cacheIndex.Hashes[cacheHashFormat])
+	if len(removedEntries) > 0 {
+		for hashFormat, v := range cacheIndex.Hashes {
+			if hashFormat != cacheHashFormat {
+				cacheIndex.Hashes[hashFormat] = removeIndices(v, removedEntries)
+			}
+		}
+	}
+
 	cacheIndex.nextHashIdx = len(cacheIndex.Hashes[cacheHashFormat])
 
 	// Create import folder
