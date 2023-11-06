@@ -4,14 +4,14 @@ import (
 	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
-	"github.com/packwiz/packwiz/cmdshared"
+	"packwiz/cmdshared"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
 	"os"
 	"path/filepath"
 	"strings"
 
-	"github.com/packwiz/packwiz/core"
+	"packwiz/core"
 	"github.com/spf13/cobra"
 	"gopkg.in/dixonwille/wmenu.v4"
 )
@@ -34,6 +34,29 @@ var installCmd = &cobra.Command{
 			fmt.Println(err)
 			os.Exit(1)
 		}
+
+		//refresh index
+		err = index.Refresh()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = index.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.UpdateIndexHash()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		err = pack.Write()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		fmt.Println("Index refreshed!")
 
 		// If project/version IDs/version file name is provided in command line, use those
 		var projectID, versionID, versionFilename string

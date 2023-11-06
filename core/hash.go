@@ -8,7 +8,6 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
-	"github.com/packwiz/packwiz/curseforge/murmur2"
 	"hash"
 	"strconv"
 	"strings"
@@ -25,8 +24,6 @@ func GetHashImpl(hashType string) (HashStringer, error) {
 		return hexStringer{sha512.New()}, nil
 	case "md5":
 		return hexStringer{md5.New()}, nil
-	case "murmur2": // TODO: change to something indicating that this is the CF variant
-		return number32As64Stringer{murmur2.New()}, nil
 	case "length-bytes": // TODO: only used internally for now; should not be saved
 		return number64Stringer{&LengthHasher{}}, nil
 	}

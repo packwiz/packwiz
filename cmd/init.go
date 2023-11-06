@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"github.com/fatih/camelcase"
 	"github.com/igorsobreira/titlecase"
-	"github.com/packwiz/packwiz/cmdshared"
-	"github.com/packwiz/packwiz/core"
+	"packwiz/cmdshared"
+	"packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"golang.org/x/exp/slices"
@@ -137,6 +137,36 @@ var initCmd = &cobra.Command{
 		} else if err != nil {
 			fmt.Printf("Error checking index file: %s\n", err)
 			os.Exit(1)
+		}
+
+		//create override folders
+		_, err = os.Stat("overrides")
+		if os.IsNotExist(err) {
+			err = os.Mkdir("overrides", os.ModePerm)
+			if err != nil {
+				fmt.Printf("Error creating overrides directory: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
+		//create server-override folders
+		_, err = os.Stat("server-overrides")
+		if os.IsNotExist(err) {
+			err = os.Mkdir("server-overrides", os.ModePerm)
+			if err != nil {
+				fmt.Printf("Error creating server-overrides directory: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
+		//create client-override folders
+		_, err = os.Stat("client-overrides")
+		if os.IsNotExist(err) {
+			err = os.Mkdir("client-overrides", os.ModePerm)
+			if err != nil {
+				fmt.Printf("Error creating client-overrides directory: %s\n", err)
+				os.Exit(1)
+			}
 		}
 
 		// Create the pack

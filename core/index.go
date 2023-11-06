@@ -168,7 +168,6 @@ func readGitignore(path string) (*gitignore.GitIgnore, bool) {
 func (in *Index) Refresh() error {
 	// TODO: If needed, multithreaded hashing
 	// for i := 0; i < runtime.NumCPU(); i++ {}
-
 	// Is case-sensitivity a problem?
 	pathPF, _ := filepath.Abs(viper.GetString("pack-file"))
 	pathIndex, _ := filepath.Abs(in.indexFile)

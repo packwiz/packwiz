@@ -3,11 +3,12 @@ package cmdshared
 import (
 	"archive/zip"
 	"fmt"
-	"github.com/packwiz/packwiz/core"
+	"packwiz/core"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 )
 
 func ListManualDownloads(session core.DownloadSession) {
@@ -64,35 +65,42 @@ func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, index *cor
 	return true
 }
 
-// AddNonMetafileOverrides saves all non-metadata files into an overrides folder in the zip
-func AddNonMetafileOverrides(index *core.Index, exp *zip.Writer) {
+// AddOverrides saves all files in the overrides folders into their respective overrides folder in the zip
+func AddOverrides(index *core.Index, exp *zip.Writer) {
 	for p, v := range index.Files {
-		if !v.IsMetaFile() {
-			file, err := exp.Create(path.Join("overrides", p))
+		if !v.IsMetaFile() && strings.Contains(p, "overrides") {		
+			file, err := exp.Create(p)
+
 			if err != nil {
 				fmt.Printf("Error creating file: %s\n", err.Error())
 				// TODO: exit(1)?
 				continue
 			}
-			// Attempt to read the file from disk, without checking hashes (assumed to have no errors)
+
 			src, err := os.Open(index.ResolveIndexPath(p))
 			if err != nil {
 				_ = src.Close()
 				fmt.Printf("Error reading file: %s\n", err.Error())
 				// TODO: exit(1)?
-				continue
+				return
 			}
 			_, err = io.Copy(file, src)
 			if err != nil {
 				_ = src.Close()
 				fmt.Printf("Error copying file: %s\n", err.Error())
 				// TODO: exit(1)?
-				continue
+				return
 			}
 
 			_ = src.Close()
+			fmt.Printf("%s\n", p)
 		}
 	}
+}
+
+func CopyToOverrideToZip(index *core.Index, exp *zip.Writer, file io.Writer, path string){
+	// Attempt to read the file from disk, without checking hashes (assumed to have no errors)
+	
 }
 
 func PrintDisclaimer(isCf bool) {
