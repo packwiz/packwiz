@@ -194,7 +194,7 @@ var exportCmd = &cobra.Command{
 					FileSize:  uint32(fileSize),
 				})
 
-				fmt.Printf("%s (%s) added to manifest\n", dl.Mod.Name, dl.Mod.FileName)
+				fmt.Printf("%s (%s) added to manifest.\n", dl.Mod.Name, dl.Mod.FileName)
 			} else {
 				if dl.Mod.Side == core.ClientSide {
 					_ = cmdshared.AddToZip(dl, exp, "client-overrides/mods", &index)
@@ -204,7 +204,7 @@ var exportCmd = &cobra.Command{
 					_ = cmdshared.AddToZip(dl, exp, "overrides/mods", &index)
 				}
 
-				fmt.Printf("%s (%s) added to overrrides\n", dl.Mod.Name, dl.Mod.FileName)
+				fmt.Printf("%s (%s) added to overrrides.\n", dl.Mod.Name, dl.Mod.FileName)
 			}
 		}
 

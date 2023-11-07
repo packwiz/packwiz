@@ -93,7 +93,7 @@ func AddOverrides(index *core.Index, exp *zip.Writer) {
 			}
 
 			_ = src.Close()
-			fmt.Printf("%s\n", p)
+			fmt.Printf("%s added to overrrides.\n", p)
 		}
 	}
 }
