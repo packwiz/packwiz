@@ -32,7 +32,7 @@ type Pack struct {
 	Options  map[string]interface{}            `toml:"options"`
 }
 
-const CurrentPackFormat = "packwiz:1.1.0"
+const CurrentPackFormat = "packwiz-modded:1.1.0"
 
 var PackFormatConstraintAccepted = mustParseConstraint("~1")
 var PackFormatConstraintSuggestUpgrade = mustParseConstraint("~1.1")
@@ -54,18 +54,18 @@ func LoadPack() (Pack, error) {
 
 	// Check pack-format
 	if len(modpack.PackFormat) == 0 {
-		fmt.Println("Modpack manifest has no pack-format field; assuming packwiz:1.1.0")
-		modpack.PackFormat = "packwiz:1.1.0"
+		fmt.Println("Modpack manifest has no pack-format field; assuming packwiz-modded:1.1.0")
+		modpack.PackFormat = "packwiz-modded:1.1.0"
 	}
 	// Auto-migrate versions
-	if modpack.PackFormat == "packwiz:1.0.0" {
-		fmt.Println("Automatically migrating pack to packwiz:1.1.0 format...")
-		modpack.PackFormat = "packwiz:1.1.0"
+	if modpack.PackFormat == "packwiz-modded:1.0.0" {
+		fmt.Println("Automatically migrating pack to packwiz-modded:1.1.0 format...")
+		modpack.PackFormat = "packwiz-modded:1.1.0"
 	}
-	if !strings.HasPrefix(modpack.PackFormat, "packwiz:") {
+	if !strings.HasPrefix(modpack.PackFormat, "packwiz-modded:") {
 		return Pack{}, errors.New("pack-format field does not indicate a valid packwiz pack")
 	}
-	ver, err := semver.StrictNewVersion(strings.TrimPrefix(modpack.PackFormat, "packwiz:"))
+	ver, err := semver.StrictNewVersion(strings.TrimPrefix(modpack.PackFormat, "packwiz-modded:"))
 	if err != nil {
 		return Pack{}, fmt.Errorf("pack-format field is not valid semver: %w", err)
 	}

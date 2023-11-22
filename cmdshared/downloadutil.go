@@ -68,7 +68,11 @@ func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, index *cor
 // AddOverrides saves all files in the overrides folders into their respective overrides folder in the zip
 func AddOverrides(index *core.Index, exp *zip.Writer) {
 	for p, v := range index.Files {
-		if !v.IsMetaFile() && strings.Contains(p, "overrides") {		
+		if v.IsMetaFile() {
+			return
+		};
+
+		if strings.Contains(p, "overrides") {		
 			file, err := exp.Create(p)
 
 			if err != nil {
@@ -93,7 +97,35 @@ func AddOverrides(index *core.Index, exp *zip.Writer) {
 			}
 
 			_ = src.Close()
-			fmt.Printf("%s added to overrrides.\n", p)
+			fmt.Printf("%s added to respective overrides folder.\n", p)
+		}
+
+		if strings.Contains(p, "credits") || strings.Contains(p, "LICENSE") {
+			file, err := exp.Create(path.Join("overrides", p));
+
+			if err != nil {
+				fmt.Printf("Error creating file: %s\n", err.Error())
+				// TODO: exit(1)?
+				continue
+			}
+
+			src, err := os.Open(index.ResolveIndexPath(p))
+			if err != nil {
+				_ = src.Close()
+				fmt.Printf("Error reading file: %s\n", err.Error())
+				// TODO: exit(1)?
+				return
+			}
+			_, err = io.Copy(file, src)
+			if err != nil {
+				_ = src.Close()
+				fmt.Printf("Error copying file: %s\n", err.Error())
+				// TODO: exit(1)?
+				return
+			}
+
+			_ = src.Close()
+			fmt.Printf("%s added to overrrides folder.\n", p)
 		}
 	}
 }

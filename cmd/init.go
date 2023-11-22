@@ -139,6 +139,16 @@ var initCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		//create credits.txt file
+		_, err = os.Stat("credits.txt")
+		if os.IsNotExist(err) {
+			err = os.WriteFile("credits.txt", []byte{}, 0644)
+			if err != nil {
+				fmt.Printf("Error creating overrides directory: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
 		//create override folders
 		_, err = os.Stat("overrides")
 		if os.IsNotExist(err) {
@@ -168,6 +178,8 @@ var initCmd = &cobra.Command{
 				os.Exit(1)
 			}
 		}
+
+		fmt.Printf("Created credits.txt, client-overrides directory, server-overrides directory and overrides directory.\n");
 
 		// Create the pack
 		pack := core.Pack{
