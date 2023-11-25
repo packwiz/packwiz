@@ -68,11 +68,8 @@ func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, index *cor
 // AddOverrides saves all files in the overrides folders into their respective overrides folder in the zip
 func AddOverrides(index *core.Index, exp *zip.Writer) {
 	for p, v := range index.Files {
-		if v.IsMetaFile() {
-			return;
-		};
 
-		if strings.Contains(p, "overrides") {		
+		if !v.IsMetaFile() && strings.Contains(p, "overrides") {		
 			file, err := exp.Create(p)
 
 			if err != nil {
@@ -100,7 +97,7 @@ func AddOverrides(index *core.Index, exp *zip.Writer) {
 			fmt.Printf("%s added to respective overrides folder.\n", p)
 		}
 
-		if strings.Contains(p, "credits") || strings.Contains(p, "LICENSE") {
+		if !v.IsMetaFile() && strings.Contains(p, "credits") || strings.Contains(p, "LICENSE") {
 			file, err := exp.Create(path.Join("overrides", p));
 
 			if err != nil {
