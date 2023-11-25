@@ -98,7 +98,7 @@ func AddOverrides(index *core.Index, exp *zip.Writer) {
 		}
 
 		if !v.IsMetaFile() && strings.Contains(p, "credits") || strings.Contains(p, "LICENSE") {
-			file, err := exp.Create(path.Join("overrides", p));
+			file, err := exp.Create(path.Join("overrides", "modpack_" + p));
 
 			if err != nil {
 				fmt.Printf("Error creating file: %s\n", err.Error())
