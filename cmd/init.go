@@ -144,7 +144,17 @@ var initCmd = &cobra.Command{
 		if os.IsNotExist(err) {
 			err = os.WriteFile("credits.txt", []byte{}, 0644)
 			if err != nil {
-				fmt.Printf("Error creating overrides directory: %s\n", err)
+				fmt.Printf("Error creating credits.txt file: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
+		//create LICENSE file
+		_, err = os.Stat("LICENSE")
+		if os.IsNotExist(err) {
+			err = os.WriteFile("LICENSE", []byte{}, 0644)
+			if err != nil {
+				fmt.Printf("Error creating LICENSE file: %s\n", err)
 				os.Exit(1)
 			}
 		}
@@ -179,7 +189,39 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Printf("Created credits.txt, client-overrides directory, server-overrides directory and overrides directory.\n");
+		fmt.Printf("Created credits.txt, client-overrides directory, server-overrides directory and overrides directory\n");
+
+		//Create .packwizignore
+		_, err = os.Stat(".packwizignore")
+		if os.IsNotExist(err) {
+			err = os.WriteFile(".packwizignore", []byte("# .packwizignore follows the same format as .gitignore, and can be used to exclude unwanted files from pack exports\n# See https://git-scm.com/docs/gitignore\n\n# Exclude README\n/README.md\n"), 0644)
+			if err != nil {
+				fmt.Printf("Error creating .packwizignore file: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
+		//Create .gitignore
+		_, err = os.Stat(".gitignore")
+		if os.IsNotExist(err) {
+			err = os.WriteFile(".gitignore", []byte("# Exclude exported Modrinth modpacks and macOS metafiles\n*.mrpack\n.DS_Store\n"), 0644)
+			if err != nil {
+				fmt.Printf("Error creating .gitignore file: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
+		//Create .gitattributes
+		_, err = os.Stat(".gitattributes")
+		if os.IsNotExist(err) {
+			err = os.WriteFile(".gitattributes", []byte("# Disable Git line ending conversion, to prevent packwiz index hashes changing when committing from Windows\n* -text\n"), 0644)
+			if err != nil {
+				fmt.Printf("Error creating .gitattributes file: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
+		fmt.Printf("Created .packwizignore, .gitignore and .gitattributes\n");
 
 		// Create the pack
 		pack := core.Pack{

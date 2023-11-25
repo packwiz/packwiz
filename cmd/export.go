@@ -204,7 +204,7 @@ var exportCmd = &cobra.Command{
 					_ = cmdshared.AddToZip(dl, exp, "overrides/mods", &index)
 				}
 
-				fmt.Printf("%s (%s) added to overrrides.\n", dl.Mod.Name, dl.Mod.FileName)
+				fmt.Printf("%s (%s) added to overrides.\n", dl.Mod.Name, dl.Mod.FileName)
 			}
 		}
 

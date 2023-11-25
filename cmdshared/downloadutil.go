@@ -69,7 +69,7 @@ func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, index *cor
 func AddOverrides(index *core.Index, exp *zip.Writer) {
 	for p, v := range index.Files {
 		if v.IsMetaFile() {
-			return
+			return;
 		};
 
 		if strings.Contains(p, "overrides") {		
