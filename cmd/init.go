@@ -159,6 +159,16 @@ var initCmd = &cobra.Command{
 			}
 		}
 
+		//create README.md file
+		_, err = os.Stat("README.md")
+		if os.IsNotExist(err) {
+			err = os.WriteFile("README.md", []byte{}, 0644)
+			if err != nil {
+				fmt.Printf("Error creating README.md: %s\n", err)
+				os.Exit(1)
+			}
+		}
+
 		//create override folders
 		_, err = os.Stat("overrides")
 		if os.IsNotExist(err) {
@@ -189,7 +199,7 @@ var initCmd = &cobra.Command{
 			}
 		}
 
-		fmt.Printf("Created credits.txt, client-overrides directory, server-overrides directory and overrides directory\n");
+		fmt.Printf("Created credits.txt, LICENSE, README.md, client-overrides directory, server-overrides directory and overrides directory\n");
 
 		//Create .packwizignore
 		_, err = os.Stat(".packwizignore")
