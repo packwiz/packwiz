@@ -32,7 +32,7 @@
         packwiz = pkgs.callPackage ./nix {
           version = substring 0 8 self.rev or "dirty";
           vendorSha256 = readFile ./nix/vendor-sha256;
-          buildGoModule = pkgs.buildGo119Module;
+          buildGoModule = pkgs.buildGoModule;
         };
         # Build packwiz by default when no package name is specified
         default = packwiz;
