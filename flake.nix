@@ -1,5 +1,7 @@
 {
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # This maps to https://github.com/NixOS/nixpkgs/tree/nixos-unstable
+    # The `url` option is the pattern of `github:USER_OR_ORG/REPO/BRANCH`
 
   outputs = {
     self,
