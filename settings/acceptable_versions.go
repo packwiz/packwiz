@@ -61,6 +61,7 @@ var acceptableVersionsCommand = &cobra.Command{
 			}
 			// Print success message
 			prettyList := strings.Join(currentVersions, ", ")
+			prettyList += ", " + modpack.Versions["minecraft"]
 			fmt.Printf("Added %s to acceptable versions list, now %s\n", acceptableVersion, prettyList)
 		} else if flagRemove {
 			acceptableVersion := args[0]
@@ -84,6 +85,7 @@ var acceptableVersionsCommand = &cobra.Command{
 			}
 			// Print success message
 			prettyList := strings.Join(currentVersions, ", ")
+			prettyList += ", " + modpack.Versions["minecraft"]
 			fmt.Printf("Removed %s from acceptable versions list, now %s\n", acceptableVersion, prettyList)
 		} else {
 			// Overwriting
@@ -128,6 +130,7 @@ var acceptableVersionsCommand = &cobra.Command{
 			}
 			// Print success message
 			prettyList := strings.Join(acceptableVersionsDeduped, ", ")
+			prettyList += ", " + modpack.Versions["minecraft"]
 			fmt.Printf("Set acceptable versions to %s\n", prettyList)
 		}
 	},
