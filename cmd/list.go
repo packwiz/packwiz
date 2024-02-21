@@ -42,13 +42,17 @@ var listCmd = &cobra.Command{
 		// Filter mods by side
 		if viper.IsSet("list.side") {
 			side := viper.GetString("list.side")
+
+			// Validate side
 			if side != core.UniversalSide && side != core.ServerSide && side != core.ClientSide {
 				fmt.Printf("Invalid side %q, must be one of client, server, or both (default)\n", side)
 				os.Exit(1)
 			}
 
+			// Add mods incrementally to the slice
 			i := 0
 			for _, mod := range mods {
+				// Checks for specified side along with "universal" and empty sides
 				if mod.Side == side || mod.Side == core.EmptySide || mod.Side == core.UniversalSide || side == core.UniversalSide {
 					mods[i] = mod
 					i++
@@ -57,6 +61,7 @@ var listCmd = &cobra.Command{
 			mods = mods[:i]
 		}
 
+		// Sort mods alphabetically by name
 		sort.Slice(mods, func(i, j int) bool {
 			return strings.ToLower(mods[i].Name) < strings.ToLower(mods[j].Name)
 		})
@@ -124,7 +129,7 @@ var listCmd = &cobra.Command{
 
 			// Print success message
 			fmt.Println("Mod list written to", filename)
-			
+
 			return
 		}
 
