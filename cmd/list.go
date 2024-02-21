@@ -61,17 +61,6 @@ var listCmd = &cobra.Command{
 			return strings.ToLower(mods[i].Name) < strings.ToLower(mods[j].Name)
 		})
 
-		// Print mods
-		if viper.GetBool("list.version") {
-			for _, mod := range mods {
-				fmt.Printf("%s (%s)\n", mod.Name, mod.FileName)
-			}
-		} else {
-			for _, mod := range mods {
-				fmt.Println(mod.Name)
-			}
-		}
-
 		// Print mods in a Markdown table to a file
 		if viper.IsSet("list.file") {
 			// Get filename from argument, if any
@@ -112,6 +101,15 @@ var listCmd = &cobra.Command{
 
 			// Print success message
 			fmt.Println("Mod list written to", filename)
+			
+			return
+		}
+
+		// If no file is specified, print to console
+		if viper.GetBool("list.version") {
+			for _, mod := range mods {
+				fmt.Printf("%s (%s)\n", mod.Name, mod.FileName)
+			}
 		} else {
 			for _, mod := range mods {
 				fmt.Println(mod.Name)
