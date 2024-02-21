@@ -91,12 +91,35 @@ var listCmd = &cobra.Command{
 			}
 
 			// Write header
-			fmt.Fprintf(file, "| %-*s | %-*s | %-*s |\n", maxNameLen, "Name", maxFileNameLen, "File Name", maxSideLen, "Side")
-			fmt.Fprintf(file, "| %-*s | %-*s | %-*s |\n", maxNameLen, strings.Repeat("-", maxNameLen), maxFileNameLen, strings.Repeat("-", maxFileNameLen), maxSideLen, strings.Repeat("-", maxSideLen))
+			fmt.Fprintf(file, "| %-*s ", maxNameLen, "Name")
+			if viper.GetBool("list.version") {
+				fmt.Fprintf(file, "| %-*s ", maxFileNameLen, "Version")
+			}
+			if viper.IsSet("list.side") {
+				fmt.Fprintf(file, "| %-*s ", maxSideLen, "Side")
+			}
+			fmt.Fprintln(file, "|")
+
+			// Write separator
+			fmt.Fprintf(file, "| %-*s ", maxNameLen, strings.Repeat("-", maxNameLen))
+			if viper.GetBool("list.version") {
+				fmt.Fprintf(file, "| %-*s ", maxFileNameLen, strings.Repeat("-", maxFileNameLen))
+			}
+			if viper.IsSet("list.side") {
+				fmt.Fprintf(file, "| %-*s ", maxSideLen, strings.Repeat("-", maxSideLen))
+			}
+			fmt.Fprintln(file, "|")
 
 			// Write mods
 			for _, mod := range mods {
-				fmt.Fprintf(file, "| %-*s | %-*s | %-*s |\n", maxNameLen, mod.Name, maxFileNameLen, mod.FileName, maxSideLen, mod.Side)
+				fmt.Fprintf(file, "| %-*s ", maxNameLen, mod.Name)
+				if viper.GetBool("list.version") {
+					fmt.Fprintf(file, "| %-*s ", maxFileNameLen, mod.FileName)
+				}
+				if viper.IsSet("list.side") {
+					fmt.Fprintf(file, "| %-*s ", maxSideLen, mod.Side)
+				}
+				fmt.Fprintln(file, "|")
 			}
 
 			// Print success message
