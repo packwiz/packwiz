@@ -82,13 +82,29 @@ var listCmd = &cobra.Command{
 			}
 			defer file.Close()
 
+			// Initialize max lengths
+			maxNameLen, maxFileNameLen, maxSideLen := 0, 0, 0
+
+			// Find max lengths
+			for _, mod := range mods {
+				if len(mod.Name) > maxNameLen {
+					maxNameLen = len(mod.Name)
+				}
+				if len(mod.FileName) > maxFileNameLen {
+					maxFileNameLen = len(mod.FileName)
+				}
+				if len(mod.Side) > maxSideLen {
+					maxSideLen = len(mod.Side)
+				}
+			}
+
 			// Write header
-			fmt.Fprintln(file, "| Mod name | Version | Side |")
-			fmt.Fprintln(file, "|----------|---------|------|")
+			fmt.Fprintf(file, "| %-*s | %-*s | %-*s |\n", maxNameLen, "Name", maxFileNameLen, "File Name", maxSideLen, "Side")
+			fmt.Fprintf(file, "| %-*s | %-*s | %-*s |\n", maxNameLen, strings.Repeat("-", maxNameLen), maxFileNameLen, strings.Repeat("-", maxFileNameLen), maxSideLen, strings.Repeat("-", maxSideLen))
 
 			// Write mods
 			for _, mod := range mods {
-				fmt.Fprintf(file, "| %s | %s | %s |\n", mod.Name, mod.FileName, mod.Side)
+				fmt.Fprintf(file, "| %-*s | %-*s | %-*s |\n", maxNameLen, mod.Name, maxFileNameLen, mod.FileName, maxSideLen, mod.Side)
 			}
 
 			// Print success message
