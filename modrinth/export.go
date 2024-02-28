@@ -9,6 +9,7 @@ import (
 	"golang.org/x/exp/slices"
 	"net/url"
 	"os"
+	"sort"
 	"strconv"
 
 	"github.com/packwiz/packwiz/core"
@@ -172,6 +173,10 @@ var exportCmd = &cobra.Command{
 				}
 			}
 		}
+		// sort by `path` property before serialising to ensure reproducibility
+		sort.Slice(manifestFiles, func(i, j int) bool {
+			return manifestFiles[i].Path < manifestFiles[j].Path
+		})
 
 		err = session.SaveIndex()
 		if err != nil {
