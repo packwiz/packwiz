@@ -222,6 +222,10 @@ func init() {
 
 func initReadValue(prompt string, def string) string {
 	fmt.Print(prompt)
+	if viper.GetBool("non-interactive") {
+		fmt.Printf("%s\n", def)
+		return def
+	}
 	value, err := bufio.NewReader(os.Stdin).ReadString('\n')
 	if err != nil {
 		fmt.Printf("Error reading input: %s\n", err)
