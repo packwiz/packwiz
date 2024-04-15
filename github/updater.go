@@ -68,6 +68,11 @@ func (u ghUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateC
 			}
 		}
 
+		if len(newFiles) == 0 {
+			results[i] = core.UpdateCheck{Error: errors.New("release doesn't have any assets matching regex")}
+			continue
+		}
+
 		if len(newFiles) > 1 {
 			// TODO: also print file names
 			results[i] = core.UpdateCheck{Error: errors.New("release has more than one asset matching regex")}

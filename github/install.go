@@ -134,6 +134,10 @@ func installRelease(repo Repo, release Release, regex string, pack core.Pack) er
 		}
 	}
 
+	if len(files) == 0 {
+		return errors.New("release doesn't have any assets matching regex")
+	}
+
 	if len(files) > 1 {
 		// TODO: also print file names
 		return errors.New("release has more than one asset matching regex")
