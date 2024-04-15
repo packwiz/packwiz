@@ -3,6 +3,7 @@ package github
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"strings"
 
 	"github.com/mitchellh/mapstructure"
@@ -13,6 +14,7 @@ type ghUpdateData struct {
 	Slug   string `mapstructure:"slug"`
 	Tag    string `mapstructure:"tag"`
 	Branch string `mapstructure:"branch"`
+	Regex  string `mapstructure:"regex"`
 }
 
 type ghUpdater struct{}
@@ -51,17 +53,28 @@ func (u ghUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateC
 			continue
 		}
 
+		expr := regexp.MustCompile(data.Regex)
+
 		if len(newRelease.Assets) == 0 {
 			results[i] = core.UpdateCheck{Error: errors.New("new release doesn't have any assets")}
 			continue
 		}
 
-		newFile := newRelease.Assets[0]
+		var newFiles []Asset
+
 		for _, v := range newRelease.Assets {
-			if strings.HasSuffix(v.Name, ".jar") {
-				newFile = v
+			if expr.MatchString(v.Name) {
+				newFiles = append(newFiles, v)
 			}
 		}
+
+		if len(newFiles) > 1 {
+			// TODO: also print file names
+			results[i] = core.UpdateCheck{Error: errors.New("release has more than one asset matching regex")}
+			continue
+		}
+
+		newFile := newFiles[0]
 
 		results[i] = core.UpdateCheck{
 			UpdateAvailable: true,

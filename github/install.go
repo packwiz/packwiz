@@ -8,7 +8,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"strings"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
@@ -39,6 +38,15 @@ var installCmd = &cobra.Command{
 		var slug string
 		var branch string
 
+		// Regex to match potential release assets against.
+		// The default will match any asset with a name that does *not* end with:
+		// - "-api.jar"
+		// - "-dev.jar"
+		// - "-sources.jar"
+		// In most cases, this will only match one asset.
+		// TODO: Hopefully.
+		regex := `^.+(?<!-api|-dev|-sources)\.jar$`
+
 		// Check if the argument is a valid GitHub repository URL; if so, extract the slug from the URL.
 		// Otherwise, interpret the argument as a slug directly.
 		matches := GithubRegex.FindStringSubmatch(args[0])
@@ -58,8 +66,11 @@ var installCmd = &cobra.Command{
 		if branchFlag != "" {
 			branch = branchFlag
 		}
+		if regexFlag != "" {
+			regex = regexFlag
+		}
 
-		err = installMod(repo, branch, pack)
+		err = installMod(repo, branch, regex, pack)
 		if err != nil {
 			fmt.Printf("Failed to add project: %s\n", err)
 			os.Exit(1)
@@ -67,13 +78,13 @@ var installCmd = &cobra.Command{
 	},
 }
 
-func installMod(repo Repo, branch string, pack core.Pack) error {
+func installMod(repo Repo, branch string, regex string, pack core.Pack) error {
 	latestRelease, err := getLatestRelease(repo.FullName, branch)
 	if err != nil {
 		return fmt.Errorf("failed to get latest release: %v", err)
 	}
 
-	return installRelease(repo, latestRelease, pack)
+	return installRelease(repo, latestRelease, regex, pack)
 }
 
 func getLatestRelease(slug string, branch string) (Release, error) {
@@ -108,20 +119,27 @@ func getLatestRelease(slug string, branch string) (Release, error) {
 	return releases[0], nil
 }
 
-func installRelease(repo Repo, release Release, pack core.Pack) error {
-	var files = release.Assets
+func installRelease(repo Repo, release Release, regex string, pack core.Pack) error {
+	expr := regexp.MustCompile(regex)
 
-	if len(files) == 0 {
-		return errors.New("release doesn't have any files attached")
+	if len(release.Assets) == 0 {
+		return errors.New("release doesn't have any assets attached")
 	}
 
-	// TODO: add some way to allow users to pick which file to install?
-	var file = files[0]
+	var files []Asset
+
 	for _, v := range release.Assets {
-		if strings.HasSuffix(v.Name, ".jar") {
-			file = v
+		if expr.MatchString(v.Name) {
+			files = append(files, v)
 		}
 	}
+
+	if len(files) > 1 {
+		// TODO: also print file names
+		return errors.New("release has more than one asset matching regex")
+	}
+
+	file := files[0]
 
 	// Install the file
 	fmt.Printf("Installing %s from release %s\n", file.Name, release.TagName)
@@ -136,6 +154,7 @@ func installRelease(repo Repo, release Release, pack core.Pack) error {
 		Slug:   repo.FullName,
 		Tag:    release.TagName,
 		Branch: release.TargetCommitish, // TODO: if no branch is specified by the user, we shouldn't record it - in order to remain branch-agnostic in getLatestRelease()
+		Regex: regex, // TODO: ditto!
 	}.ToMap()
 	if err != nil {
 		return err
@@ -196,9 +215,11 @@ func installRelease(repo Repo, release Release, pack core.Pack) error {
 }
 
 var branchFlag string
+var regexFlag string
 
 func init() {
 	githubCmd.AddCommand(installCmd)
 
 	installCmd.Flags().StringVar(&branchFlag, "branch", "", "The GitHub repository branch to retrieve releases for")
+	installCmd.Flags().StringVar(&regexFlag, "regex", "", "The regular expression to match releases against")
 }
