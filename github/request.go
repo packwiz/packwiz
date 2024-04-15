@@ -9,7 +9,6 @@ import (
 	"github.com/spf13/viper"
 )
 
-// TODO: allow setting github api key via env variable
 const ghApiServer = "api.github.com"
 
 type ghApiClient struct {
