@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"regexp"
 
+	"github.com/dlclark/regexp2"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -120,7 +121,7 @@ func getLatestRelease(slug string, branch string) (Release, error) {
 }
 
 func installRelease(repo Repo, release Release, regex string, pack core.Pack) error {
-	expr := regexp.MustCompile(regex)
+	expr := regexp2.MustCompile(regex, 0)
 
 	if len(release.Assets) == 0 {
 		return errors.New("release doesn't have any assets attached")
@@ -129,7 +130,8 @@ func installRelease(repo Repo, release Release, regex string, pack core.Pack) er
 	var files []Asset
 
 	for _, v := range release.Assets {
-		if expr.MatchString(v.Name) {
+		bl, _ := expr.MatchString(v.Name)
+		if bl {
 			files = append(files, v)
 		}
 	}

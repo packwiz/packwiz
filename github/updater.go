@@ -3,9 +3,9 @@ package github
 import (
 	"errors"
 	"fmt"
-	"regexp"
 	"strings"
 
+	"github.com/dlclark/regexp2"
 	"github.com/mitchellh/mapstructure"
 	"github.com/packwiz/packwiz/core"
 )
@@ -53,7 +53,7 @@ func (u ghUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateC
 			continue
 		}
 
-		expr := regexp.MustCompile(data.Regex)
+		expr := regexp2.MustCompile(data.Regex, 0)
 
 		if len(newRelease.Assets) == 0 {
 			results[i] = core.UpdateCheck{Error: errors.New("new release doesn't have any assets")}
@@ -63,7 +63,8 @@ func (u ghUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateC
 		var newFiles []Asset
 
 		for _, v := range newRelease.Assets {
-			if expr.MatchString(v.Name) {
+			bl, _ := expr.MatchString(v.Name)
+			if bl {
 				newFiles = append(newFiles, v)
 			}
 		}
