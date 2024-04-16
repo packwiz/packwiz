@@ -43,10 +43,11 @@ var installCmd = &cobra.Command{
 		// The default will match any asset with a name that does *not* end with:
 		// - "-api.jar"
 		// - "-dev.jar"
+		// - "-dev-preshadow.jar"
 		// - "-sources.jar"
 		// In most cases, this will only match one asset.
 		// TODO: Hopefully.
-		regex := `^.+(?<!-api|-dev|-sources)\.jar$`
+		regex := `^.+(?<!-api|-dev|-dev-preshadow|-sources)\.jar$`
 
 		// Check if the argument is a valid GitHub repository URL; if so, extract the slug from the URL.
 		// Otherwise, interpret the argument as a slug directly.
