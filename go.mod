@@ -6,6 +6,7 @@ require (
 	github.com/VividCortex/ewma v1.2.0 // indirect
 	github.com/aviddiviner/go-murmur v0.0.0-20150519214947-b9740d71e571
 	github.com/daviddengcn/go-colortext v1.0.0 // indirect
+	github.com/dlclark/regexp2 v1.11.0
 	github.com/fatih/camelcase v1.0.0
 	github.com/igorsobreira/titlecase v0.0.0-20140109233139-4156b5b858ac
 	github.com/kylelemons/godebug v1.1.0 // indirect
