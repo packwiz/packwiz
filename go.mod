@@ -18,10 +18,10 @@ require (
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.15.0
 	github.com/vbauerster/mpb/v4 v4.12.2
-	golang.org/x/crypto v0.5.0 // indirect
-	golang.org/x/sys v0.4.0
-	golang.org/x/term v0.4.0 // indirect
-	golang.org/x/text v0.6.0 // indirect
+	golang.org/x/crypto v0.17.0 // indirect
+	golang.org/x/sys v0.15.0
+	golang.org/x/term v0.15.0 // indirect
+	golang.org/x/text v0.14.0 // indirect
 	gopkg.in/dixonwille/wlog.v2 v2.0.0 // indirect
 	gopkg.in/dixonwille/wmenu.v4 v4.0.2
 )
@@ -49,4 +49,4 @@ require (
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
 
-go 1.19
+go 1.21
