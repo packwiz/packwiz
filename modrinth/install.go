@@ -408,9 +408,25 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 		return err
 	}
 
-	side := getSide(project)
+	var side string
+	
+	// Set the side to install based on the value of the --side flag
+	switch sideFlag {
+		case "client":
+			side = core.ClientSide
+		case "server":
+			side = core.ServerSide
+		case "both":
+			side = core.UniversalSide
+		// Determine the correct side automatically if the flag is not specified.
+		case "":
+			side = getSide(project)
+		default:
+			return errors.New("invalid value for --side flag. Expected \"client\", \"server\", or \"both\", got " + "\"" + *&sideFlag + "\"")
+	}
+	
 	if side == "" {
-		return errors.New("version doesn't have a side that's supported. Server: " + *project.ServerSide + " Client: " + *project.ClientSide)
+		return errors.New("version doesn't have a side that's supported. Server: " + *project.ServerSide + " Client: " + *project.ClientSide + ". Use the --side flag to explicitly specify a side (\"client\", \"server\", or \"both\")")
 	}
 
 	algorithm, hash := getBestHash(file)
@@ -458,6 +474,7 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 var projectIDFlag string
 var versionIDFlag string
 var versionFilenameFlag string
+var sideFlag string
 
 func init() {
 	modrinthCmd.AddCommand(installCmd)
@@ -465,4 +482,5 @@ func init() {
 	installCmd.Flags().StringVar(&projectIDFlag, "project-id", "", "The Modrinth project ID to use")
 	installCmd.Flags().StringVar(&versionIDFlag, "version-id", "", "The Modrinth version ID to use")
 	installCmd.Flags().StringVar(&versionFilenameFlag, "version-filename", "", "The Modrinth version filename to use")
+	installCmd.Flags().StringVar(&sideFlag, "side", "", "The side to install (client, server, or both). Detected automatically by default.")
 }
