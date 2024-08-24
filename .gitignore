@@ -19,3 +19,4 @@
 result
 
 dist/
+.direnv
