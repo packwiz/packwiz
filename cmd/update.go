@@ -127,6 +127,7 @@ var UpdateCmd = &cobra.Command{
 		} else {
 			if len(args) < 1 || len(args[0]) == 0 {
 				fmt.Println("Must specify a valid file, or use the --all flag!")
+				fmt.Println("Optional use the --releaseType [release/beta/alpha/latest] flag to specify the release type.")
 				os.Exit(1)
 			}
 			modPath, ok := index.FindMod(args[0])
@@ -223,4 +224,7 @@ func init() {
 
 	UpdateCmd.Flags().BoolP("all", "a", false, "Update all external files")
 	_ = viper.BindPFlag("update.all", UpdateCmd.Flags().Lookup("all"))
+
+	UpdateCmd.Flags().StringP("releaseType", "r", "latest", "Specify the release type to update (e.g., release, beta, alpha, latest)")
+	_ = viper.BindPFlag("update.releaseType", UpdateCmd.Flags().Lookup("releaseType"))
 }

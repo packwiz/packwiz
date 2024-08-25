@@ -330,6 +330,18 @@ func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthA
 		return nil, errors.New("no valid versions found\n\tUse the 'packwiz settings acceptable-versions' command to accept more game versions\n\tTo use datapacks, add a datapack loader mod and specify the datapack-folder option with the folder this mod loads datapacks from")
 	}
 
+	desiredReleaseType := viper.GetString("update.releaseType")
+	if desiredReleaseType == "" {
+		desiredReleaseType = "latest"
+	}
+
+	if desiredReleaseType != "latest" {
+		result = filterVersionsByReleaseType(result, desiredReleaseType)
+		if len(result) == 0 {
+			return nil, fmt.Errorf("no versions found for release type: %s", desiredReleaseType)
+		}
+	}
+
 	// TODO: option to always compare using flexver?
 	// TODO: ask user which one to use?
 	flexverLatest := findLatestVersion(result, gameVersions, true)
@@ -339,6 +351,16 @@ func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthA
 	}
 
 	return releaseDateLatest, nil
+}
+
+func filterVersionsByReleaseType(versions []*modrinthApi.Version, desiredReleaseType string) []*modrinthApi.Version {
+	var filtered []*modrinthApi.Version
+	for _, version := range versions {
+		if version.VersionType != nil && *version.VersionType == desiredReleaseType {
+			filtered = append(filtered, version)
+		}
+	}
+	return filtered
 }
 
 func getSide(mod *modrinthApi.Project) string {
