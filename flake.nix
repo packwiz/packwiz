@@ -1,5 +1,7 @@
 {
-  inputs.nixpkgs.url = "nixpkgs/nixos-unstable";
+  inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+    # This maps to https://github.com/NixOS/nixpkgs/tree/nixos-unstable
+    # The `url` option is the pattern of `github:USER_OR_ORG/REPO/BRANCH`
 
   outputs = {
     self,
@@ -32,7 +34,9 @@
         packwiz = pkgs.callPackage ./nix {
           version = substring 0 8 self.rev or "dirty";
           vendorSha256 = readFile ./nix/vendor-sha256;
-          buildGoModule = pkgs.buildGo119Module;
+          buildGoModule = pkgs.buildGoModule;
+            # As of writing, `pkgs.buildGoModule` is aliased to
+            # `pkgs.buildGo121Module` in Nixpkgs.
         };
         # Build packwiz by default when no package name is specified
         default = packwiz;
