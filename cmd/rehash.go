@@ -50,13 +50,14 @@ var rehashCmd = &cobra.Command{
 		for dl := range session.StartDownloads() {
 			if dl.Error != nil {
 				fmt.Printf("Error retrieving %s: %v\n", dl.Mod.Name, dl.Error)
-			}
-			dl.Mod.Download.HashFormat = args[0]
-			dl.Mod.Download.Hash = dl.Hashes[args[0]]
-			_, _, err := dl.Mod.Write()
-			if err != nil {
-				fmt.Printf("Error saving mod %s: %v\n", dl.Mod.Name, err)
-				os.Exit(1)
+			} else {
+				dl.Mod.Download.HashFormat = args[0]
+				dl.Mod.Download.Hash = dl.Hashes[args[0]]
+				_, _, err := dl.Mod.Write()
+				if err != nil {
+					fmt.Printf("Error saving mod %s: %v\n", dl.Mod.Name, err)
+					os.Exit(1)
+				}
 			}
 			// TODO pass the hash to index instead of recomputing from scratch
 		}
