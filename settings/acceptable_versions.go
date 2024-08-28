@@ -5,7 +5,6 @@ import (
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 	"github.com/unascribed/FlexVer/go/flexver"
 	"golang.org/x/exp/slices"
 	"os"
@@ -42,8 +41,7 @@ var acceptableVersionsCommand = &cobra.Command{
 			}
 		}
 		// Check our flags to see if we're adding or removing
-		if viper.GetBool("settings.acceptable-versions.add") {
-			// Adding
+		if flagAdd {
 			acceptableVersion := args[0]
 			// Check if the version is already in the list
 			if slices.Contains(currentVersions, acceptableVersion) {
@@ -63,9 +61,9 @@ var acceptableVersionsCommand = &cobra.Command{
 			}
 			// Print success message
 			prettyList := strings.Join(currentVersions, ", ")
+			prettyList += ", " + modpack.Versions["minecraft"]
 			fmt.Printf("Added %s to acceptable versions list, now %s\n", acceptableVersion, prettyList)
-		} else if viper.GetBool("settings.acceptable-versions.remove") {
-			// Removing
+		} else if flagRemove {
 			acceptableVersion := args[0]
 			// Check if the version is in the list
 			if !slices.Contains(currentVersions, acceptableVersion) {
@@ -87,6 +85,7 @@ var acceptableVersionsCommand = &cobra.Command{
 			}
 			// Print success message
 			prettyList := strings.Join(currentVersions, ", ")
+			prettyList += ", " + modpack.Versions["minecraft"]
 			fmt.Printf("Removed %s from acceptable versions list, now %s\n", acceptableVersion, prettyList)
 		} else {
 			// Overwriting
@@ -131,17 +130,19 @@ var acceptableVersionsCommand = &cobra.Command{
 			}
 			// Print success message
 			prettyList := strings.Join(acceptableVersionsDeduped, ", ")
+			prettyList += ", " + modpack.Versions["minecraft"]
 			fmt.Printf("Set acceptable versions to %s\n", prettyList)
 		}
 	},
 }
 
+var flagAdd bool
+var flagRemove bool
+
 func init() {
 	settingsCmd.AddCommand(acceptableVersionsCommand)
 
 	// Add and remove flags for adding or removing specific versions
-	acceptableVersionsCommand.Flags().BoolP("add", "a", false, "Add a version to the list")
-	acceptableVersionsCommand.Flags().BoolP("remove", "r", false, "Remove a version from the list")
-	_ = viper.BindPFlag("settings.acceptable-versions.add", acceptableVersionsCommand.Flags().Lookup("add"))
-	_ = viper.BindPFlag("settings.acceptable-versions.remove", acceptableVersionsCommand.Flags().Lookup("remove"))
+	acceptableVersionsCommand.Flags().BoolVarP(&flagAdd, "add", "a", false, "Add a version to the list")
+	acceptableVersionsCommand.Flags().BoolVarP(&flagRemove, "remove", "r", false, "Remove a version from the list")
 }
