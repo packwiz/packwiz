@@ -6,6 +6,7 @@ import (
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
+	"golang.org/x/exp/slices"
 )
 
 // rehashCmd represents the rehash command
@@ -33,6 +34,11 @@ var rehashCmd = &cobra.Command{
 		mods, err := index.LoadAllMods()
 		if err != nil {
 			fmt.Println(err)
+			os.Exit(1)
+		}
+
+		if !slices.Contains([]string{"sha1", "sha512", "sha256"}, args[0]) {
+			fmt.Printf("Hash format '%s' is not supported\n", args[0])
 			os.Exit(1)
 		}
 
