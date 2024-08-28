@@ -28,7 +28,7 @@ func (c *ghApiClient) makeGet(url string) (*http.Response, error) {
 	req.Header.Set("User-Agent", core.UserAgent)
 	req.Header.Set("Accept", "application/vnd.github+json")
 	if ghApiToken != "" {
-		req.Header.Set("Authorization", "Bearer " + ghApiToken)
+		req.Header.Set("Authorization", "Bearer "+ghApiToken)
 	}
 
 	resp, err := c.httpClient.Do(req)

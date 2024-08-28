@@ -161,7 +161,7 @@ func installRelease(repo Repo, release Release, regex string, pack core.Pack) er
 		Slug:   repo.FullName,
 		Tag:    release.TagName,
 		Branch: release.TargetCommitish, // TODO: if no branch is specified by the user, we shouldn't record it - in order to remain branch-agnostic in getLatestRelease()
-		Regex: regex, // TODO: ditto!
+		Regex:  regex,                   // TODO: ditto!
 	}.ToMap()
 	if err != nil {
 		return err
