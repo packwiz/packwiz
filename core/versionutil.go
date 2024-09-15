@@ -5,8 +5,9 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"github.com/unascribed/FlexVer/go/flexver"
 	"strings"
+
+	"github.com/unascribed/FlexVer/go/flexver"
 )
 
 type MavenMetadata struct {
@@ -54,7 +55,7 @@ var ModLoaders = map[string]ModLoaderComponent{
 	"neoforge": {
 		Name:              "neoforge",
 		FriendlyName:      "NeoForge",
-		VersionListGetter: FetchMavenVersionPrefixedListStrip("https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml", "NeoForge"),
+		VersionListGetter: FetchMavenVersionList("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"),
 	},
 }
 
