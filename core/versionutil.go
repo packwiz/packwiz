@@ -55,7 +55,7 @@ var ModLoaders = map[string]ModLoaderComponent{
 	"neoforge": {
 		Name:              "neoforge",
 		FriendlyName:      "NeoForge",
-		VersionListGetter: FetchMavenVersionList("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml"),
+		VersionListGetter: FetchMavenWithNeoForgeStyleVersions("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml", "NeoForge"),
 	},
 }
 
@@ -75,7 +75,7 @@ func FetchMavenVersionList(url string) func(mcVersion string) ([]string, string,
 	}
 }
 
-func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
+func FetchMavenVersionFiltered(url string, friendlyName string, filter func(version string, mcVersion string) bool) func(mcVersion string) ([]string, string, error) {
 	return func(mcVersion string) ([]string, string, error) {
 		res, err := GetWithUA(url, "application/xml")
 		if err != nil {
@@ -89,23 +89,27 @@ func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersi
 		}
 		allowedVersions := make([]string, 0, len(out.Versioning.Versions.Version))
 		for _, v := range out.Versioning.Versions.Version {
-			if hasPrefixSplitDash(v, mcVersion) {
+			if filter(v, mcVersion) {
 				allowedVersions = append(allowedVersions, v)
 			}
 		}
 		if len(allowedVersions) == 0 {
 			return []string{}, "", errors.New("no " + friendlyName + " versions available for this Minecraft version")
 		}
-		if hasPrefixSplitDash(out.Versioning.Release, mcVersion) {
+		if filter(out.Versioning.Release, mcVersion) {
 			return allowedVersions, out.Versioning.Release, nil
 		}
-		if hasPrefixSplitDash(out.Versioning.Latest, mcVersion) {
+		if filter(out.Versioning.Latest, mcVersion) {
 			return allowedVersions, out.Versioning.Latest, nil
 		}
 		// Sort list to get largest version
 		flexver.VersionSlice(allowedVersions).Sort()
 		return allowedVersions, allowedVersions[len(allowedVersions)-1], nil
 	}
+}
+
+func FetchMavenVersionPrefixedList(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
+	return FetchMavenVersionFiltered(url, friendlyName, hasPrefixSplitDash)
 }
 
 func FetchMavenVersionPrefixedListStrip(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
@@ -140,6 +144,27 @@ func hasPrefixSplitDash(str string, prefix string) bool {
 		return true
 	}
 	return false
+}
+
+func FetchMavenWithNeoForgeStyleVersions(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
+	return FetchMavenVersionFiltered(url, friendlyName, func(neoforgeVersion string, mcVersion string) bool {
+		// Minecraft versions are in the form of 1.a.b
+		// Neoforge versions are in the form of a.b.x
+		// Eg, for minecraft 1.20.6, neoforge version 20.6.2 and 20.6.83-beta would both be valid versions
+		// for minecraft 1.20.2, neoforge version 20.2.23-beta
+		// for minecraft 1.21, neoforge version 21.0.143 would be valid
+		var mcSplit = strings.Split(mcVersion, ".")
+		if len(mcSplit) < 2 {
+			// This does not appear to be a minecraft version that's formatted in a way that matches neoforge
+			return false
+		}
+		var mcMajor = mcSplit[1]
+		var mcMinor = "0"
+		if len(mcSplit) > 2 {
+			mcMinor = mcSplit[2]
+		}
+		return strings.HasPrefix(neoforgeVersion, mcMajor+"."+mcMinor)
+	})
 }
 
 func ComponentToFriendlyName(component string) string {
