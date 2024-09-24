@@ -209,6 +209,25 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 		Option: optional,
 		Update: updateMap,
 	}
+
+	// Populate metadata.curseforge section
+	if modInfo.Links.WebsiteURL != "" {
+		modMeta.Metadata.Curseforge.Website = modInfo.Links.WebsiteURL
+	}
+	if modInfo.Links.WikiURL != "" {
+		modMeta.Metadata.Curseforge.Wiki = modInfo.Links.WikiURL
+	}
+	if modInfo.Links.IssuesURL != "" {
+		modMeta.Metadata.Curseforge.Issues = modInfo.Links.IssuesURL
+	}
+	if modInfo.Links.SourceURL != "" {
+		modMeta.Metadata.Curseforge.Source = modInfo.Links.SourceURL
+	}
+
+	if len(modInfo.Categories) > 0 {
+		modMeta.Metadata.Curseforge.Categories = modInfo.Categories
+	}
+
 	path := modMeta.SetMetaPath(getPathForFile(modInfo.GameID, modInfo.ClassID, modInfo.PrimaryCategoryID, modInfo.Slug))
 
 	// If the file already exists, this will overwrite it!!!
