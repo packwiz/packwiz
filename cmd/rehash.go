@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/packwiz/packwiz/cmdshared"
+
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"golang.org/x/exp/slices"
@@ -11,8 +13,8 @@ import (
 
 // rehashCmd represents the rehash command
 var rehashCmd = &cobra.Command{
-	Use:   "rehash",
-	Short: "Migrate all hashes to a specific function",
+	Use:   "rehash [hash format]",
+	Short: "Migrate all hashes to a specific format",
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 
@@ -47,6 +49,9 @@ var rehashCmd = &cobra.Command{
 			fmt.Printf("Error retrieving external files: %v\n", err)
 			os.Exit(1)
 		}
+
+		cmdshared.ListManualDownloads(session)
+
 		for dl := range session.StartDownloads() {
 			if dl.Error != nil {
 				fmt.Printf("Error retrieving %s: %v\n", dl.Mod.Name, dl.Error)
@@ -60,6 +65,12 @@ var rehashCmd = &cobra.Command{
 				}
 			}
 			// TODO pass the hash to index instead of recomputing from scratch
+		}
+
+		err = session.SaveIndex()
+		if err != nil {
+			fmt.Printf("Error saving cache index: %v\n", err)
+			os.Exit(1)
 		}
 
 		err = index.Refresh()
