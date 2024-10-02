@@ -55,7 +55,7 @@ var ModLoaders = map[string]ModLoaderComponent{
 	"neoforge": {
 		Name:              "neoforge",
 		FriendlyName:      "NeoForge",
-		VersionListGetter: FetchMavenWithNeoForgeStyleVersions("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml", "NeoForge"),
+		VersionListGetter: FetchNeoForge(),
 	},
 }
 
@@ -144,6 +144,20 @@ func hasPrefixSplitDash(str string, prefix string) bool {
 		return true
 	}
 	return false
+}
+
+func FetchNeoForge() func(mcVersion string) ([]string, string, error) {
+	// NeoForge reused Forge's versioning scheme for 1.20.1, but moved to their own versioning scheme for 1.20.2 and above
+	neoforgeOld := FetchMavenVersionPrefixedListStrip("https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml", "NeoForge")
+	neoforgeNew := FetchMavenWithNeoForgeStyleVersions("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml", "NeoForge")
+
+	return func(mcVersion string) ([]string, string, error) {
+		if mcVersion == "1.20.1" {
+			return neoforgeOld(mcVersion)
+		} else {
+			return neoforgeNew(mcVersion)
+		}
+	}
 }
 
 func FetchMavenWithNeoForgeStyleVersions(url string, friendlyName string) func(mcVersion string) ([]string, string, error) {
