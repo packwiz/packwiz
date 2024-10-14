@@ -9,11 +9,11 @@ in
     installShellFiles ? pkgs.installShellFiles,
     # version and vendorSha256 should be specified by the caller
     version ? "latest",
-    vendorSha256,
+    vendorHash,
   }:
     buildGoModule rec {
       pname = "packwiz";
-      inherit version vendorSha256;
+      inherit version vendorHash;
 
       src = ./..;
 
