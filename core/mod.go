@@ -24,6 +24,15 @@ type Mod struct {
 	updateData map[string]interface{}
 
 	Option *ModOption `toml:"option,omitempty"`
+	Metadata   struct {
+		Curseforge struct {
+			Website    string   `toml:"website,omitempty"`
+			Wiki       string   `toml:"wiki,omitempty"`
+			Issues     string   `toml:"issues,omitempty"`
+			Source     string   `toml:"source,omitempty"`
+			Categories []string `toml:"categories,omitempty"`
+		} `toml:"curseforge,omitempty"`
+	} `toml:"metadata,omitempty"`
 }
 
 const (
