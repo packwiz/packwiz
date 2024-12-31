@@ -204,6 +204,14 @@ func (pack Pack) GetCompatibleLoaders() (loaders []string) {
 	} else if _, hasForge := pack.Versions["forge"]; hasForge {
 		loaders = append(loaders, "forge")
 	}
+
+	// As far as I can tell purpur is backwards compatible with all these
+	if _, hasPurpur := pack.Versions["purpur"]; hasPurpur {
+		loaders = append(loaders, "purpur")
+		loaders = append(loaders, "paper")
+		loaders = append(loaders, "spigot")
+		loaders = append(loaders, "bukkit")
+	}
 	return
 }
 
