@@ -57,6 +57,37 @@ var ModLoaders = map[string]ModLoaderComponent{
 		FriendlyName:      "NeoForge",
 		VersionListGetter: FetchNeoForge(),
 	},
+	"purpur": {
+		Name:              "purpur",
+		FriendlyName:      "Purpur Plugin loader",
+		VersionListGetter: FetchPurpur(),
+	},
+}
+
+type PurpurMetadata struct {
+	Project          string `json:"project"`
+	VersionMinecraft string `json:"version"`
+	Builds           struct {
+		Latest string   `json:"latest"`
+		All    []string `json:"all"`
+	} `json:"builds"`
+}
+
+func FetchPurpur() func(mcVersion string) ([]string, string, error) {
+	return func(mcVersion string) ([]string, string, error) {
+		url := fmt.Sprintf("https://api.purpurmc.org/v2/purpur/%s", mcVersion)
+		res, err := GetWithUA(url, "application/json")
+		if err != nil {
+			return []string{}, "", err
+		}
+		dec := json.NewDecoder(res.Body)
+		out := PurpurMetadata{}
+		err = dec.Decode(&out)
+		if err != nil {
+			return []string{}, "", err
+		}
+		return out.Builds.All, out.Builds.Latest, nil
+	}
 }
 
 func FetchMavenVersionList(url string) func(mcVersion string) ([]string, string, error) {
