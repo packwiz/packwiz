@@ -410,7 +410,8 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 
 	side := getSide(project)
 	if side == "" {
-		return errors.New("version doesn't have a side that's supported. Server: " + *project.ServerSide + " Client: " + *project.ClientSide)
+		fmt.Println("Warning: Project doesn't have a side that's supported; assuming universal. Server: " + *project.ServerSide + " Client: " + *project.ClientSide)
+		side = core.UniversalSide
 	}
 
 	algorithm, hash := getBestHash(file)
