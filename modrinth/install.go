@@ -1,15 +1,16 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
-	"github.com/packwiz/packwiz/cmdshared"
-	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
 	"os"
 	"path/filepath"
 	"strings"
+
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
+	"github.com/packwiz/packwiz/cmdshared"
+	"github.com/spf13/viper"
+	"golang.org/x/exp/slices"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
@@ -60,6 +61,16 @@ var installCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
+		var sideOverride string
+		if sideOverrideFlag != "" {
+			// validate side
+			if sideOverrideFlag != core.ServerSide && sideOverrideFlag != core.ClientSide && sideOverrideFlag != core.UniversalSide {
+				fmt.Printf("--side-override (%q) invalid, accepted values: server, client, both\n", sideOverrideFlag)
+				os.Exit(1)
+			}
+			sideOverride = sideOverrideFlag
+		}
+
 		var version string
 		var parsedSlug bool
 		if projectID == "" && versionID == "" && len(args) == 1 {
@@ -73,7 +84,7 @@ var installCmd = &cobra.Command{
 
 		// Got version ID; install using this ID
 		if versionID != "" {
-			err = installVersionById(versionID, versionFilename, pack, &index)
+			err = installVersionById(versionID, versionFilename, sideOverride, pack, &index)
 			if err != nil {
 				fmt.Printf("Failed to add project: %s\n", err)
 				os.Exit(1)
@@ -95,7 +106,7 @@ var installCmd = &cobra.Command{
 						fmt.Printf("Failed to add project: %s\n", err)
 						os.Exit(1)
 					}
-					err = installVersion(project, versionData, versionFilename, pack, &index)
+					err = installVersion(project, versionData, versionFilename, sideOverride, pack, &index)
 					if err != nil {
 						fmt.Printf("Failed to add project: %s\n", err)
 						os.Exit(1)
@@ -104,7 +115,7 @@ var installCmd = &cobra.Command{
 				}
 
 				// No version specified; find latest
-				err = installProject(project, versionFilename, pack, &index)
+				err = installProject(project, versionFilename, sideOverride, pack, &index)
 				if err != nil {
 					fmt.Printf("Failed to add project: %s\n", err)
 					os.Exit(1)
@@ -115,7 +126,7 @@ var installCmd = &cobra.Command{
 
 		// Arguments weren't a valid slug/project ID, try to search for it instead (if it was not parsed as a URL)
 		if projectID == "" || parsedSlug {
-			err = installViaSearch(strings.Join(args, " "), versionFilename, !parsedSlug, pack, &index)
+			err = installViaSearch(strings.Join(args, " "), versionFilename, sideOverride, !parsedSlug, pack, &index)
 			if err != nil {
 				fmt.Printf("Failed to add project: %s\n", err)
 				os.Exit(1)
@@ -127,7 +138,7 @@ var installCmd = &cobra.Command{
 	},
 }
 
-func installVersionById(versionId string, versionFilename string, pack core.Pack, index *core.Index) error {
+func installVersionById(versionId string, versionFilename string, sideOverride string, pack core.Pack, index *core.Index) error {
 	version, err := mrDefaultClient.Versions.Get(versionId)
 	if err != nil {
 		return fmt.Errorf("failed to fetch version %s: %v", versionId, err)
@@ -138,10 +149,10 @@ func installVersionById(versionId string, versionFilename string, pack core.Pack
 		return fmt.Errorf("failed to fetch project %s: %v", *version.ProjectID, err)
 	}
 
-	return installVersion(project, version, versionFilename, pack, index)
+	return installVersion(project, version, versionFilename, sideOverride, pack, index)
 }
 
-func installViaSearch(query string, versionFilename string, autoAcceptFirst bool, pack core.Pack, index *core.Index) error {
+func installViaSearch(query string, versionFilename string, sideOverride string, autoAcceptFirst bool, pack core.Pack, index *core.Index) error {
 	mcVersions, err := pack.GetSupportedMCVersions()
 	if err != nil {
 		return err
@@ -165,7 +176,7 @@ func installViaSearch(query string, versionFilename string, autoAcceptFirst bool
 			return err
 		}
 
-		return installProject(project, versionFilename, pack, index)
+		return installProject(project, versionFilename, sideOverride, pack, index)
 	}
 
 	// Create menu for the user to choose the correct project
@@ -193,13 +204,13 @@ func installViaSearch(query string, versionFilename string, autoAcceptFirst bool
 			return err
 		}
 
-		return installProject(project, versionFilename, pack, index)
+		return installProject(project, versionFilename, sideOverride, pack, index)
 	})
 
 	return menu.Run()
 }
 
-func installProject(project *modrinthApi.Project, versionFilename string, pack core.Pack, index *core.Index) error {
+func installProject(project *modrinthApi.Project, versionFilename string, sideOverride string, pack core.Pack, index *core.Index) error {
 	latestVersion, err := getLatestVersion(*project.ID, *project.Title, pack)
 	if err != nil {
 		return fmt.Errorf("failed to get latest version: %v", err)
@@ -208,7 +219,7 @@ func installProject(project *modrinthApi.Project, versionFilename string, pack c
 		return errors.New("mod not available for the configured Minecraft version(s) (use the 'packwiz settings acceptable-versions' command to accept more) or loader")
 	}
 
-	return installVersion(project, latestVersion, versionFilename, pack, index)
+	return installVersion(project, latestVersion, versionFilename, sideOverride, pack, index)
 }
 
 const maxCycles = 20
@@ -219,7 +230,7 @@ type depMetadataStore struct {
 	fileInfo    *modrinthApi.File
 }
 
-func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, versionFilename string, pack core.Pack, index *core.Index) error {
+func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, versionFilename string, sideOverride string, pack core.Pack, index *core.Index) error {
 	if len(version.Files) == 0 {
 		return errors.New("version doesn't have any files attached")
 	}
@@ -351,7 +362,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 
 				if cmdshared.PromptYesNo("Would you like to add them? [Y/n]: ") {
 					for _, v := range depMetadata {
-						err := createFileMeta(v.projectInfo, v.versionInfo, v.fileInfo, pack, index)
+						err := createFileMeta(v.projectInfo, v.versionInfo, v.fileInfo, pack, index, "")
 						if err != nil {
 							return err
 						}
@@ -374,7 +385,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 	// TODO: handle optional/required resource pack files
 
 	// Create the metadata file
-	err := createFileMeta(project, version, file, pack, index)
+	err := createFileMeta(project, version, file, pack, index, sideOverride)
 	if err != nil {
 		return err
 	}
@@ -396,7 +407,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 	return nil
 }
 
-func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, file *modrinthApi.File, pack core.Pack, index *core.Index) error {
+func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, file *modrinthApi.File, pack core.Pack, index *core.Index, sideOverride string) error {
 	updateMap := make(map[string]map[string]interface{})
 
 	var err error
@@ -408,7 +419,13 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 		return err
 	}
 
-	side := getSide(project)
+	var side string
+	if sideOverride == "" {
+		side = getSide(project)
+	} else {
+		side = sideOverride
+	}
+
 	if side == "" {
 		return errors.New("version doesn't have a side that's supported. Server: " + *project.ServerSide + " Client: " + *project.ClientSide)
 	}
@@ -455,9 +472,12 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 	return index.RefreshFileWithHash(path, format, hash, true)
 }
 
-var projectIDFlag string
-var versionIDFlag string
-var versionFilenameFlag string
+var (
+	projectIDFlag       string
+	versionIDFlag       string
+	versionFilenameFlag string
+	sideOverrideFlag    string
+)
 
 func init() {
 	modrinthCmd.AddCommand(installCmd)
@@ -465,4 +485,5 @@ func init() {
 	installCmd.Flags().StringVar(&projectIDFlag, "project-id", "", "The Modrinth project ID to use")
 	installCmd.Flags().StringVar(&versionIDFlag, "version-id", "", "The Modrinth version ID to use")
 	installCmd.Flags().StringVar(&versionFilenameFlag, "version-filename", "", "The Modrinth version filename to use")
+	installCmd.Flags().StringVar(&sideOverrideFlag, "side-override", "", "The side (client, server, both) to override")
 }
