@@ -20,13 +20,13 @@ jobs:
         NIX_CONFIG: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
     - name: Update packwiz version
-      run: nix run nixpkgs#nix-prefetch ./nix/prefetcher.nix | tee ./nix/vendor-sha256
+      run: nix run nixpkgs#nix-prefetch ./nix/prefetcher.nix | tee ./nix/vendor-hash
       env:
         NIX_CONFIG: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
     - name: Commit
       uses: stefanzweifel/git-auto-commit-action@v4
       with:
-        commit_message: "chore: update packwiz vendorSha256"
+        commit_message: "chore: update packwiz vendorHash"
         branch: main
 
