@@ -81,4 +81,4 @@ jobs:
       with:
         tag: ${{ env.TAG }}
         file_glob: true
-        file: dist/*.tar.gz
+        file: dist/*.*
