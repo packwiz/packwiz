@@ -72,15 +72,13 @@ jobs:
         name: macOS 64-bit ARM
         path: dist/packwiz_darwin_arm64/
 
-    - name: Set short git commit SHA
+    - name: Set Tag
       id: vars
-      run: |
-        calculatedSha=$(git rev-parse --short ${{ github.sha }})
-        echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
+      run: echo "TAG=$(date +%s)" >> $GITHUB_ENV
 
     - name: Create release
       uses: svenstaro/upload-release-action@v2
       with:
-        tag: ${{ env.COMMIT_SHORT_SHA }}
+        tag: ${{ env.TAG }}
         file_glob: true
         file: dist/*.tar.gz
