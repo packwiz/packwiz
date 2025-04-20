@@ -71,3 +71,16 @@ jobs:
       with:
         name: macOS 64-bit ARM
         path: dist/packwiz_darwin_arm64/
+
+    - name: Set short git commit SHA
+      id: vars
+      run: |
+        calculatedSha=$(git rev-parse --short ${{ github.sha }})
+        echo "COMMIT_SHORT_SHA=$calculatedSha" >> $GITHUB_ENV
+
+    - name: Create release
+      uses: svenstaro/upload-release-action@v2
+      with:
+        tag: ${{ env.COMMIT_SHORT_SHA }}
+        file_glob: true
+        file: dist/*.tar.gz
