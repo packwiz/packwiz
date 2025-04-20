@@ -76,9 +76,16 @@ jobs:
       id: vars
       run: echo "TAG=0.0.$(date +%s)" >> $GITHUB_ENV
 
-    - name: Create release
+    - name: Upload Release .tar.gz files
       uses: svenstaro/upload-release-action@v2
       with:
         tag: ${{ env.TAG }}
         file_glob: true
-        file: dist/*.*
+        file: dist/*.tar.gz
+
+    - name: Upload Release .zip files
+      uses: svenstaro/upload-release-action@v2
+      with:
+        tag: ${{ env.TAG }}
+        file_glob: true
+        file: dist/*.zip
