@@ -74,7 +74,7 @@ jobs:
 
     - name: Set Tag
       id: vars
-      run: echo "TAG=$(date +%s)" >> $GITHUB_ENV
+      run: echo "TAG=0.0.$(date +%s)" >> $GITHUB_ENV
 
     - name: Create release
       uses: svenstaro/upload-release-action@v2
