@@ -19,3 +19,5 @@ changelog:
     exclude:
       - '^docs:'
       - '^test:'
+archives:
+  - name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
