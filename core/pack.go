@@ -228,5 +228,8 @@ func (pack Pack) GetLoaders() (loaders []string) {
 	if _, hasForge := pack.Versions["forge"]; hasForge {
 		loaders = append(loaders, "forge")
 	}
+	if _, hasPurpur := pack.Versions["purpur"]; hasPurpur {
+		loaders = append(loaders, "purpur")
+	}
 	return
 }
