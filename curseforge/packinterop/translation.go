@@ -4,9 +4,10 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/packwiz/packwiz/core"
 	"io"
 	"os"
+
+	"github.com/packwiz/packwiz/core"
 )
 
 func ReadMetadata(s ImportPackSource) ImportPackMetadata {
@@ -91,6 +92,11 @@ func WriteManifestFromPack(pack core.Pack, fileRefs []AddonFileReference, projec
 	} else if forgeVersion, ok := pack.Versions["forge"]; ok {
 		modLoaders = append(modLoaders, modLoaderDef{
 			ID:      "forge-" + forgeVersion,
+			Primary: true,
+		})
+	} else if neoforgeVersion, ok := pack.Versions["neoforge"]; ok {
+		modLoaders = append(modLoaders, modLoaderDef{
+			ID:      "neoforge-" + neoforgeVersion,
 			Primary: true,
 		})
 	} else if quiltVersion, ok := pack.Versions["quilt"]; ok {
