@@ -1,15 +1,16 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
-	"github.com/packwiz/packwiz/cmdshared"
-	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
+	"github.com/packwiz/packwiz/cmdshared"
+	"github.com/spf13/viper"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"

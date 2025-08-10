@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/exp/slices"
+	"slices"
 )
 
 const UserAgent = "packwiz/packwiz"

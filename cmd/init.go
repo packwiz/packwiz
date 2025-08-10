@@ -3,16 +3,17 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+
 	"github.com/fatih/camelcase"
 	"github.com/igorsobreira/titlecase"
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // initCmd represents the init command
