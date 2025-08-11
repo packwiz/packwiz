@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/BurntSushi/toml"
 )
@@ -26,11 +27,13 @@ type Mod struct {
 	Option *ModOption `toml:"option,omitempty"`
 	Metadata   struct {
 		Curseforge struct {
-			Website    string   `toml:"website,omitempty"`
-			Wiki       string   `toml:"wiki,omitempty"`
-			Issues     string   `toml:"issues,omitempty"`
-			Source     string   `toml:"source,omitempty"`
-			Categories []string `toml:"categories,omitempty"`
+			Website     string    `toml:"website,omitempty"`
+			Wiki        string    `toml:"wiki,omitempty"`
+			Issues      string    `toml:"issues,omitempty"`
+			Source      string    `toml:"source,omitempty"`
+			Categories  []string  `toml:"categories,omitempty"`
+			Added       time.Time `toml:"added,omitempty"`
+			LastUpdated time.Time `toml:"last-updated,omitempty"`
 		} `toml:"curseforge,omitempty"`
 	} `toml:"metadata,omitempty"`
 }

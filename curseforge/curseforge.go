@@ -9,6 +9,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 	"github.com/unascribed/FlexVer/go/flexver"
@@ -228,6 +229,12 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 	if len(modInfo.Categories) > 0 {
 		modMeta.Metadata.Curseforge.Categories = modInfo.Categories
 	}
+
+	// Set added date to now (when the mod is first added)
+	modMeta.Metadata.Curseforge.Added = time.Now()
+
+	// Set last updated to the file's date from CurseForge
+	modMeta.Metadata.Curseforge.LastUpdated = fileInfo.Date
 
 	path := modMeta.SetMetaPath(getPathForFile(modInfo.GameID, modInfo.ClassID, modInfo.PrimaryCategoryID, modInfo.Slug))
 
