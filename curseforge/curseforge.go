@@ -227,7 +227,11 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 	}
 
 	if len(modInfo.Categories) > 0 {
-		modMeta.Metadata.Curseforge.Categories = modInfo.Categories
+		categories := make([]string, len(modInfo.Categories))
+		for i, cat := range modInfo.Categories {
+			categories[i] = cat.Slug
+		}
+		modMeta.Metadata.Curseforge.Categories = categories
 	}
 
 	// Set added date to now (when the mod is first added)
