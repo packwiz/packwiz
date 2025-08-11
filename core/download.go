@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"golang.org/x/exp/slices"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
+
+	"slices"
 )
 
 const UserAgent = "packwiz/packwiz"

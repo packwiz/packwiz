@@ -15,6 +15,9 @@
 # I use GoLand now
 .idea/
 
+# I no longer have student GoLand
+.vscode/
+
 # Nix build output
 result
 

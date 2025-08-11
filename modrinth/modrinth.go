@@ -1,19 +1,20 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
+	"math"
+	"net/http"
+	"net/url"
+	"regexp"
+	"slices"
+
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"github.com/packwiz/packwiz/cmd"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/unascribed/FlexVer/go/flexver"
-	"golang.org/x/exp/slices"
-	"math"
-	"net/http"
-	"net/url"
-	"regexp"
 )
 
 var modrinthCmd = &cobra.Command{
@@ -361,18 +362,19 @@ func shouldDownloadOnSide(side string) bool {
 }
 
 func getBestHash(v *modrinthApi.File) (string, string) {
-	// Try preferred hashes first; SHA1 is first as it is required for Modrinth pack exporting
-	val, exists := v.Hashes["sha1"]
-	if exists {
-		return "sha1", val
-	}
-	val, exists = v.Hashes["sha512"]
+	// Try preferred hashes first; SHA1 is required for Modrinth pack exporting, but
+	// so is SHA512, so we can't win with the current one-hash format
+	val, exists := v.Hashes["sha512"]
 	if exists {
 		return "sha512", val
 	}
 	val, exists = v.Hashes["sha256"]
 	if exists {
 		return "sha256", val
+	}
+	val, exists = v.Hashes["sha1"]
+	if exists {
+		return "sha1", val
 	}
 	val, exists = v.Hashes["murmur2"] // (not defined in Modrinth pack spec, use with caution)
 	if exists {

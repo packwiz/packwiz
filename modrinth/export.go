@@ -4,13 +4,14 @@ import (
 	"archive/zip"
 	"encoding/json"
 	"fmt"
-	"github.com/packwiz/packwiz/cmdshared"
-	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
 	"net/url"
 	"os"
+	"slices"
 	"sort"
 	"strconv"
+
+	"github.com/packwiz/packwiz/cmdshared"
+	"github.com/spf13/viper"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"

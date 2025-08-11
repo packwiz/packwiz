@@ -1,8 +1,9 @@
 package core
 
 import (
-	"golang.org/x/exp/slices"
 	"path"
+	"slices"
+	"strings"
 )
 
 // IndexFiles are stored as a map of path -> (indexFile or alias -> indexFile)
@@ -179,11 +180,11 @@ func (f *IndexFiles) toTomlRep() indexFilesTomlRepresentation {
 		}
 	}
 
-	slices.SortFunc(rep, func(a indexFile, b indexFile) bool {
+	slices.SortFunc(rep, func(a indexFile, b indexFile) int {
 		if a.File == b.File {
-			return a.Alias < b.Alias
+			return strings.Compare(a.Alias, b.Alias)
 		} else {
-			return a.File < b.File
+			return strings.Compare(a.File, b.File)
 		}
 	})
 

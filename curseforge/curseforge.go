@@ -3,14 +3,15 @@ package curseforge
 import (
 	"errors"
 	"fmt"
-	"github.com/spf13/viper"
-	"github.com/unascribed/FlexVer/go/flexver"
-	"golang.org/x/exp/slices"
 	"io"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strconv"
 	"strings"
+
+	"github.com/spf13/viper"
+	"github.com/unascribed/FlexVer/go/flexver"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/packwiz/packwiz/cmd"

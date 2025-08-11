@@ -33,7 +33,7 @@
       in rec {
         packwiz = pkgs.callPackage ./nix {
           version = substring 0 8 self.rev or "dirty";
-          vendorSha256 = readFile ./nix/vendor-sha256;
+          vendorHash = readFile ./nix/vendor-hash;
           buildGoModule = pkgs.buildGoModule;
             # As of writing, `pkgs.buildGoModule` is aliased to
             # `pkgs.buildGo121Module` in Nixpkgs.

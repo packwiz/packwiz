@@ -3,12 +3,13 @@ package curseforge
 import (
 	"errors"
 	"fmt"
+	"os"
+	"slices"
+	"strings"
+
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/sahilm/fuzzy"
 	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
-	"os"
-	"strings"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
