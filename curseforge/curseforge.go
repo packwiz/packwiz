@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
@@ -234,13 +235,22 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 		modMeta.Metadata.Curseforge.Categories = categories
 	}
 
-	// Set added date to now (when the mod is first added)
-	modMeta.Metadata.Curseforge.Added = time.Now()
-
-	// Set last updated to the file's date from CurseForge
-	modMeta.Metadata.Curseforge.LastUpdated = fileInfo.Date
-
 	path := modMeta.SetMetaPath(getPathForFile(modInfo.GameID, modInfo.ClassID, modInfo.PrimaryCategoryID, modInfo.Slug))
+
+	// Check if mod file already exists to preserve Added date
+	existingAdded := time.Now() // Default for new mods
+	if _, err := os.Stat(path); err == nil {
+		// File exists, try to load existing metadata
+		if existingMod, err := core.LoadMod(path); err == nil {
+			// Preserve the original added date
+			if !existingMod.Metadata.Curseforge.Added.IsZero() {
+				existingAdded = existingMod.Metadata.Curseforge.Added
+			}
+		}
+	}
+
+	modMeta.Metadata.Curseforge.Added = existingAdded
+	modMeta.Metadata.Curseforge.LastUpdated = fileInfo.Date
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?
