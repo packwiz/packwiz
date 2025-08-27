@@ -27,47 +27,71 @@ jobs:
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: Windows 64-bit
+        name: Windows x86 32-bit
+        path: dist/packwiz_windows_386_sse2/
+
+    - name: Upload assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: Windows x86 64-bit
         path: dist/packwiz_windows_amd64_v1/
 
-#    - name: Upload assets
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: Windows 32-bit
-#        path: dist/packwiz_windows_386/
+    - name: Upload assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: Windows Arm 32-bit
+        path: dist/packwiz_windows_arm_6/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: Windows 64-bit ARM
-        path: dist/packwiz_windows_arm64/
+        name: Windows Arm 64-bit
+        path: dist/packwiz_windows_arm64_v8.0/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: Linux 64-bit x86
+        name: Linux x86 32-bit
+        path: dist/packwiz_linux_386_sse2/
+
+    - name: Upload assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: Linux x86 64-bit
         path: dist/packwiz_linux_amd64_v1/
 
-#    - name: Upload assets
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: Linux 32-bit x86
-#        path: dist/packwiz_linux_386/
+    - name: Upload assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: Linux Arm 32-bit
+        path: dist/packwiz_linux_arm_6/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: Linux 64-bit ARM
-        path: dist/packwiz_linux_arm64/
+        name: Linux Arm 64-bit
+        path: dist/packwiz_linux_arm64_v8.0/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: macOS 64-bit x86
+        name: Linux PowerPC 64-bit
+        path: dist/packwiz_linux_ppc64_power8/
+
+    - name: Upload assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: Linux RISC-V 64-bit
+        path: dist/packwiz_linux_riscv64_rva20u64/
+
+    - name: Upload assets
+      uses: actions/upload-artifact@v4
+      with:
+        name: MacOS x86 64-bit
         path: dist/packwiz_darwin_amd64_v1/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: macOS 64-bit ARM
-        path: dist/packwiz_darwin_arm64/
+        name: MacOS Arm 64-bit
+        path: dist/packwiz_darwin_arm64_v8.0/
