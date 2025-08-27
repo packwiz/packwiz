@@ -39,13 +39,13 @@ jobs:
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: Windows Arm 32-bit
+        name: Windows ARM 32-bit
         path: dist/packwiz_windows_arm_6/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: Windows Arm 64-bit
+        name: Windows ARM 64-bit
         path: dist/packwiz_windows_arm64_v8.0/
 
     - name: Upload assets
@@ -63,13 +63,13 @@ jobs:
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: Linux Arm 32-bit
+        name: Linux ARM 32-bit
         path: dist/packwiz_linux_arm_6/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: Linux Arm 64-bit
+        name: Linux ARM 64-bit
         path: dist/packwiz_linux_arm64_v8.0/
 
     - name: Upload assets
@@ -87,11 +87,12 @@ jobs:
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: MacOS x86 64-bit
+        name: macOS x86 64-bit
         path: dist/packwiz_darwin_amd64_v1/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
       with:
-        name: MacOS Arm 64-bit
+        name: macOS ARM 64-bit
         path: dist/packwiz_darwin_arm64_v8.0/
+
