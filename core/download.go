@@ -15,15 +15,7 @@ import (
 
 const UserAgent = "packwiz/packwiz"
 
-type HttpClient interface {
-	Do(req *http.Request) (*http.Response, error)
-}
-
 func GetWithUA(url string, contentType string) (resp *http.Response, err error) {
-	return GetWithClient(url, contentType, http.DefaultClient)
-}
-
-func GetWithClient(url string, contentType string, client HttpClient) (resp *http.Response, err error) {
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, err

@@ -5,7 +5,6 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
-	"net/http"
 	"strings"
 
 	"github.com/unascribed/FlexVer/go/flexver"
@@ -104,57 +103,29 @@ type VersionListQuery struct {
 	Loader ModLoaderComponent
 	// Which minecraft version the returned loader versions should be compatible with
 	McVersion string
-	// Http client to use for http requests (mainly used for testing)
-	HttpClient HttpClient
 	// Determines how the latest version is determined
 	QueryType QueryType
 }
 
 func MakeQuery(loader ModLoaderComponent, mcVersion string) VersionListQuery {
 	return VersionListQuery{
-		Loader:     loader,
-		McVersion:  mcVersion,
-		HttpClient: http.DefaultClient,
-		QueryType:  Latest,
+		Loader:    loader,
+		McVersion: mcVersion,
+		QueryType: Latest,
 	}
 }
 
 func (in VersionListQuery) WithQueryType(queryType QueryType) VersionListQuery {
 	return VersionListQuery{
-		Loader:     in.Loader,
-		McVersion:  in.McVersion,
-		HttpClient: in.HttpClient,
-		QueryType:  queryType,
-	}
-}
-
-func (in VersionListQuery) WithHttpClient(client HttpClient) VersionListQuery {
-	return VersionListQuery{
-		Loader:     in.Loader,
-		McVersion:  in.McVersion,
-		HttpClient: client,
-		QueryType:  in.QueryType,
+		Loader:    in.Loader,
+		McVersion: in.McVersion,
+		QueryType: queryType,
 	}
 }
 
 // Queries the versions of a modloader
 func DoQuery(q VersionListQuery) (*ModLoaderVersions, error) {
 	return q.Loader.VersionListGetter(q)
-}
-
-// Returns all versions in a maven repository, without filtering
-func FetchMavenVersionList(q VersionListQuery, url string) (*ModLoaderVersions, error) {
-	res, err := GetWithClient(url, "application/xml", q.HttpClient)
-	if err != nil {
-		return nil, err
-	}
-	dec := xml.NewDecoder(res.Body)
-	out := MavenMetadata{}
-	err = dec.Decode(&out)
-	if err != nil {
-		return nil, err
-	}
-	return &ModLoaderVersions{out.Versioning.Versions.Version, out.Versioning.Release}, nil
 }
 
 // Retrieve a list of versions from maven, with no filtering or processing of the maven data
@@ -228,7 +199,7 @@ func fetchLiteloaderStyle(q VersionListQuery, url string) (*ModLoaderVersions, e
 }
 
 func fetchMavenWithFilterMap(q VersionListQuery, url string, filterMap func(version string) *string) (*ModLoaderVersions, error) {
-	res, err := GetWithClient(url, "application/xml", q.HttpClient)
+	res, err := GetWithUA(url, "application/xml")
 	if err != nil {
 		return nil, err
 	}
@@ -324,7 +295,7 @@ type ForgeRecommended struct {
 
 // getForgeRecommended gets the recommended version of Forge for the given Minecraft version
 func getForgeRecommended(q VersionListQuery) string {
-	res, err := GetWithClient("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", "application/json", q.HttpClient)
+	res, err := GetWithUA("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", "application/json")
 	if err != nil {
 		return ""
 	}
