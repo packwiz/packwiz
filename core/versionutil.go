@@ -128,6 +128,15 @@ func (in VersionListQuery) WithQueryType(queryType QueryType) VersionListQuery {
 	}
 }
 
+func (in VersionListQuery) WithHttpClient(client HttpClient) VersionListQuery {
+	return VersionListQuery{
+		Loader:     in.Loader,
+		McVersion:  in.McVersion,
+		HttpClient: client,
+		QueryType:  in.QueryType,
+	}
+}
+
 // Queries the versions of a modloader
 func DoQuery(q VersionListQuery) (*ModLoaderVersions, error) {
 	return q.Loader.VersionListGetter(q)
@@ -183,7 +192,7 @@ func fetchNeoForgeStyle(q VersionListQuery, url string) (*ModLoaderVersions, err
 	var mcSplit = strings.Split(q.McVersion, ".")
 	if len(mcSplit) < 2 {
 		// This does not appear to be a minecraft version that's formatted in a way that matches neoforge
-		return nil, errors.New(fmt.Sprintf("Packwiz cannot detect compatible %s versions for this Minecraft version (%s)", q.Loader.FriendlyName, q.McVersion))
+		return nil, fmt.Errorf("packwiz cannot detect compatible %s versions for this Minecraft version (%s)", q.Loader.FriendlyName, q.McVersion)
 	}
 	var mcMajor = mcSplit[1]
 	var mcMinor = "0"
