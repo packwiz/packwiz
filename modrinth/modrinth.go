@@ -260,7 +260,7 @@ func compareLoaderLists(a []string, b []string) int32 {
 			continue
 		}
 		idx := slices.Index(loaderPreferenceList, v)
-		if idx < minIdxA {
+		if idx != -1 && idx < minIdxA {
 			return 1 // B has more preferable loaders
 		}
 		if idx != -1 && idx < minIdxB {
