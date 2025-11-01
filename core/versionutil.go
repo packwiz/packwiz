@@ -107,7 +107,7 @@ func FetchMavenVersionList(url string) (*ModLoaderVersions, error) {
 	return &ModLoaderVersions{out.Versioning.Versions.Version, out.Versioning.Release}, nil
 }
 
-func FetchMavenVersionFiltered(url string, friendlyName string, mcVersion string, filter func(version string, mcVersion string) bool) (*ModLoaderVersions, error) {
+func FetchMavenVersionFiltered(url string, friendlyName string, filter func(version string) bool) (*ModLoaderVersions, error) {
 	res, err := GetWithUA(url, "application/xml")
 	if err != nil {
 		return nil, err
@@ -120,17 +120,17 @@ func FetchMavenVersionFiltered(url string, friendlyName string, mcVersion string
 	}
 	allowedVersions := make([]string, 0, len(out.Versioning.Versions.Version))
 	for _, v := range out.Versioning.Versions.Version {
-		if filter(v, mcVersion) {
+		if filter(v) {
 			allowedVersions = append(allowedVersions, v)
 		}
 	}
 	if len(allowedVersions) == 0 {
 		return nil, errors.New("no " + friendlyName + " versions available for this Minecraft version")
 	}
-	if filter(out.Versioning.Release, mcVersion) {
+	if filter(out.Versioning.Release) {
 		return &ModLoaderVersions{allowedVersions, out.Versioning.Release}, nil
 	}
-	if filter(out.Versioning.Latest, mcVersion) {
+	if filter(out.Versioning.Latest) {
 		return &ModLoaderVersions{allowedVersions, out.Versioning.Latest}, nil
 	}
 	// Sort list to get largest version
@@ -139,7 +139,9 @@ func FetchMavenVersionFiltered(url string, friendlyName string, mcVersion string
 }
 
 func FetchMavenVersionPrefixedList(url string, friendlyName string, mcVersion string) (*ModLoaderVersions, error) {
-	return FetchMavenVersionFiltered(url, friendlyName, mcVersion, hasPrefixSplitDash)
+	return FetchMavenVersionFiltered(url, friendlyName, func(version string) bool {
+		return hasPrefixSplitDash(version, mcVersion)
+	})
 }
 
 func FetchMavenVersionPrefixedListStrip(url string, friendlyName string, mcVersion string) (*ModLoaderVersions, error) {
@@ -184,7 +186,7 @@ func FetchNeoForge(mcVersion string) (*ModLoaderVersions, error) {
 }
 
 func FetchMavenWithNeoForgeStyleVersions(url string, friendlyName string, mcVersion string) (*ModLoaderVersions, error) {
-	return FetchMavenVersionFiltered(url, friendlyName, mcVersion, func(neoforgeVersion string, mcVersion string) bool {
+	return FetchMavenVersionFiltered(url, friendlyName, func(neoforgeVersion string) bool {
 		// Minecraft versions are in the form of 1.a.b
 		// Neoforge versions are in the form of a.b.x
 		// Eg, for minecraft 1.20.6, neoforge version 20.6.2 and 20.6.83-beta would both be valid versions
