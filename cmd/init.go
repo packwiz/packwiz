@@ -89,7 +89,7 @@ var initCmd = &cobra.Command{
 		modLoaderVersions := make(map[string]string)
 		if modLoaderName != "none" {
 			if ok {
-				versions, latestVersion, err := loader.VersionListGetter(mcVersion)
+				versionData, err := loader.VersionListGetter(mcVersion)
 				if err != nil {
 					fmt.Printf("Error loading versions: %s\n", err)
 					os.Exit(1)
@@ -97,16 +97,16 @@ var initCmd = &cobra.Command{
 				componentVersion := viper.GetString("init." + loader.Name + "-version")
 				if len(componentVersion) == 0 {
 					if viper.GetBool("init." + loader.Name + "-latest") {
-						componentVersion = latestVersion
+						componentVersion = versionData.Latest
 					} else {
-						componentVersion = initReadValue(loader.FriendlyName+" version ["+latestVersion+"]: ", latestVersion)
+						componentVersion = initReadValue(loader.FriendlyName+" version ["+versionData.Latest+"]: ", versionData.Latest)
 					}
 				}
 				v := componentVersion
 				if loader.Name == "forge" || loader.Name == "neoforge" {
 					v = cmdshared.GetRawForgeVersion(componentVersion)
 				}
-				if !slices.Contains(versions, v) {
+				if !slices.Contains(versionData.Versions, v) {
 					fmt.Println("Given " + loader.FriendlyName + " version cannot be found!")
 					os.Exit(1)
 				}

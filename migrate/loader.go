@@ -44,8 +44,8 @@ var loaderCommand = &cobra.Command{
 			fmt.Println("Updating to latest loader version")
 			// We'll be updating to the latest loader version
 			for _, loader := range currentLoaders {
-				_, latest, gottenLoader := getVersionsForLoader(loader, mcVersion)
-				if !updatePackToVersion(latest, modpack, gottenLoader) {
+				versionData, gottenLoader := getVersionsForLoader(loader, mcVersion)
+				if !updatePackToVersion(versionData.Latest, modpack, gottenLoader) {
 					continue
 				}
 				// Write the pack to disk
@@ -80,11 +80,11 @@ var loaderCommand = &cobra.Command{
 		} else {
 			fmt.Println("Updating to explicit loader version")
 			// This one is easy :D
-			versions, _, loader := getVersionsForLoader(currentLoaders[0], mcVersion)
+			versionData, loader := getVersionsForLoader(currentLoaders[0], mcVersion)
 			// Check if the loader happens to be Forge/NeoForge, since there's two version formats
 			if loader.Name == "forge" || loader.Name == "neoforge" {
 				wantedVersion := cmdshared.GetRawForgeVersion(args[0])
-				validateVersion(versions, wantedVersion, loader)
+				validateVersion(versionData.Versions, wantedVersion, loader)
 				_ = updatePackToVersion(wantedVersion, modpack, loader)
 			} else if loader.Name == "liteloader" {
 				// These are weird and just have a MC version
@@ -92,7 +92,7 @@ var loaderCommand = &cobra.Command{
 				os.Exit(0)
 			} else {
 				// We're on Fabric or quilt
-				validateVersion(versions, args[0], loader)
+				validateVersion(versionData.Versions, args[0], loader)
 				if ok := updatePackToVersion(args[0], modpack, loader); !ok {
 					os.Exit(1)
 				}
@@ -111,18 +111,18 @@ func init() {
 	migrateCmd.AddCommand(loaderCommand)
 }
 
-func getVersionsForLoader(loader, mcVersion string) ([]string, string, core.ModLoaderComponent) {
+func getVersionsForLoader(loader, mcVersion string) (*core.ModLoaderVersions, core.ModLoaderComponent) {
 	gottenLoader, ok := core.ModLoaders[loader]
 	if !ok {
 		fmt.Printf("Unknown loader %s\n", loader)
 		os.Exit(1)
 	}
-	versions, latestVersion, err := gottenLoader.VersionListGetter(mcVersion)
+	versionData, err := gottenLoader.VersionListGetter(mcVersion)
 	if err != nil {
 		fmt.Printf("Error getting version list for %s: %s\n", gottenLoader.FriendlyName, err)
 		os.Exit(1)
 	}
-	return versions, latestVersion, gottenLoader
+	return versionData, gottenLoader
 }
 
 func validateVersion(versions []string, version string, gottenLoader core.ModLoaderComponent) {
