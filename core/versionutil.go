@@ -41,33 +41,45 @@ type ModLoaderComponent struct {
 	VersionListGetter func(mcVersion string) (*ModLoaderVersions, error)
 }
 
-var ModLoaders = map[string]ModLoaderComponent{
-	"fabric": {
+var modLoadersList = []ModLoaderComponent{
+	{
 		// There's no need to specify yarn version - yarn isn't used outside a dev environment, and intermediary corresponds to game version anyway
 		Name:              "fabric",
 		FriendlyName:      "Fabric loader",
 		VersionListGetter: FetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml"),
 	},
-	"forge": {
+	{
 		Name:              "forge",
 		FriendlyName:      "Forge",
 		VersionListGetter: FetchMavenVersionPrefixedListStrip("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge"),
 	},
-	"liteloader": {
+	{
 		Name:              "liteloader",
 		FriendlyName:      "LiteLoader",
 		VersionListGetter: FetchMavenVersionPrefixedList("https://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader"),
 	},
-	"quilt": {
+	{
 		Name:              "quilt",
 		FriendlyName:      "Quilt loader",
 		VersionListGetter: FetchMavenVersionList("https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml"),
 	},
-	"neoforge": {
+	{
 		Name:              "neoforge",
 		FriendlyName:      "NeoForge",
 		VersionListGetter: FetchNeoForge(),
 	},
+}
+
+// A map containing information about all supported modloaders.
+// Can be indexed by the [ModLoaderComponent]'s name, which serves as an identifier.
+var ModLoaders = createModloaderMap(modLoadersList)
+
+func createModloaderMap(input []ModLoaderComponent) map[string]ModLoaderComponent {
+	var mlMap = make(map[string]ModLoaderComponent)
+	for _, loader := range input {
+		mlMap[loader.Name] = loader
+	}
+	return mlMap
 }
 
 func FetchMavenVersionList(url string) func(mcVersion string) (*ModLoaderVersions, error) {

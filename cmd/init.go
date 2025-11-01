@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -114,13 +115,8 @@ var initCmd = &cobra.Command{
 			} else {
 				fmt.Println("Given mod loader is not supported! Use \"none\" to specify no modloader, or to configure one manually.")
 				fmt.Print("The following mod loaders are supported: ")
-				keys := make([]string, len(core.ModLoaders))
-				i := 0
-				for k := range core.ModLoaders {
-					keys[i] = k
-					i++
-				}
-				fmt.Println(strings.Join(keys, ", "))
+				loader_names := slices.Collect(maps.Keys(core.ModLoaders))
+				fmt.Println(strings.Join(loader_names, ", "))
 				os.Exit(1)
 			}
 		}
