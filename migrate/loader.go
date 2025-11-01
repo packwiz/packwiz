@@ -40,11 +40,17 @@ var loaderCommand = &cobra.Command{
 			fmt.Printf("Error getting Minecraft version: %s\n", err)
 			os.Exit(1)
 		}
-		if args[0] == "latest" {
-			fmt.Println("Updating to latest loader version")
+		if args[0] == "latest" || args[0] == "recommended" {
+			fmt.Printf("Updating to %s loader version\n", args[0])
+
+			queryType := core.Latest
+			if args[0] == "recommended" {
+				queryType = core.Recommended
+			}
+
 			// We'll be updating to the latest loader version
 			for _, loader := range currentLoaders {
-				versionData, gottenLoader := getVersionsForLoader(loader, mcVersion)
+				versionData, gottenLoader := getVersionsForLoader(loader, mcVersion, queryType)
 				if !updatePackToVersion(versionData.Latest, modpack, gottenLoader) {
 					continue
 				}
@@ -55,32 +61,10 @@ var loaderCommand = &cobra.Command{
 					continue
 				}
 			}
-		} else if args[0] == "recommended" {
-			// TODO: Figure out a way to get the recommended version, this is Forge only
-			// Ensure we're on Forge
-			if !slices.Contains(currentLoaders, "forge") {
-				fmt.Println("The recommended loader version is only available on Forge!")
-				os.Exit(1)
-			}
-			// We'll be updating to the recommended loader version
-			recommendedVer := core.GetForgeRecommended(mcVersion)
-			if recommendedVer == "" {
-				fmt.Println("Error getting recommended Forge version!")
-				os.Exit(1)
-			}
-			if ok := updatePackToVersion(recommendedVer, modpack, core.ModLoaders["forge"]); !ok {
-				os.Exit(1)
-			}
-			// Write the pack to disk
-			err = modpack.Write()
-			if err != nil {
-				fmt.Printf("Error writing pack.toml: %s", err)
-				os.Exit(1)
-			}
 		} else {
 			fmt.Println("Updating to explicit loader version")
 			// This one is easy :D
-			versionData, loader := getVersionsForLoader(currentLoaders[0], mcVersion)
+			versionData, loader := getVersionsForLoader(currentLoaders[0], mcVersion, core.Latest)
 			// Check if the loader happens to be Forge/NeoForge, since there's two version formats
 			if loader.Name == "forge" || loader.Name == "neoforge" {
 				wantedVersion := cmdshared.GetRawForgeVersion(args[0])
@@ -111,13 +95,13 @@ func init() {
 	migrateCmd.AddCommand(loaderCommand)
 }
 
-func getVersionsForLoader(loader, mcVersion string) (*core.ModLoaderVersions, core.ModLoaderComponent) {
+func getVersionsForLoader(loader, mcVersion string, queryType core.QueryType) (*core.ModLoaderVersions, core.ModLoaderComponent) {
 	gottenLoader, ok := core.ModLoaders[loader]
 	if !ok {
 		fmt.Printf("Unknown loader %s\n", loader)
 		os.Exit(1)
 	}
-	versionData, err := gottenLoader.VersionListGetter(mcVersion)
+	versionData, err := core.DoQuery(core.MakeQuery(gottenLoader, mcVersion).WithQueryType(queryType))
 	if err != nil {
 		fmt.Printf("Error getting version list for %s: %s\n", gottenLoader.FriendlyName, err)
 		os.Exit(1)

@@ -90,7 +90,7 @@ var initCmd = &cobra.Command{
 		modLoaderVersions := make(map[string]string)
 		if modLoaderName != "none" {
 			if ok {
-				versionData, err := loader.VersionListGetter(mcVersion)
+				versionData, err := core.DoQuery(core.MakeQuery(loader, mcVersion))
 				if err != nil {
 					fmt.Printf("Error loading versions: %s\n", err)
 					os.Exit(1)

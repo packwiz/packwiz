@@ -5,6 +5,7 @@ import (
 	"encoding/xml"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 
 	"github.com/unascribed/FlexVer/go/flexver"
@@ -38,7 +39,7 @@ type ModLoaderComponent struct {
 	FriendlyName string
 	// Retrieves the list of all modloader versions. Modloader versions are always filtered to those compatible
 	// with a specific minecraft version.
-	VersionListGetter func(mcVersion string) (*ModLoaderVersions, error)
+	VersionListGetter func(q VersionListQuery) (*ModLoaderVersions, error)
 }
 
 var modLoadersList = []ModLoaderComponent{
@@ -46,38 +47,34 @@ var modLoadersList = []ModLoaderComponent{
 		// There's no need to specify yarn version - yarn isn't used outside a dev environment, and intermediary corresponds to game version anyway
 		Name:         "fabric",
 		FriendlyName: "Fabric loader",
-		VersionListGetter: func(mcVersion string) (*ModLoaderVersions, error) {
+		VersionListGetter: func(q VersionListQuery) (*ModLoaderVersions, error) {
 			// Fabric loaders isn't locked to a mc version per se
-			return FetchMavenVersionList("https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml")
+			return fetchVersionsFromMaven(q, "https://maven.fabricmc.net/net/fabricmc/fabric-loader/maven-metadata.xml")
 		},
 	},
 	{
-		Name:         "forge",
-		FriendlyName: "Forge",
-		VersionListGetter: func(mcVersion string) (*ModLoaderVersions, error) {
-			return FetchMavenVersionPrefixedListStrip("https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml", "Forge", mcVersion)
-		},
+		Name:              "forge",
+		FriendlyName:      "Forge",
+		VersionListGetter: fetchForForge,
 	},
 	{
 		Name:         "liteloader",
 		FriendlyName: "LiteLoader",
-		VersionListGetter: func(mcVersion string) (*ModLoaderVersions, error) {
-			return FetchMavenVersionPrefixedList("https://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml", "LiteLoader", mcVersion)
+		VersionListGetter: func(q VersionListQuery) (*ModLoaderVersions, error) {
+			return fetchLiteloaderStyle(q, "https://repo.mumfrey.com/content/repositories/snapshots/com/mumfrey/liteloader/maven-metadata.xml")
 		},
 	},
 	{
 		Name:         "quilt",
 		FriendlyName: "Quilt loader",
-		VersionListGetter: func(mcVersion string) (*ModLoaderVersions, error) {
-			return FetchMavenVersionList("https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml")
+		VersionListGetter: func(q VersionListQuery) (*ModLoaderVersions, error) {
+			return fetchVersionsFromMaven(q, "https://maven.quiltmc.org/repository/release/org/quiltmc/quilt-loader/maven-metadata.xml")
 		},
 	},
 	{
-		Name:         "neoforge",
-		FriendlyName: "NeoForge",
-		VersionListGetter: func(mcVersion string) (*ModLoaderVersions, error) {
-			return FetchNeoForge(mcVersion)
-		},
+		Name:              "neoforge",
+		FriendlyName:      "NeoForge",
+		VersionListGetter: fetchForNeoForge,
 	},
 }
 
@@ -93,8 +90,52 @@ func createModloaderMap(input []ModLoaderComponent) map[string]ModLoaderComponen
 	return mlMap
 }
 
-func FetchMavenVersionList(url string) (*ModLoaderVersions, error) {
-	res, err := GetWithUA(url, "application/xml")
+type QueryType int
+
+const (
+	// The Latest field will contain the last released loader version
+	Latest QueryType = iota
+	// The Latest field will contain the loader version recommended for use
+	Recommended
+)
+
+type VersionListQuery struct {
+	// Which loader to query versions for
+	Loader ModLoaderComponent
+	// Which minecraft version the returned loader versions should be compatible with
+	McVersion string
+	// Http client to use for http requests (mainly used for testing)
+	HttpClient HttpClient
+	// Determines how the latest version is determined
+	QueryType QueryType
+}
+
+func MakeQuery(loader ModLoaderComponent, mcVersion string) VersionListQuery {
+	return VersionListQuery{
+		Loader:     loader,
+		McVersion:  mcVersion,
+		HttpClient: http.DefaultClient,
+		QueryType:  Latest,
+	}
+}
+
+func (in VersionListQuery) WithQueryType(queryType QueryType) VersionListQuery {
+	return VersionListQuery{
+		Loader:     in.Loader,
+		McVersion:  in.McVersion,
+		HttpClient: in.HttpClient,
+		QueryType:  queryType,
+	}
+}
+
+// Queries the versions of a modloader
+func DoQuery(q VersionListQuery) (*ModLoaderVersions, error) {
+	return q.Loader.VersionListGetter(q)
+}
+
+// Returns all versions in a maven repository, without filtering
+func FetchMavenVersionList(q VersionListQuery, url string) (*ModLoaderVersions, error) {
+	res, err := GetWithClient(url, "application/xml", q.HttpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +148,78 @@ func FetchMavenVersionList(url string) (*ModLoaderVersions, error) {
 	return &ModLoaderVersions{out.Versioning.Versions.Version, out.Versioning.Release}, nil
 }
 
-func FetchMavenVersionFiltered(url string, friendlyName string, filter func(version string) bool) (*ModLoaderVersions, error) {
-	res, err := GetWithUA(url, "application/xml")
+// Retrieve a list of versions from maven, with no filtering or processing of the maven data
+func fetchVersionsFromMaven(q VersionListQuery, url string) (*ModLoaderVersions, error) {
+	identity_function := func(version string) *string { return &version }
+	return fetchMavenWithFilterMap(q, url, identity_function)
+}
+
+func fetchForgeStyle(q VersionListQuery, url string) (*ModLoaderVersions, error) {
+	// Forge style:
+	// each version is formatted like `mcVersion-forgeVersion`
+	// eg: `1.18.1-39.0.18`
+	return fetchMavenWithFilterMap(q, url, func(version string) *string {
+		before, after, f := strings.Cut(version, "-")
+		if !f {
+			// The version didn't have a dash? Lets just reject it entirely
+			return nil
+		}
+		if before != q.McVersion {
+			// The part before the dash should match the mc version we're looking for
+			return nil
+		}
+		// The part after the dash is the actual version, and the part we care about
+		return &after
+	})
+}
+
+func fetchNeoForgeStyle(q VersionListQuery, url string) (*ModLoaderVersions, error) {
+	// NeoForge style:
+	// If minecraft versions are in the form of 1.a.b, then neoforge versions are in the form of a.b.x
+	// Eg, for minecraft 1.20.6, neoforge version 20.6.2 and 20.6.83-beta would both be valid versions
+	// for minecraft 1.20.2, neoforge version 20.2.23-beta
+	// for minecraft 1.21, neoforge version 21.0.143 would be valid
+
+	var mcSplit = strings.Split(q.McVersion, ".")
+	if len(mcSplit) < 2 {
+		// This does not appear to be a minecraft version that's formatted in a way that matches neoforge
+		return nil, errors.New(fmt.Sprintf("Packwiz cannot detect compatible %s versions for this Minecraft version (%s)", q.Loader.FriendlyName, q.McVersion))
+	}
+	var mcMajor = mcSplit[1]
+	var mcMinor = "0"
+	if len(mcSplit) > 2 {
+		mcMinor = mcSplit[2]
+	}
+	// Note that the period at the end is significant, we don't want to match `21.10.43` as being for 1.21.1 (instead of 1.21.10)
+	var requiredPrefix = mcMajor + "." + mcMinor + "."
+
+	return fetchMavenWithFilterMap(q, url, func(version string) *string {
+		if !strings.HasPrefix(version, requiredPrefix) {
+			// Reject NeoForge versions that don't have the right prefix for this mc version
+			return nil
+		}
+		return &version
+	})
+}
+
+func fetchLiteloaderStyle(q VersionListQuery, url string) (*ModLoaderVersions, error) {
+	// Liteloader style:
+	// each version is formatted like `mcVersion-SNAPSHOT`
+	// eg: `1.12.2-SNAPSHOT`
+	// (yes, it appears like liteloader only has a single version per mc version)
+	return fetchMavenWithFilterMap(q, url, func(version string) *string {
+		before, _, f := strings.Cut(version, "-")
+		// Check if the part before the dash matches the mc version we're looking for
+		if f && before == q.McVersion {
+			return &version
+		} else {
+			return nil
+		}
+	})
+}
+
+func fetchMavenWithFilterMap(q VersionListQuery, url string, filterMap func(version string) *string) (*ModLoaderVersions, error) {
+	res, err := GetWithClient(url, "application/xml", q.HttpClient)
 	if err != nil {
 		return nil, err
 	}
@@ -118,96 +229,58 @@ func FetchMavenVersionFiltered(url string, friendlyName string, filter func(vers
 	if err != nil {
 		return nil, err
 	}
-	allowedVersions := make([]string, 0, len(out.Versioning.Versions.Version))
+
+	// Pass all of the versions listed in the maven through our filterMap
+	versions := make([]string, 0, len(out.Versioning.Versions.Version))
 	for _, v := range out.Versioning.Versions.Version {
-		if filter(v) {
-			allowedVersions = append(allowedVersions, v)
+		mappedV := filterMap(v)
+		if mappedV != nil {
+			versions = append(versions, *mappedV)
 		}
 	}
-	if len(allowedVersions) == 0 {
-		return nil, errors.New("no " + friendlyName + " versions available for this Minecraft version")
+
+	if len(versions) == 0 {
+		return nil, errors.New("no " + q.Loader.FriendlyName + " versions available for " + q.McVersion)
 	}
-	if filter(out.Versioning.Release) {
-		return &ModLoaderVersions{allowedVersions, out.Versioning.Release}, nil
+
+	// Determine the latest release
+	var latestRelease = ""
+	release := filterMap(out.Versioning.Release)
+	latest := filterMap(out.Versioning.Latest)
+	if release != nil {
+		latestRelease = *release
+	} else if latest != nil {
+		latestRelease = *latest
+	} else {
+		// Maven was useless, just rely on flexver sorting
+		flexver.VersionSlice(versions).Sort()
+		latestRelease = versions[len(versions)-1]
 	}
-	if filter(out.Versioning.Latest) {
-		return &ModLoaderVersions{allowedVersions, out.Versioning.Latest}, nil
-	}
-	// Sort list to get largest version
-	flexver.VersionSlice(allowedVersions).Sort()
-	return &ModLoaderVersions{allowedVersions, allowedVersions[len(allowedVersions)-1]}, nil
+	return &ModLoaderVersions{versions, latestRelease}, nil
 }
 
-func FetchMavenVersionPrefixedList(url string, friendlyName string, mcVersion string) (*ModLoaderVersions, error) {
-	return FetchMavenVersionFiltered(url, friendlyName, func(version string) bool {
-		return hasPrefixSplitDash(version, mcVersion)
-	})
+func fetchForNeoForge(q VersionListQuery) (*ModLoaderVersions, error) {
+	// NeoForge reused Forge's versioning scheme for 1.20.1, but moved to their own versioning scheme for 1.20.2 and above
+	if q.McVersion == "1.20.1" {
+		return fetchForgeStyle(q, "https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml")
+	} else {
+		return fetchNeoForgeStyle(q, "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml")
+	}
 }
 
-func FetchMavenVersionPrefixedListStrip(url string, friendlyName string, mcVersion string) (*ModLoaderVersions, error) {
-	versionData, err := FetchMavenVersionPrefixedList(url, friendlyName, mcVersion)
+func fetchForForge(q VersionListQuery) (*ModLoaderVersions, error) {
+	result, err := fetchForgeStyle(q, "https://files.minecraftforge.net/maven/net/minecraftforge/forge/maven-metadata.xml")
 	if err != nil {
 		return nil, err
 	}
-	// Perform stripping on all the results
-	for k, v := range versionData.Versions {
-		versionData.Versions[k] = removeMcVersion(v, mcVersion)
-	}
-	versionData.Latest = removeMcVersion(versionData.Latest, mcVersion)
-	return versionData, nil
-}
-
-func removeMcVersion(str string, mcVersion string) string {
-	components := strings.Split(str, "-")
-	newComponents := make([]string, 0)
-	for _, v := range components {
-		if v != mcVersion {
-			newComponents = append(newComponents, v)
+	// Forge is the only loader which defines a special recommended version
+	if q.QueryType == Recommended {
+		recommended := getForgeRecommended(q)
+		if recommended != "" {
+			result.Latest = recommended
 		}
 	}
-	return strings.Join(newComponents, "-")
-}
-
-func hasPrefixSplitDash(str string, prefix string) bool {
-	components := strings.Split(str, "-")
-	if len(components) > 1 && components[0] == prefix {
-		return true
-	}
-	return false
-}
-
-func FetchNeoForge(mcVersion string) (*ModLoaderVersions, error) {
-	// NeoForge reused Forge's versioning scheme for 1.20.1, but moved to their own versioning scheme for 1.20.2 and above
-	if mcVersion == "1.20.1" {
-		return FetchMavenVersionPrefixedListStrip("https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml", "NeoForge", mcVersion)
-	} else {
-		return FetchMavenWithNeoForgeStyleVersions("https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml", "NeoForge", mcVersion)
-	}
-}
-
-func FetchMavenWithNeoForgeStyleVersions(url string, friendlyName string, mcVersion string) (*ModLoaderVersions, error) {
-	return FetchMavenVersionFiltered(url, friendlyName, func(neoforgeVersion string) bool {
-		// Minecraft versions are in the form of 1.a.b
-		// Neoforge versions are in the form of a.b.x
-		// Eg, for minecraft 1.20.6, neoforge version 20.6.2 and 20.6.83-beta would both be valid versions
-		// for minecraft 1.20.2, neoforge version 20.2.23-beta
-		// for minecraft 1.21, neoforge version 21.0.143 would be valid
-		var mcSplit = strings.Split(mcVersion, ".")
-		if len(mcSplit) < 2 {
-			// This does not appear to be a minecraft version that's formatted in a way that matches neoforge
-			return false
-		}
-		var mcMajor = mcSplit[1]
-		var mcMinor = "0"
-		if len(mcSplit) > 2 {
-			mcMinor = mcSplit[2]
-		}
-
-		// We can only accept an exact version number match, because otherwise 1.21.1 would pull in loader versions for 1.21.10.
-		var requiredPrefix = mcMajor + "." + mcMinor + "."
-
-		return strings.HasPrefix(neoforgeVersion, requiredPrefix)
-	})
+	return result, nil
 }
 
 func ComponentToFriendlyName(component string) string {
@@ -240,9 +313,9 @@ type ForgeRecommended struct {
 	Versions map[string]string `json:"promos"`
 }
 
-// GetForgeRecommended gets the recommended version of Forge for the given Minecraft version
-func GetForgeRecommended(mcVersion string) string {
-	res, err := GetWithUA("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", "application/json")
+// getForgeRecommended gets the recommended version of Forge for the given Minecraft version
+func getForgeRecommended(q VersionListQuery) string {
+	res, err := GetWithClient("https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json", "application/json", q.HttpClient)
 	if err != nil {
 		return ""
 	}
@@ -255,11 +328,11 @@ func GetForgeRecommended(mcVersion string) string {
 	}
 	// Get mcVersion-recommended, if it doesn't exist then get mcVersion-latest
 	// If neither exist, return empty string
-	recommendedString := fmt.Sprintf("%s-recommended", mcVersion)
+	recommendedString := fmt.Sprintf("%s-recommended", q.McVersion)
 	if out.Versions[recommendedString] != "" {
 		return out.Versions[recommendedString]
 	}
-	latestString := fmt.Sprintf("%s-latest", mcVersion)
+	latestString := fmt.Sprintf("%s-latest", q.McVersion)
 	if out.Versions[latestString] != "" {
 		return out.Versions[latestString]
 	}
