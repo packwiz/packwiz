@@ -198,6 +198,9 @@ func fetchLiteloaderStyle(q VersionListQuery, url string) (*ModLoaderVersions, e
 	})
 }
 
+// Retrieves all versions through maven metadata, and then processes the using the provided `filterMap` function.
+// When `filterMap` returns a string, the version will be renamed to the provided string. If `nil` is returned, the
+// version is marked as invalid and will not be considered in the result.
 func fetchMavenWithFilterMap(q VersionListQuery, url string, filterMap func(version string) *string) (*ModLoaderVersions, error) {
 	res, err := GetWithUA(url, "application/xml")
 	if err != nil {
