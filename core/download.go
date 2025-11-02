@@ -157,30 +157,28 @@ func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []st
 	}
 
 	hashesToObtain, hashes := getHashListsForDownload(hashesToObtain, task.hashFormat, task.hash)
-	if len(hashesToObtain) > 0 {
-		var data io.ReadCloser
-		if task.url != "" {
-			resp, err := GetWithUA(task.url, "application/octet-stream")
-			if err != nil {
-				return CompletedDownload{}, fmt.Errorf("failed to download %s: %w", task.url, err)
-			}
-			if resp.StatusCode != 200 {
-				_ = resp.Body.Close()
-				return CompletedDownload{}, fmt.Errorf("failed to download %s: invalid status code %v", task.url, resp.StatusCode)
-			}
-			data = resp.Body
-		} else {
-			data, err = task.metaDownloaderData.DownloadFile()
-			if err != nil {
-				return CompletedDownload{}, err
-			}
-		}
-
-		err = teeHashes(hashesToObtain, hashes, tempFile, data)
-		_ = data.Close()
+	var data io.ReadCloser
+	if task.url != "" {
+		resp, err := GetWithUA(task.url, "application/octet-stream")
 		if err != nil {
-			return CompletedDownload{}, fmt.Errorf("failed to download: %w", err)
+			return CompletedDownload{}, fmt.Errorf("failed to download %s: %w", task.url, err)
 		}
+		if resp.StatusCode != 200 {
+			_ = resp.Body.Close()
+			return CompletedDownload{}, fmt.Errorf("failed to download %s: invalid status code %v", task.url, resp.StatusCode)
+		}
+		data = resp.Body
+	} else {
+		data, err = task.metaDownloaderData.DownloadFile()
+		if err != nil {
+			return CompletedDownload{}, err
+		}
+	}
+
+	err = teeHashes(hashesToObtain, hashes, tempFile, data)
+	_ = data.Close()
+	if err != nil {
+		return CompletedDownload{}, fmt.Errorf("failed to download: %w", err)
 	}
 
 	// Create handle with calculated hashes
