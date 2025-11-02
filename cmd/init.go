@@ -3,6 +3,7 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -89,7 +90,7 @@ var initCmd = &cobra.Command{
 		modLoaderVersions := make(map[string]string)
 		if modLoaderName != "none" {
 			if ok {
-				versions, latestVersion, err := loader.VersionListGetter(mcVersion)
+				versionData, err := core.DoQuery(core.MakeQuery(loader, mcVersion))
 				if err != nil {
 					fmt.Printf("Error loading versions: %s\n", err)
 					os.Exit(1)
@@ -97,9 +98,9 @@ var initCmd = &cobra.Command{
 				componentVersion := viper.GetString("init." + loader.Name + "-version")
 				if len(componentVersion) == 0 {
 					if viper.GetBool("init." + loader.Name + "-latest") {
-						componentVersion = latestVersion
+						componentVersion = versionData.Latest
 					} else {
-						componentVersion = initReadValue(loader.FriendlyName+" version ["+latestVersion+"]: ", latestVersion)
+						componentVersion = initReadValue(loader.FriendlyName+" version ["+versionData.Latest+"]: ", versionData.Latest)
 					}
 				}
 				v := componentVersion
@@ -108,7 +109,7 @@ var initCmd = &cobra.Command{
 				if loader.Name == "forge" || (loader.Name == "neoforge" && mcVersion == "1.20.1") {
 					v = cmdshared.GetRawForgeVersion(componentVersion)
 				}
-				if !slices.Contains(versions, v) {
+				if !slices.Contains(versionData.Versions, v) {
 					fmt.Println("Given " + loader.FriendlyName + " version cannot be found!")
 					os.Exit(1)
 				}
@@ -116,13 +117,8 @@ var initCmd = &cobra.Command{
 			} else {
 				fmt.Println("Given mod loader is not supported! Use \"none\" to specify no modloader, or to configure one manually.")
 				fmt.Print("The following mod loaders are supported: ")
-				keys := make([]string, len(core.ModLoaders))
-				i := 0
-				for k := range core.ModLoaders {
-					keys[i] = k
-					i++
-				}
-				fmt.Println(strings.Join(keys, ", "))
+				loader_names := slices.Collect(maps.Keys(core.ModLoaders))
+				fmt.Println(strings.Join(loader_names, ", "))
 				os.Exit(1)
 			}
 		}
