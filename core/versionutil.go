@@ -177,7 +177,11 @@ func FetchMavenWithNeoForgeStyleVersions(url string, friendlyName string) func(m
 		if len(mcSplit) > 2 {
 			mcMinor = mcSplit[2]
 		}
-		return strings.HasPrefix(neoforgeVersion, mcMajor+"."+mcMinor)
+
+		// We can only accept an exact version number match, because otherwise 1.21.1 would pull in loader versions for 1.21.10.
+		var requiredPrefix = mcMajor + "." + mcMinor + "."
+
+		return strings.HasPrefix(neoforgeVersion, requiredPrefix)
 	})
 }
 
