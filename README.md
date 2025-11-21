@@ -32,7 +32,7 @@ To run the executable, first extract it, then add the folder where you extracted
 
 In future I will have a lot more installation options, but you can also compile from source:
 
-1. Install Go (1.19 or newer) from https://golang.org/dl/
+1. Install Go (1.24 or newer) from https://golang.org/dl/
 2. Run `go install github.com/packwiz/packwiz@latest`. Be patient, it has to download and compile dependencies as well!
 
 ## Documentation

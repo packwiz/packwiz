@@ -6,9 +6,10 @@ import (
 
 	"github.com/packwiz/packwiz/cmdshared"
 
+	"slices"
+
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
-	"golang.org/x/exp/slices"
 )
 
 // rehashCmd represents the rehash command

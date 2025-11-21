@@ -1,19 +1,20 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
+	"math"
+	"net/http"
+	"net/url"
+	"regexp"
+	"slices"
+
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"github.com/packwiz/packwiz/cmd"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/unascribed/FlexVer/go/flexver"
-	"golang.org/x/exp/slices"
-	"math"
-	"net/http"
-	"net/url"
-	"regexp"
 )
 
 var modrinthCmd = &cobra.Command{
@@ -259,7 +260,7 @@ func compareLoaderLists(a []string, b []string) int32 {
 			continue
 		}
 		idx := slices.Index(loaderPreferenceList, v)
-		if idx < minIdxA {
+		if idx != -1 && idx < minIdxA {
 			return 1 // B has more preferable loaders
 		}
 		if idx != -1 && idx < minIdxB {

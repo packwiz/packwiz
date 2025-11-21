@@ -1,15 +1,16 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
-	"github.com/packwiz/packwiz/cmdshared"
-	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
+	"github.com/packwiz/packwiz/cmdshared"
+	"github.com/spf13/viper"
 
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
@@ -410,7 +411,8 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 
 	side := getSide(project)
 	if side == "" {
-		return errors.New("version doesn't have a side that's supported. Server: " + *project.ServerSide + " Client: " + *project.ClientSide)
+		fmt.Println("Warning: Project doesn't have a side that's supported; assuming universal. Server: " + *project.ServerSide + " Client: " + *project.ClientSide)
+		side = core.UniversalSide
 	}
 
 	algorithm, hash := getBestHash(file)

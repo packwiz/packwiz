@@ -2,13 +2,14 @@ package settings
 
 import (
 	"fmt"
+	"os"
+	"slices"
+	"strings"
+
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/unascribed/FlexVer/go/flexver"
-	"golang.org/x/exp/slices"
-	"os"
-	"strings"
 )
 
 var acceptableVersionsCommand = &cobra.Command{

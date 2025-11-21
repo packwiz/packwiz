@@ -3,16 +3,17 @@ package cmd
 import (
 	"bufio"
 	"fmt"
+	"os"
+	"path/filepath"
+	"slices"
+	"strings"
+
 	"github.com/fatih/camelcase"
 	"github.com/igorsobreira/titlecase"
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	"golang.org/x/exp/slices"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 // initCmd represents the init command
@@ -102,7 +103,9 @@ var initCmd = &cobra.Command{
 					}
 				}
 				v := componentVersion
-				if loader.Name == "forge" || loader.Name == "neoforge" {
+				// Forge uses a format where they prefix their version with their supported minecraft version. NeoForge
+				// did this too, but only during the 1.20.1 days, they've since switched formats.
+				if loader.Name == "forge" || (loader.Name == "neoforge" && mcVersion == "1.20.1") {
 					v = cmdshared.GetRawForgeVersion(componentVersion)
 				}
 				if !slices.Contains(versions, v) {
