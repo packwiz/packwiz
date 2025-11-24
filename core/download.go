@@ -157,30 +157,28 @@ func downloadNewFile(task *downloadTask, cacheFolder string, hashesToObtain []st
 	}
 
 	hashesToObtain, hashes := getHashListsForDownload(hashesToObtain, task.hashFormat, task.hash)
-	if len(hashesToObtain) > 0 {
-		var data io.ReadCloser
-		if task.url != "" {
-			resp, err := GetWithUA(task.url, "application/octet-stream")
-			if err != nil {
-				return CompletedDownload{}, fmt.Errorf("failed to download %s: %w", task.url, err)
-			}
-			if resp.StatusCode != 200 {
-				_ = resp.Body.Close()
-				return CompletedDownload{}, fmt.Errorf("failed to download %s: invalid status code %v", task.url, resp.StatusCode)
-			}
-			data = resp.Body
-		} else {
-			data, err = task.metaDownloaderData.DownloadFile()
-			if err != nil {
-				return CompletedDownload{}, err
-			}
-		}
-
-		err = teeHashes(hashesToObtain, hashes, tempFile, data)
-		_ = data.Close()
+	var data io.ReadCloser
+	if task.url != "" {
+		resp, err := GetWithUA(task.url, "application/octet-stream")
 		if err != nil {
-			return CompletedDownload{}, fmt.Errorf("failed to download: %w", err)
+			return CompletedDownload{}, fmt.Errorf("failed to download %s: %w", task.url, err)
 		}
+		if resp.StatusCode != 200 {
+			_ = resp.Body.Close()
+			return CompletedDownload{}, fmt.Errorf("failed to download %s: invalid status code %v", task.url, resp.StatusCode)
+		}
+		data = resp.Body
+	} else {
+		data, err = task.metaDownloaderData.DownloadFile()
+		if err != nil {
+			return CompletedDownload{}, err
+		}
+	}
+
+	err = teeHashes(hashesToObtain, hashes, tempFile, data)
+	_ = data.Close()
+	if err != nil {
+		return CompletedDownload{}, fmt.Errorf("failed to download: %w", err)
 	}
 
 	// Create handle with calculated hashes
@@ -291,6 +289,7 @@ func teeHashes(hashesToObtain []string, hashes map[string]string,
 }
 
 const cacheHashFormat = "sha256"
+const cacheLatestVersion = 2
 
 type CacheIndex struct {
 	Version     uint32
@@ -303,6 +302,31 @@ type CacheIndexHandle struct {
 	index   *CacheIndex
 	hashIdx int
 	Hashes  map[string]string
+}
+
+func (c *CacheIndex) updateVersion() {
+	if c.Version == 1 {
+		// Version 1 had an error where it wouldn't properly download files,
+		// resulting in files with size zero.
+		// This is fixed in version 2. We presume that all empty files downloaded
+		// in version 1 are broken.
+		toRemove := []int{}
+		for hashIdx, hash := range c.Hashes[cacheHashFormat] {
+			stats, err := os.Stat(filepath.Join(c.cachePath, hash[:2], hash[2:]))
+			if err != nil {
+				// failed to open file? Remove it from the cache then
+				toRemove = append(toRemove, hashIdx)
+			} else {
+				if stats.Size() == 0 {
+					toRemove = append(toRemove, hashIdx)
+				}
+			}
+		}
+		for hashName := range c.Hashes {
+			c.Hashes[hashName] = removeIndices(c.Hashes[hashName], toRemove)
+		}
+		c.Version = 2
+	}
 }
 
 func (c *CacheIndex) getHashesMap(i int) map[string]string {
@@ -586,7 +610,7 @@ func removeEmpty(hashList []string) ([]string, []int) {
 
 func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSession, error) {
 	// Load cache index
-	cacheIndex := CacheIndex{Version: 1, Hashes: make(map[string][]string)}
+	cacheIndex := CacheIndex{Version: cacheLatestVersion, Hashes: make(map[string][]string)}
 	cachePath, err := GetPackwizCache()
 	if err != nil {
 		return nil, fmt.Errorf("failed to load cache: %w", err)
@@ -609,9 +633,6 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 		if err != nil {
 			return nil, fmt.Errorf("failed to read cache index file: %w", err)
 		}
-		if cacheIndex.Version > 1 {
-			return nil, fmt.Errorf("cache index is too new (version %v)", cacheIndex.Version)
-		}
 	}
 
 	// Ensure some parts of the index are initialised
@@ -620,6 +641,12 @@ func CreateDownloadSession(mods []*Mod, hashesToObtain []string) (DownloadSessio
 		cacheIndex.Hashes[cacheHashFormat] = make([]string, 0)
 	}
 	cacheIndex.cachePath = cachePath
+
+	// Ensure the cache's version is up-to-date
+	cacheIndex.updateVersion()
+	if cacheIndex.Version > cacheLatestVersion {
+		return nil, fmt.Errorf("cache index is too new (version %v)", cacheIndex.Version)
+	}
 
 	// Clean up empty entries in index
 	var removedEntries []int
