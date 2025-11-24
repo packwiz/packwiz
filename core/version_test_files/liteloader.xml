@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<metadata>
+  <groupId>com.mumfrey</groupId>
+  <artifactId>liteloader</artifactId>
+  <versioning>
+    <latest>1.9.4-SNAPSHOT</latest>
+    <release></release>
+    <versions>
+      <version>1.8.9-SNAPSHOT</version>
+      <version>1.9-SNAPSHOT</version>
+      <version>1.9.4-SNAPSHOT</version>
+      <version>1.8-SNAPSHOT</version>
+      <version>1.10-SNAPSHOT</version>
+      <version>1.10.2-SNAPSHOT</version>
+      <version>1.11-SNAPSHOT</version>
+      <version>1.11.2-SNAPSHOT</version>
+      <version>1.12-SNAPSHOT</version>
+      <version>1.12.1-SNAPSHOT</version>
+      <version>1.12.2-SNAPSHOT</version>
+    </versions>
+    <lastUpdated>20171128144432</lastUpdated>
+  </versioning>
+</metadata>
