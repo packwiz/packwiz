@@ -167,10 +167,17 @@ type modInfo struct {
 		Modloader   modloaderType `json:"modLoader"`
 	} `json:"latestFilesIndexes"`
 	ModLoaders []string `json:"modLoaders"`
-	Links      struct {
+	Categories []struct {
+		Slug string `json:"slug"`
+	} `json:"categories"`
+	Links struct {
 		WebsiteURL string `json:"websiteUrl"`
+		WikiURL    string `json:"wikiUrl"`
+		IssuesURL  string `json:"issuesUrl"`
+		SourceURL  string `json:"sourceUrl"`
 	} `json:"links"`
 }
+
 
 func (c *cfApiClient) getModInfo(modID uint32) (modInfo, error) {
 	var infoRes struct {
