@@ -1,12 +1,16 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
+	"context"
 	"errors"
 	"fmt"
+	"time"
+
+	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/packwiz/packwiz/core"
+	"golang.org/x/time/rate"
 )
 
 type mrUpdateData struct {
@@ -35,10 +39,13 @@ type cachedStateStore struct {
 	Version   *modrinthApi.Version
 }
 
+var rateLimiter = rate.NewLimiter(rate.Every(150*time.Millisecond), 5) //Reasonable limit to avoid hitting rate limits
+
 func (u mrUpdater) CheckUpdate(mods []*core.Mod, pack core.Pack) ([]core.UpdateCheck, error) {
 	results := make([]core.UpdateCheck, len(mods))
 
 	for i, mod := range mods {
+		_ = rateLimiter.Wait(context.Background())
 		rawData, ok := mod.GetParsedUpdateData("modrinth")
 		if !ok {
 			results[i] = core.UpdateCheck{Error: errors.New("failed to parse update metadata")}
