@@ -154,7 +154,42 @@ func fetchForgeStyle(q VersionListQuery, url string) (*ModLoaderVersions, error)
 }
 
 func fetchNeoForgeStyle(q VersionListQuery, url string) (*ModLoaderVersions, error) {
-	// NeoForge style:
+	// NeoForge style, for mc versions above 26.1:
+	// If minecraft versions are in the form of year.major.minor-(pre-release),
+	// then neoforge versions are in the form of year.major.minor.x(nf-pre-release)+(pre-release)
+	// Eg, for minecraft 26.1-snapshot-6, neoforge has versions 26.1.0.0-alpha.9+snapshot-6 and 26.1.0.0-alpha.10+snapshot-6
+
+	var mcSplit = strings.SplitN(q.McVersion, ".", 3)
+
+	if len(mcSplit) < 2 {
+		// This does not appear to be a minecraft version that's formatted in a way that neoforge's scheme supports
+		return nil, fmt.Errorf("packwiz cannot detect compatible %s versions for this Minecraft version (%s)", q.Loader.FriendlyName, q.McVersion)
+	}
+
+	var year = mcSplit[0]
+	var major = mcSplit[1]
+	var minor = "0"
+	var prerelease = ""
+
+	if len(mcSplit) == 3 {
+		minor, prerelease, _ = strings.Cut(mcSplit[2], "-")
+	} else {
+		major, prerelease, _ = strings.Cut(mcSplit[1], "-")
+	}
+
+	var requiredPrefix = year + "." + major + "." + minor
+	var requiredSuffix = prerelease
+
+	return fetchMavenWithFilterMap(q, url, func(version string) *string {
+		if strings.HasPrefix(version, requiredPrefix) && strings.HasSuffix(version, requiredSuffix) {
+			return &version
+		}
+		return nil
+	})
+}
+
+func fetchOldNeoForgeStyle(q VersionListQuery, url string) (*ModLoaderVersions, error) {
+	// NeoForge style, for mc versions below 1.21.11:
 	// If minecraft versions are in the form of 1.a.b, then neoforge versions are in the form of a.b.x
 	// Eg, for minecraft 1.20.6, neoforge version 20.6.2 and 20.6.83-beta would both be valid versions
 	// for minecraft 1.20.2, neoforge version 20.2.23-beta
@@ -162,7 +197,7 @@ func fetchNeoForgeStyle(q VersionListQuery, url string) (*ModLoaderVersions, err
 
 	var mcSplit = strings.Split(q.McVersion, ".")
 	if len(mcSplit) < 2 {
-		// This does not appear to be a minecraft version that's formatted in a way that matches neoforge
+		// This does not appear to be a minecraft version that's formatted in a way that neoforge's scheme supports
 		return nil, fmt.Errorf("packwiz cannot detect compatible %s versions for this Minecraft version (%s)", q.Loader.FriendlyName, q.McVersion)
 	}
 	var mcMajor = mcSplit[1]
@@ -247,7 +282,18 @@ func fetchForNeoForge(q VersionListQuery) (*ModLoaderVersions, error) {
 	if q.McVersion == "1.20.1" {
 		return fetchForgeStyle(q, "https://maven.neoforged.net/releases/net/neoforged/forge/maven-metadata.xml")
 	} else {
-		return fetchNeoForgeStyle(q, "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml")
+		// Mojang changed versioning schemes between 1.21.11 and 26.1
+		// The old versioning scheme was 1.major.minor, which changed to year.major(.patch)
+		// With snapshot releases for 26.1 being eg 26.1-snapshot.1
+
+		// NeoForge's versioning scheme changed with that. Luckily all versions using the old versioning
+		// scheme start with "1.". Well, some things don't (alpha versions, snapshot versions, etc) but NeoForge
+		// doesn't support any of those either way.
+		if strings.HasPrefix(q.McVersion, "1.") {
+			return fetchOldNeoForgeStyle(q, "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml")
+		} else {
+			return fetchNeoForgeStyle(q, "https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml")
+		}
 	}
 }
 

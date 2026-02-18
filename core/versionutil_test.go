@@ -127,3 +127,9 @@ func TestNeoForge1211(t *testing.T) {
 func TestNeoForge1210(t *testing.T) {
 	expectLatest(t, "neoforge", "1.21.10", "21.10.43-beta")
 }
+
+func TestNeoForge261snapshot6(t *testing.T) {
+	expectLatest(t, "neoforge", "26.1-snapshot-6", "26.1.0.0-alpha.10+snapshot-6")
+	expectValid(t, "neoforge", "26.1-snapshot-6", "26.1.0.0-alpha.9+snapshot-6")
+	expectInvalid(t, "neoforge", "26.1-snapshot-6", "26.1.0.0-alpha.11+snapshot-7")
+}
