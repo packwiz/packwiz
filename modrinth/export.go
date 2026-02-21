@@ -105,7 +105,7 @@ var exportCmd = &cobra.Command{
 			if canBeIncludedDirectly(dl.Mod, restrictDomains) {
 				if dl.Error != nil {
 					fmt.Printf("Download of %s (%s) failed: %v\n", dl.Mod.Name, dl.Mod.FileName, dl.Error)
-					continue
+					os.Exit(1)
 				}
 				for _, warning := range dl.Warnings {
 					fmt.Printf("Warning for %s (%s): %v\n", dl.Mod.Name, dl.Mod.FileName, warning)
