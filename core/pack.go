@@ -222,3 +222,13 @@ func (pack Pack) GetLoaders() (loaders []string) {
 	}
 	return
 }
+
+func (pack Pack) CreateExportFile(fileName string, defaultFileExt string) (*os.File, error) {
+	// If fileName doesn't have an extension, treat it as a directory name.
+	if len(filepath.Ext(fileName)) <= 1 {
+		fileName = filepath.Join(fileName, pack.GetPackName()+defaultFileExt)
+	}
+
+	os.MkdirAll(filepath.Dir(fileName), 0755)
+	return os.Create(fileName)
+}
