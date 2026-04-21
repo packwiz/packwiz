@@ -20,7 +20,7 @@ jobs:
         NIX_CONFIG: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
     - name: Update packwiz version
-      run: nix run nixpkgs#nix-prefetch ./nix/prefetcher.nix | tee ./nix/vendor-hash
+      run: nix run nixpkgs#nix-update -- -F --version=skip packwiz
       env:
         NIX_CONFIG: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
 
@@ -29,4 +29,3 @@ jobs:
       with:
         commit_message: "chore: update packwiz vendorHash"
         branch: main
-
