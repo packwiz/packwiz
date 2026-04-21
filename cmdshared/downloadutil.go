@@ -68,7 +68,7 @@ func AddToZip(dl core.CompletedDownload, exp *zip.Writer, dir string, index *cor
 func AddNonMetafileOverrides(index *core.Index, exp *zip.Writer) {
 	for p, v := range index.Files {
 		if !v.IsMetaFile() {
-			file, err := exp.Create(path.Join("overrides", p))
+			file, err := exp.Create(path.Join("overrides", v.AliasPath()))
 			if err != nil {
 				fmt.Printf("Error creating file: %s\n", err.Error())
 				// TODO: exit(1)?
