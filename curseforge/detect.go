@@ -18,6 +18,7 @@ var detectCmd = &cobra.Command{
 	Short: "Detect .jar files in the mods folder (experimental)",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+		keepJars, _ := cmd.Flags().GetBool("keep-jars")
 		fmt.Println("Loading modpack...")
 		pack, err := core.LoadPack()
 		if err != nil {
@@ -121,12 +122,14 @@ var detectCmd = &cobra.Command{
 			}
 
 			path, ok := modPaths[v.File.Fingerprint]
-			if ok {
+			if ok && !keepJars {
 				err = os.Remove(path)
 				if err != nil {
 					fmt.Println(err)
 					os.Exit(1)
 				}
+			} else if ok && keepJars {
+				fmt.Printf("Kept original file: %s\n", path)
 			}
 		}
 		
@@ -161,6 +164,7 @@ var detectCmd = &cobra.Command{
 
 func init() {
 	curseforgeCmd.AddCommand(detectCmd)
+	detectCmd.Flags().Bool("keep-jars", false, "Keep original .jar files after creating metadata (instead of deleting them)")
 }
 
 func getByteArrayHash(bytes []byte) uint32 {
