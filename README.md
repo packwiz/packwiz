@@ -21,7 +21,7 @@ Join my Discord server if you need help [here](https://discord.gg/Csh8zbbhCt)!
 - Exporting to CurseForge and Modrinth packs
 - Importing from CurseForge packs
 - Server-only and Client-only mod handling
-- Creation of remote file metadata from JAR files for CurseForge mods
+- Creation of remote file metadata from JAR files for CurseForge mods (`packwiz cf detect --keep-jars` to preserve original JARs)
 
 ## Installation
 Prebuilt binaries are available from [GitHub Actions](https://github.com/packwiz/packwiz/actions) - the UI is a bit terrible, but essentially select the top build, then download the artifact ZIP for your system at the bottom of the page.  
