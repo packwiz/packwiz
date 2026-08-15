@@ -1,5 +1,9 @@
 name: Go
-on: [push, workflow_dispatch]
+on:
+  push:
+    tags-ignore:
+      - 'v*'
+  workflow_dispatch:
 jobs:
 
   build:
