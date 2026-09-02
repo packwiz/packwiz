@@ -409,9 +409,13 @@ func createFileMeta(project *modrinthApi.Project, version *modrinthApi.Version, 
 		return err
 	}
 
-	side := getSide(project)
+	side := getSide(version)
+	if side == "either" {
+		fmt.Println("Warning: Project (" + getNiceName(project) + ") is marked for both server and client. This project has indicated that one of these is unnecessary. You may want to manually set this to either server or client depending on preference")
+		side = core.UniversalSide
+	}
 	if side == "" {
-		fmt.Println("Warning: Project doesn't have a side that's supported; assuming universal. Server: " + *project.ServerSide + " Client: " + *project.ClientSide)
+		fmt.Println("Warning: Project (" + getNiceName(project) + ") has unknown environment value: `" + *version.Environment + "`. Since packwiz doesn't understand this value, it'll be marked for both server and client")
 		side = core.UniversalSide
 	}
 
