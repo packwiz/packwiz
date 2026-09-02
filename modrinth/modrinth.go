@@ -343,22 +343,107 @@ func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthA
 }
 
 func getSide(mod *modrinthApi.Project) string {
-	server := shouldDownloadOnSide(*mod.ServerSide)
-	client := shouldDownloadOnSide(*mod.ClientSide)
+	// Return values:
+	//  core.ClientSide
+	//  core.ServerSide
+	//  core.UniversalSide
+	//  "" (empty string): one of the values couldn't be parsed
+	//  "none": the project has no environment/sidedness information
+	//  "either": the project is for either client or server side, but we don't know which
 
-	if server && client {
-		return core.UniversalSide
-	} else if server {
-		return core.ServerSide
-	} else if client {
-		return core.ClientSide
-	} else {
-		return ""
+	// For *some* reason, this is an array. We'll try and accumulate these all neatly
+	acc := "none"
+	for _, rawEnv := range mod.Environment {
+		env := parseEnvString(rawEnv)
+
+		if env == "" {
+			// Propagate errors. Any invalid value in the array means that packwiz should make no assumptions and warn the user
+			// Note that this is why we can't early return in any other case: even if the accumulator never changes we should still
+			// verify all the values are valid
+			return ""
+		}
+
+		if acc == "none" {
+			// for all x: `none + x = x`
+			acc = env
+		} else if acc == core.UniversalSide || env == core.UniversalSide {
+			// for all x: `universal + x = universal`
+		} else if acc == env {
+			// for all x: `x + x = x`
+		} else if acc == "either" {
+			// This is an assertion: env must be core.ClientSide | core.ServerSide based on the previous if statements
+			if env != core.ClientSide && env != core.ServerSide {
+				panic("Invalid state")
+			}
+			// `"either" + core.ClientSide = core.ClientSide`
+			// `"either" + core.ServerSide = core.ServerSide`
+			acc = env
+		} else if env == "either" {
+			// This is an assertion: acc must be core.ClientSide | core.ServerSide based on the previous if statements
+			if acc != core.ClientSide && acc != core.ServerSide {
+				panic("Invalid state")
+			}
+			// `"either" + core.ClientSide = core.ClientSide`
+			// `"either" + core.ServerSide = core.ServerSide`
+		} else {
+			// This is an assertion: it must hold true based on the previous if statements
+			if !((acc == core.ClientSide && env == core.ServerSide) || (env == core.ClientSide && acc == core.ServerSide)) {
+				panic("Invalid state")
+			}
+			// `core.ClientSide + core.ServerSide = core.UniversalSide`
+			acc = core.UniversalSide
+		}
 	}
+	return acc
 }
 
-func shouldDownloadOnSide(side string) bool {
-	return side == "required" || side == "optional"
+func parseEnvString(env string) string {
+	// Return values:
+	//  core.ClientSide
+	//  core.ServerSide
+	//  core.UniversalSide
+	//  "" (empty string): the value couldn't be parsed
+	//  "either": the project is for either client or server side, but we don't know which
+
+	// See https://modrinth.com/news/article/new-environments/#new-system
+	// for explanations of these
+	switch env {
+	case "client_only":
+		// Only does stuff on the client, no reason to add to a dedi server
+		return core.ClientSide
+	case "server_only":
+		// Works on the logical server. The mod also works in singleplayer, so
+		// should be installed on the physical server and client
+		return core.UniversalSide
+	case "dedicated_server_only":
+		// Works only on the physical server.
+		return core.ServerSide
+	case "client_and_server":
+		// Must be on both
+		return core.UniversalSide
+	case "server_only_client_optional":
+	case "client_only_server_optional":
+	case "client_or_server_prefers_both":
+		// All variants where it needs to be on both for maximum functionality
+		return core.UniversalSide
+	case "client_or_server":
+		// Now this is an interesting one. The mod is for a client *or* a server, and should
+		// really be installed on only one. There's no indication of which one is preferred.
+		// We'll return a special value to indicate as such
+		return "either"
+	case "singleplayer_only":
+		// Singleplayer doesn't exist on the logical server. So only install it on the client
+		return core.ClientSide
+	}
+	return ""
+}
+
+func getNiceName(mod *modrinthApi.Project) string {
+	if mod.Slug != nil {
+		return *mod.Slug
+	} else {
+		return *mod.ID
+	}
 }
 
 func getBestHash(v *modrinthApi.File) (string, string) {
