@@ -342,62 +342,7 @@ func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthA
 	return releaseDateLatest, nil
 }
 
-func getSide(mod *modrinthApi.Project) string {
-	// Return values:
-	//  core.ClientSide
-	//  core.ServerSide
-	//  core.UniversalSide
-	//  "" (empty string): one of the values couldn't be parsed
-	//  "none": the project has no environment/sidedness information
-	//  "either": the project is for either client or server side, but we don't know which
-
-	// For *some* reason, this is an array. We'll try and accumulate these all neatly
-	acc := "none"
-	for _, rawEnv := range mod.Environment {
-		env := parseEnvString(rawEnv)
-
-		if env == "" {
-			// Propagate errors. Any invalid value in the array means that packwiz should make no assumptions and warn the user
-			// Note that this is why we can't early return in any other case: even if the accumulator never changes we should still
-			// verify all the values are valid
-			return ""
-		}
-
-		if acc == "none" {
-			// for all x: `none + x = x`
-			acc = env
-		} else if acc == core.UniversalSide || env == core.UniversalSide {
-			// for all x: `universal + x = universal`
-		} else if acc == env {
-			// for all x: `x + x = x`
-		} else if acc == "either" {
-			// This is an assertion: env must be core.ClientSide | core.ServerSide based on the previous if statements
-			if env != core.ClientSide && env != core.ServerSide {
-				panic("Invalid state")
-			}
-			// `"either" + core.ClientSide = core.ClientSide`
-			// `"either" + core.ServerSide = core.ServerSide`
-			acc = env
-		} else if env == "either" {
-			// This is an assertion: acc must be core.ClientSide | core.ServerSide based on the previous if statements
-			if acc != core.ClientSide && acc != core.ServerSide {
-				panic("Invalid state")
-			}
-			// `"either" + core.ClientSide = core.ClientSide`
-			// `"either" + core.ServerSide = core.ServerSide`
-		} else {
-			// This is an assertion: it must hold true based on the previous if statements
-			if !((acc == core.ClientSide && env == core.ServerSide) || (env == core.ClientSide && acc == core.ServerSide)) {
-				panic("Invalid state")
-			}
-			// `core.ClientSide + core.ServerSide = core.UniversalSide`
-			acc = core.UniversalSide
-		}
-	}
-	return acc
-}
-
-func parseEnvString(env string) string {
+func getSide(version *modrinthApi.Version) string {
 	// Return values:
 	//  core.ClientSide
 	//  core.ServerSide
@@ -407,7 +352,10 @@ func parseEnvString(env string) string {
 
 	// See https://modrinth.com/news/article/new-environments/#new-system
 	// for explanations of these
-	switch env {
+	if version.Environment == nil {
+		return ""
+	}
+	switch *version.Environment {
 	case "client_only":
 		// Only does stuff on the client, no reason to add to a dedi server
 		return core.ClientSide

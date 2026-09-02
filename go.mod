@@ -58,4 +58,4 @@ go 1.23.0
 
 toolchain go1.24.6
 
-replace codeberg.org/jmansfield/go-modrinth v0.6.0 => codeberg.org/theepicblock/go-modrinth v0.0.0-20260902154400-95203eb4ddcd
+replace codeberg.org/jmansfield/go-modrinth v0.6.0 => codeberg.org/theepicblock/go-modrinth v0.0.0-20260902164905-15b247c997ed
