@@ -319,7 +319,7 @@ func getLatestVersion(projectID string, name string, pack core.Pack) (*modrinthA
 		loaders = append(pack.GetCompatibleLoaders(), defaultMRLoaders...)
 	}
 
-	result, err := mrDefaultClient.Versions.ListVersions(projectID, modrinthApi.ListVersionsOptions{
+	result, err := mrDefaultClient.Versions.ListVersions(projectID, &modrinthApi.ListVersionsOptions{
 		GameVersions: gameVersions,
 		Loaders:      loaders,
 	})
@@ -424,7 +424,7 @@ func resolveVersion(project *modrinthApi.Project, version string) (*modrinthApi.
 
 	// Look up all versions
 	// TODO: PR a version number filter to Modrinth?
-	versionsList, err := mrDefaultClient.Versions.ListVersions(*project.ID, modrinthApi.ListVersionsOptions{})
+	versionsList, err := mrDefaultClient.Versions.ListVersions(*project.ID, &modrinthApi.ListVersionsOptions{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch version list for %s: %v", *project.ID, err)
 	}
