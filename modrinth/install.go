@@ -8,7 +8,7 @@ import (
 	"slices"
 	"strings"
 
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
+	modrinthApi "codeberg.org/theepicblock/go-modrinth/modrinth"
 	"github.com/packwiz/packwiz/cmdshared"
 	"github.com/spf13/viper"
 
