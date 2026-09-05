@@ -20,3 +20,26 @@ jobs:
     # the current repository instead
     - name: Attempt to install packwiz
       run: go install ${GITHUB_SERVER_URL#*://}/$GITHUB_REPOSITORY@$GITHUB_SHA
+  
+  run-tests:
+    name: Run go tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Go 1.24.6
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.24.6
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v4
+
+    - name: Verify module
+      run: go mod verify
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run tests
+      run: go test ./...
