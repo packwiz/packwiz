@@ -9,7 +9,7 @@ import (
 	"regexp"
 	"slices"
 
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
+	modrinthApi "codeberg.org/theepicblock/go-modrinth/modrinth"
 	"github.com/packwiz/packwiz/cmd"
 	"github.com/packwiz/packwiz/core"
 	"github.com/spf13/cobra"

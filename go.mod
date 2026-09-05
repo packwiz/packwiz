@@ -28,7 +28,7 @@ require (
 )
 
 require (
-	codeberg.org/jmansfield/go-modrinth v0.6.0
+	codeberg.org/theepicblock/go-modrinth v0.0.0-20260905195012-013263817bbf
 	github.com/spf13/pflag v1.0.7
 	github.com/unascribed/FlexVer/go/flexver v1.0.0
 )
@@ -57,5 +57,3 @@ require (
 go 1.23.0
 
 toolchain go1.24.6
-
-replace codeberg.org/jmansfield/go-modrinth v0.6.0 => codeberg.org/theepicblock/go-modrinth v0.0.0-20260902164905-15b247c997ed

@@ -1,9 +1,10 @@
 package modrinth
 
 import (
-	modrinthApi "codeberg.org/jmansfield/go-modrinth/modrinth"
 	"errors"
 	"fmt"
+
+	modrinthApi "codeberg.org/theepicblock/go-modrinth/modrinth"
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/packwiz/packwiz/core"
