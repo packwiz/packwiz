@@ -1,0 +1,75 @@
+name: Go Tests
+on: [push, pull_request]
+jobs:
+
+  run-install:
+    name: Test 'go install'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+    - name: Set up Go 1.24.6
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.24.6
+      id: go
+    
+    - name: Check out code
+      uses: actions/checkout@v4
+    
+    # Our goal: test if `go install github.com/packwiz/packwiz@latest` still works. Since a
+    # decent amount of people install packwiz in this manner. `go install` has some differences
+    # in behaviour when using modules with version suffixes. For example, the "redirect" keyword is
+    # forbidden in this mode. This does not happen when running `go install .`, so we must emulate
+    # installing it from a remote. Installing it through git doesn't work, since this workflow also
+    # runs on pr's and that appears to mess with stuff.
+    
+    # Therefore we do this, very stupid option of making a folder with the same folder structure as a goproxy
+    # which will hold our code, with a fake version tag of "v1.99.99"
+
+    - name: Set up a fake goproxy folder
+      run: |
+        mkdir -p /tmp/fakegoproxy/github.com/packwiz/packwiz/@v/
+        echo '{"Version":"v1.99.99","Time":"2000-01-01T00:00:00Z"}' > /tmp/fakegoproxy/github.com/packwiz/packwiz/@v/v1.99.99.info
+        echo 'v1.99.99' > /tmp/fakegoproxy/github.com/packwiz/packwiz/@v/list
+        cp ./go.mod /tmp/fakegoproxy/github.com/packwiz/packwiz/@v/v1.99.99.mod
+        rm -rf $(go env GOMODCACHE)/cache/download/github.com/packwiz # Ensure that we don't accidentally use any cached versions
+        # The following python scripts zips a folder whilst adding the correct prefix to it:
+        python -c "$(cat <<'EOF'
+        import os;
+        import zipfile;
+        with zipfile.ZipFile("/tmp/fakegoproxy/github.com/packwiz/packwiz/@v/v1.99.99.zip", "w") as zf:
+          for root, dirs, files in os.walk("."):
+            for file in files:
+              zf.write(os.path.join(root, file), os.path.join("github.com/packwiz/packwiz@v1.99.99/",root,file))
+        EOF
+        )"
+        rm -rf $(go env GOMODCACHE)/cache/download/github.com/packwiz # Ensure that this version doesn't end up being cached
+
+    - name: Attempt to install packwiz
+      run: GOPROXY="file:///tmp/fakegoproxy/,$(go env GOPROXY)" GOSUMDB='off' go install github.com/packwiz/packwiz@v1.99.99
+  
+  run-tests:
+    name: Run go tests
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Set up Go 1.24.6
+      uses: actions/setup-go@v5
+      with:
+        go-version: 1.24.6
+      id: go
+
+    - name: Check out code into the Go module directory
+      uses: actions/checkout@v4
+
+    - name: Verify module
+      run: go mod verify
+
+    - name: Run go vet
+      run: go vet ./...
+
+    - name: Run tests
+      run: go test ./...
