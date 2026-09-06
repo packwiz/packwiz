@@ -9,6 +9,13 @@ builds:
       - linux
       - windows
       - darwin
+    goarch:
+      - "386"
+      - amd64
+      - arm
+      - arm64
+      - ppc64
+      - riscv64
 checksum:
   name_template: 'checksums.txt'
 snapshot:
