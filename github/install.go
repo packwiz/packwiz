@@ -109,6 +109,10 @@ func getLatestRelease(slug string, branch string) (Release, error) {
 		return release, err
 	}
 
+	if len(releases) == 0 {
+		return release, fmt.Errorf("repository has no releases")
+	}
+
 	if branch != "" {
 		for _, r := range releases {
 			if r.TargetCommitish == branch {
