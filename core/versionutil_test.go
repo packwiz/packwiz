@@ -133,3 +133,107 @@ func TestNeoForge261snapshot6(t *testing.T) {
 	expectValid(t, "neoforge", "26.1-snapshot-6", "26.1.0.0-alpha.9+snapshot-6")
 	expectInvalid(t, "neoforge", "26.1-snapshot-6", "26.1.0.0-alpha.11+snapshot-7")
 }
+
+func TestHighestSliceIndex(t *testing.T) {
+	cases := []struct {
+		name   string
+		slice  []string
+		values []string
+		want   int
+	}{
+		{
+			name:   "no overlap returns -1",
+			slice:  []string{"1.19", "1.20"},
+			values: []string{"1.18"},
+			want:   -1,
+		},
+		{
+			name:   "single match returns its index",
+			slice:  []string{"1.19", "1.20"},
+			values: []string{"1.20"},
+			want:   1,
+		},
+		{
+			// values that don't exist in slice are ignored; the highest
+			// index of those that DO exist wins.
+			name:   "mix of present and absent values takes the highest present",
+			slice:  []string{"1.19", "1.20"},
+			values: []string{"1.20", "1.18"},
+			want:   1,
+		},
+		{
+			name:   "all present picks highest",
+			slice:  []string{"1.19", "1.20", "1.21"},
+			values: []string{"1.19", "1.20", "1.21"},
+			want:   2,
+		},
+		{
+			name:   "empty values returns -1",
+			slice:  []string{"1.19", "1.20"},
+			values: nil,
+			want:   -1,
+		},
+		{
+			name:   "empty slice returns -1",
+			slice:  nil,
+			values: []string{"1.19"},
+			want:   -1,
+		},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := HighestSliceIndex(tc.slice, tc.values); got != tc.want {
+				t.Errorf("HighestSliceIndex(%v, %v) = %d, want %d",
+					tc.slice, tc.values, got, tc.want)
+			}
+		})
+	}
+}
+
+func TestVersionListQuery_WithQueryType(t *testing.T) {
+	// Builder method: copies the receiver, replaces QueryType, leaves
+	// Loader and McVersion intact. Verifies it doesn't mutate the
+	// original.
+	original := VersionListQuery{
+		Loader:    ModLoaderComponent{Name: "fabric", FriendlyName: "Fabric"},
+		McVersion: "1.20.1",
+		QueryType: Latest,
+	}
+
+	updated := original.WithQueryType(Recommended)
+
+	if updated.QueryType != Recommended {
+		t.Errorf("updated QueryType = %v, want Recommended", updated.QueryType)
+	}
+
+	if updated.Loader.Name != "fabric" || updated.McVersion != "1.20.1" {
+		t.Errorf("WithQueryType lost other fields: got %+v", updated)
+	}
+
+	if original.QueryType != Latest {
+		t.Errorf("WithQueryType mutated the receiver: original.QueryType = %v, want Latest", original.QueryType)
+	}
+}
+
+func TestComponentToFriendlyName(t *testing.T) {
+	cases := []struct {
+		name      string
+		component string
+		want      string
+	}{
+		{"minecraft is a hardcoded special case", "minecraft", "Minecraft"},
+		{"fabric maps to its FriendlyName", "fabric", "Fabric loader"},
+		{"neoforge maps to its FriendlyName", "neoforge", "NeoForge"},
+		{"forge maps to its FriendlyName", "forge", "Forge"},
+		{"unknown component returns input unchanged", "definitely-not-a-loader", "definitely-not-a-loader"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := ComponentToFriendlyName(tc.component); got != tc.want {
+				t.Errorf("ComponentToFriendlyName(%q) = %q, want %q", tc.component, got, tc.want)
+			}
+		})
+	}
+}
