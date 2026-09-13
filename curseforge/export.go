@@ -86,12 +86,7 @@ var exportCmd = &cobra.Command{
 			}
 		}
 
-		fileName := viper.GetString("curseforge.export.output")
-		if fileName == "" {
-			fileName = pack.GetPackName() + ".zip"
-		}
-
-		expFile, err := os.Create(fileName)
+		expFile, err := pack.CreateExportFile(viper.GetString("curseforge.export.output"), ".zip")
 		if err != nil {
 			fmt.Printf("Failed to create zip: %s\n", err.Error())
 			os.Exit(1)
@@ -183,7 +178,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println("Modpack exported to " + fileName)
+		fmt.Println("Modpack exported to " + expFile.Name())
 	},
 }
 
@@ -228,6 +223,6 @@ func init() {
 
 	exportCmd.Flags().StringP("side", "s", "client", "The side to export mods with")
 	_ = viper.BindPFlag("curseforge.export.side", exportCmd.Flags().Lookup("side"))
-	exportCmd.Flags().StringP("output", "o", "", "The file to export the modpack to")
+	exportCmd.Flags().StringP("output", "o", "", "The file or directory to export the modpack to")
 	_ = viper.BindPFlag("curseforge.export.output", exportCmd.Flags().Lookup("output"))
 }
