@@ -23,6 +23,27 @@ var initCmd = &cobra.Command{
 	Short: "Initialise a packwiz modpack",
 	Args:  cobra.NoArgs,
 	Run: func(cmd *cobra.Command, args []string) {
+             reinit := viper.GetBool("init.reinit")
+	     if reinit {
+		 pack, err := core.LoadPack()
+		 if err == nil {
+		     // Autofill values from existing pack.toml
+		     viper.Set("init.name", pack.Name)
+		     viper.Set("init.author", pack.Author)
+		     viper.Set("init.version", pack.Version)
+		     viper.Set("init.mc-version", pack.Versions["minecraft"])
+		     if loader, ok := pack.Versions["modloader"]; ok {
+			 viper.Set("init.modloader", loader)
+		     }
+		     fmt.Println("Autofilled existing pack data:")
+		     fmt.Printf("Name: %s\nAuthor: %s\nVersion: %s\nMinecraft Version: %s\nMod Loader: %s\n",
+			 pack.Name, pack.Author, pack.Version, pack.Versions["minecraft"], pack.Versions["modloader"])
+			} else {
+				fmt.Println("Error loading existing pack data:", err)
+				os.Exit(1)
+			}
+	        }
+		
 		_, err := os.Stat(viper.GetString("pack-file"))
 		if err == nil && !viper.GetBool("init.reinit") {
 			fmt.Println("Modpack metadata file already exists, use -r to override!")
