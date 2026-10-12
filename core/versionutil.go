@@ -75,10 +75,10 @@ var modLoadersList = []ModLoaderComponent{
 		FriendlyName:      "NeoForge",
 		VersionListGetter: fetchForNeoForge,
 	},
-	"purpur": {
+	{
 		Name:              "purpur",
 		FriendlyName:      "Purpur Plugin loader",
-		VersionListGetter: FetchPurpur(),
+		VersionListGetter: FetchPurpur,
 	},
 }
 
@@ -91,21 +91,19 @@ type PurpurMetadata struct {
 	} `json:"builds"`
 }
 
-func FetchPurpur() func(mcVersion string) ([]string, string, error) {
-	return func(mcVersion string) ([]string, string, error) {
-		url := fmt.Sprintf("https://api.purpurmc.org/v2/purpur/%s", mcVersion)
-		res, err := GetWithUA(url, "application/json")
-		if err != nil {
-			return []string{}, "", err
-		}
-		dec := json.NewDecoder(res.Body)
-		out := PurpurMetadata{}
-		err = dec.Decode(&out)
-		if err != nil {
-			return []string{}, "", err
-		}
-		return out.Builds.All, out.Builds.Latest, nil
+func FetchPurpur(q VersionListQuery) (*ModLoaderVersions, error) {
+	url := fmt.Sprintf("https://api.purpurmc.org/v2/purpur/%s", q.McVersion)
+	res, err := GetWithUA(url, "application/json")
+	if err != nil {
+		return &ModLoaderVersions{}, err
 	}
+	dec := json.NewDecoder(res.Body)
+	out := PurpurMetadata{}
+	err = dec.Decode(&out)
+	if err != nil {
+		return &ModLoaderVersions{}, err
+	}
+	return &ModLoaderVersions{Versions: out.Builds.All, Latest: out.Builds.Latest}, nil
 }
 
 // A map containing information about all supported modloaders.
