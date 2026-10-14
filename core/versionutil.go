@@ -75,6 +75,35 @@ var modLoadersList = []ModLoaderComponent{
 		FriendlyName:      "NeoForge",
 		VersionListGetter: fetchForNeoForge,
 	},
+	{
+		Name:              "purpur",
+		FriendlyName:      "Purpur Plugin loader",
+		VersionListGetter: FetchPurpur,
+	},
+}
+
+type PurpurMetadata struct {
+	Project          string `json:"project"`
+	VersionMinecraft string `json:"version"`
+	Builds           struct {
+		Latest string   `json:"latest"`
+		All    []string `json:"all"`
+	} `json:"builds"`
+}
+
+func FetchPurpur(q VersionListQuery) (*ModLoaderVersions, error) {
+	url := fmt.Sprintf("https://api.purpurmc.org/v2/purpur/%s", q.McVersion)
+	res, err := GetWithUA(url, "application/json")
+	if err != nil {
+		return &ModLoaderVersions{}, err
+	}
+	dec := json.NewDecoder(res.Body)
+	out := PurpurMetadata{}
+	err = dec.Decode(&out)
+	if err != nil {
+		return &ModLoaderVersions{}, err
+	}
+	return &ModLoaderVersions{Versions: out.Builds.All, Latest: out.Builds.Latest}, nil
 }
 
 // A map containing information about all supported modloaders.
