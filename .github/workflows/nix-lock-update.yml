@@ -1,32 +1,27 @@
 name: "Update flake.lock"
 on:
   workflow_dispatch:
-
 jobs:
   update-lock:
     name: lock
     runs-on: ubuntu-latest
     steps:
-
       - name: Checkout repo
-        uses: actions/checkout@v2
-
+        uses: actions/checkout@0717577d45739eb3c851188b29f50ed6c0b2194e # v2 [pinned by action-pin]
       - name: Install nix
-        uses: cachix/install-nix-action@v17
+        uses: cachix/install-nix-action@d64e0553100205688c0fb2fa16edb0fc8663c590 # v17 [pinned by action-pin]
         with:
           extra_nix_config: |
             experimental-features = nix-command flakes
           nix_path: nixpkgs=channel:nixos-unstable
         env:
           NIX_CONFIG: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-
       - name: Update flake deps
         run: nix flake update
         env:
           NIX_CONFIG: access-tokens = github.com=${{ secrets.GITHUB_TOKEN }}
-
       - name: Commit
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@3ea6ae190baf489ba007f7c92608f33ce20ef04a # v4 [pinned by action-pin]
         with:
           commit_message: "chore: update flake.lock"
           branch: main

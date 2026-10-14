@@ -1,73 +1,69 @@
 name: Go
 on: [push, workflow_dispatch]
 jobs:
-
   build:
     name: Build
     runs-on: ubuntu-latest
     steps:
+      - name: Set up Go 1.24.6
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5 [pinned by action-pin]
+        with:
+          go-version: 1.24.6
+        id: go
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 [pinned by action-pin]
+      - name: Run GoReleaser
+        uses: goreleaser/goreleaser-action@e435ccd777264be153ace6237001ef4d979d3a7a # v6 [pinned by action-pin]
+        with:
+          version: '~> v2'
+          args: --snapshot --skip publish --clean
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 [pinned by action-pin]
+        with:
+          name: Windows 64-bit
+          path: dist/packwiz_windows_amd64_v1/
+          #    - name: Upload assets
 
-    - name: Set up Go 1.24.6
-      uses: actions/setup-go@v5
-      with:
-        go-version: 1.24.6
-      id: go
+          #      uses: actions/upload-artifact@v4
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@v4
+          #      with:
 
-    - name: Run GoReleaser
-      uses: goreleaser/goreleaser-action@v6
-      with:
-        version: '~> v2'
-        args: --snapshot --skip publish --clean
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          #        name: Windows 32-bit
 
-    - name: Upload assets
-      uses: actions/upload-artifact@v4
-      with:
-        name: Windows 64-bit
-        path: dist/packwiz_windows_amd64_v1/
+          #        path: dist/packwiz_windows_386/
+      - name: Upload assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 [pinned by action-pin]
+        with:
+          name: Windows 64-bit ARM
+          path: dist/packwiz_windows_arm64/
+      - name: Upload assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 [pinned by action-pin]
+        with:
+          name: Linux 64-bit x86
+          path: dist/packwiz_linux_amd64_v1/
+          #    - name: Upload assets
 
-#    - name: Upload assets
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: Windows 32-bit
-#        path: dist/packwiz_windows_386/
+          #      uses: actions/upload-artifact@v4
 
-    - name: Upload assets
-      uses: actions/upload-artifact@v4
-      with:
-        name: Windows 64-bit ARM
-        path: dist/packwiz_windows_arm64/
+          #      with:
 
-    - name: Upload assets
-      uses: actions/upload-artifact@v4
-      with:
-        name: Linux 64-bit x86
-        path: dist/packwiz_linux_amd64_v1/
+          #        name: Linux 32-bit x86
 
-#    - name: Upload assets
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: Linux 32-bit x86
-#        path: dist/packwiz_linux_386/
-
-    - name: Upload assets
-      uses: actions/upload-artifact@v4
-      with:
-        name: Linux 64-bit ARM
-        path: dist/packwiz_linux_arm64/
-
-    - name: Upload assets
-      uses: actions/upload-artifact@v4
-      with:
-        name: macOS 64-bit x86
-        path: dist/packwiz_darwin_amd64_v1/
-
-    - name: Upload assets
-      uses: actions/upload-artifact@v4
-      with:
-        name: macOS 64-bit ARM
-        path: dist/packwiz_darwin_arm64/
+          #        path: dist/packwiz_linux_386/
+      - name: Upload assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 [pinned by action-pin]
+        with:
+          name: Linux 64-bit ARM
+          path: dist/packwiz_linux_arm64/
+      - name: Upload assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 [pinned by action-pin]
+        with:
+          name: macOS 64-bit x86
+          path: dist/packwiz_darwin_amd64_v1/
+      - name: Upload assets
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4 [pinned by action-pin]
+        with:
+          name: macOS 64-bit ARM
+          path: dist/packwiz_darwin_arm64/
