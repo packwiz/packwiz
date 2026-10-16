@@ -311,7 +311,7 @@ func installVersion(project *modrinthApi.Project, version *modrinthApi.Version, 
 						continue
 					}
 
-					for _, dep := range version.Dependencies {
+					for _, dep := range latestVersion.Dependencies {
 						// TODO: recommend optional dependencies?
 						if dep.DependencyType != nil && *dep.DependencyType == "required" {
 							if dep.ProjectID != nil {
