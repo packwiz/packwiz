@@ -4,11 +4,13 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"regexp"
 	"slices"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/viper"
 	"github.com/unascribed/FlexVer/go/flexver"
@@ -210,7 +212,45 @@ func createModFile(modInfo modInfo, fileInfo modFileInfo, index *core.Index, opt
 		Option: optional,
 		Update: updateMap,
 	}
+
+	// Populate metadata.curseforge section
+	if modInfo.Links.WebsiteURL != "" {
+		modMeta.Metadata.Curseforge.Website = modInfo.Links.WebsiteURL
+	}
+	if modInfo.Links.WikiURL != "" {
+		modMeta.Metadata.Curseforge.Wiki = modInfo.Links.WikiURL
+	}
+	if modInfo.Links.IssuesURL != "" {
+		modMeta.Metadata.Curseforge.Issues = modInfo.Links.IssuesURL
+	}
+	if modInfo.Links.SourceURL != "" {
+		modMeta.Metadata.Curseforge.Source = modInfo.Links.SourceURL
+	}
+
+	if len(modInfo.Categories) > 0 {
+		categories := make([]string, len(modInfo.Categories))
+		for i, cat := range modInfo.Categories {
+			categories[i] = cat.Slug
+		}
+		modMeta.Metadata.Curseforge.Categories = categories
+	}
+
 	path := modMeta.SetMetaPath(getPathForFile(modInfo.GameID, modInfo.ClassID, modInfo.PrimaryCategoryID, modInfo.Slug))
+
+	// Check if mod file already exists to preserve Added date
+	existingAdded := time.Now() // Default for new mods
+	if _, err := os.Stat(path); err == nil {
+		// File exists, try to load existing metadata
+		if existingMod, err := core.LoadMod(path); err == nil {
+			// Preserve the original added date
+			if !existingMod.Metadata.Curseforge.Added.IsZero() {
+				existingAdded = existingMod.Metadata.Curseforge.Added
+			}
+		}
+	}
+
+	modMeta.Metadata.Curseforge.Added = existingAdded
+	modMeta.Metadata.Curseforge.LastUpdated = fileInfo.Date
 
 	// If the file already exists, this will overwrite it!!!
 	// TODO: Should this be improved?
