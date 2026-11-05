@@ -63,11 +63,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fileName := viper.GetString("modrinth.export.output")
-		if fileName == "" {
-			fileName = pack.GetPackName() + ".mrpack"
-		}
-		expFile, err := os.Create(fileName)
+		expFile, err := pack.CreateExportFile(viper.GetString("modrinth.export.output"), ".mrpack")
 		if err != nil {
 			fmt.Printf("Failed to create zip: %s\n", err.Error())
 			os.Exit(1)
@@ -248,7 +244,7 @@ var exportCmd = &cobra.Command{
 			os.Exit(1)
 		}
 
-		fmt.Println("Modpack exported to " + fileName)
+		fmt.Println("Modpack exported to " + expFile.Name())
 	},
 }
 
@@ -278,7 +274,7 @@ func canBeIncludedDirectly(mod *core.Mod, restrictDomains bool) bool {
 func init() {
 	modrinthCmd.AddCommand(exportCmd)
 	exportCmd.Flags().Bool("restrictDomains", true, "Restricts domains to those allowed by modrinth.com")
-	exportCmd.Flags().StringP("output", "o", "", "The file to export the modpack to")
+	exportCmd.Flags().StringP("output", "o", "", "The file or directory to export the modpack to")
 	_ = viper.BindPFlag("modrinth.export.restrictDomains", exportCmd.Flags().Lookup("restrictDomains"))
 	_ = viper.BindPFlag("modrinth.export.output", exportCmd.Flags().Lookup("output"))
 }
