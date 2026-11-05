@@ -16,6 +16,8 @@ type IndexPathHolder interface {
 	markMetaFile()
 	markedFound() bool
 	IsMetaFile() bool
+	// Returns Alias if set, otherwise File.
+	AliasPath() string
 }
 
 // indexFile is a file in the index
@@ -49,6 +51,13 @@ func (i *indexFile) markedFound() bool {
 
 func (i *indexFile) IsMetaFile() bool {
 	return i.MetaFile
+}
+
+func (i *indexFile) AliasPath() string {
+	if i.Alias != "" {
+		return i.Alias
+	}
+	return i.File
 }
 
 type indexFileMultipleAlias map[string]indexFile
@@ -85,6 +94,13 @@ func (i *indexFileMultipleAlias) markedFound() bool {
 func (i *indexFileMultipleAlias) IsMetaFile() bool {
 	for _, v := range *i {
 		return v.MetaFile
+	}
+	panic("No entries in indexFileMultipleAlias")
+}
+
+func (i *indexFileMultipleAlias) AliasPath() string {
+	for _, v := range *i {
+		return v.AliasPath()
 	}
 	panic("No entries in indexFileMultipleAlias")
 }
