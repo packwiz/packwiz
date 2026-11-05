@@ -57,6 +57,26 @@ var listCmd = &cobra.Command{
 			mods = mods[:i]
 		}
 
+		// Filter mods by pin status
+		showPinned := viper.GetBool("list.pinned")
+		showUnpinned := viper.GetBool("list.unpinned")
+
+		if showPinned && showUnpinned {
+			fmt.Println("Cannot specify both --pinned and --unpinned flags")
+			os.Exit(1)
+		}
+
+		if showPinned || showUnpinned {
+			i := 0
+			for _, mod := range mods {
+				if (showPinned && mod.Pin) || (showUnpinned && !mod.Pin) {
+					mods[i] = mod
+					i++
+				}
+			}
+			mods = mods[:i]
+		}
+
 		sort.Slice(mods, func(i, j int) bool {
 			return strings.ToLower(mods[i].Name) < strings.ToLower(mods[j].Name)
 		})
@@ -81,5 +101,9 @@ func init() {
 	_ = viper.BindPFlag("list.version", listCmd.Flags().Lookup("version"))
 	listCmd.Flags().StringP("side", "s", "", "Filter mods by side (e.g., client or server)")
 	_ = viper.BindPFlag("list.side", listCmd.Flags().Lookup("side"))
+	listCmd.Flags().Bool("pinned", false, "Show only pinned mods")
+	_ = viper.BindPFlag("list.pinned", listCmd.Flags().Lookup("pinned"))
+	listCmd.Flags().Bool("unpinned", false, "Show only unpinned mods")
+	_ = viper.BindPFlag("list.unpinned", listCmd.Flags().Lookup("unpinned"))
 
 }
