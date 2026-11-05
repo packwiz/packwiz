@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"unicode"
 
 	"github.com/BurntSushi/toml"
 	"github.com/Masterminds/semver/v3"
@@ -181,13 +182,33 @@ func (pack Pack) GetSupportedMCVersions() ([]string, error) {
 	return allVersionsDeduped, nil
 }
 
+func (pack Pack) GetSlug() string {
+	var builder strings.Builder
+	builder.Grow(len(pack.Name))
+	isSpace := true
+	for _, r := range pack.Name {
+		if unicode.IsLetter(r) || unicode.IsDigit(r) || r == '-' {
+			builder.WriteRune(unicode.ToLower(r))
+			isSpace = false
+		} else if unicode.IsSpace(r) && !isSpace {
+			builder.WriteRune('-')
+			isSpace = true
+		}
+	}
+
+	slug := strings.TrimRight(builder.String(), "-")
+	if slug == "" {
+		slug = "export"
+	}
+
+	return slug
+}
+
 func (pack Pack) GetPackName() string {
-	if pack.Name == "" {
-		return "export"
-	} else if pack.Version == "" {
-		return pack.Name
+	if pack.Version == "" {
+		return pack.GetSlug()
 	} else {
-		return pack.Name + "-" + pack.Version
+		return pack.GetSlug() + "-" + pack.Version
 	}
 }
 
