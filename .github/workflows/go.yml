@@ -40,7 +40,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Windows 64-bit ARM
-        path: dist/packwiz_windows_arm64/
+        path: dist/packwiz_windows_arm64_v8.0/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
@@ -58,7 +58,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: Linux 64-bit ARM
-        path: dist/packwiz_linux_arm64/
+        path: dist/packwiz_linux_arm64_v8.0/
 
     - name: Upload assets
       uses: actions/upload-artifact@v4
@@ -70,4 +70,4 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: macOS 64-bit ARM
-        path: dist/packwiz_darwin_arm64/
+        path: dist/packwiz_darwin_arm64_v8.0/
